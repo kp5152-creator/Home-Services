@@ -1,0 +1,6 @@
+.next
+node_modules
+.env*.local
+*.log
+public/uploads
+data/db.local-backup.json

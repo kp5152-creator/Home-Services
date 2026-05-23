@@ -1,0 +1,35 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  background:
+    linear-gradient(135deg, rgba(243, 201, 105, 0.2), transparent 35%),
+    linear-gradient(315deg, rgba(110, 132, 120, 0.18), transparent 38%),
+    #fbfaf7;
+  color: #17211f;
+}
+
+button,
+input,
+textarea {
+  font: inherit;
+}
+
+@media print {
+  .no-print {
+    display: none !important;
+  }
+
+  body {
+    background: white;
+  }
+}

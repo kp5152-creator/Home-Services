@@ -1,0 +1,15 @@
+{
+  "properties": [
+    {
+      "id": "property-1",
+      "name": "Sample Desert Residence",
+      "owner": "Sample Homeowner",
+      "address": "Coachella Valley, CA",
+      "phone": "",
+      "email": "",
+      "accessNotes": "Replace this sample property after deployment.",
+      "status": "Active"
+    }
+  ],
+  "inspections": []
+}
