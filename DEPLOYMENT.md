@@ -41,9 +41,13 @@ Add:
 SUPABASE_URL=your Supabase project URL
 SUPABASE_SERVICE_ROLE_KEY=your Supabase service role key
 SUPABASE_STORAGE_BUCKET=inspection-photos
+APP_USERNAME=admin
+APP_PASSWORD=choose-a-strong-password
 ```
 
 Use the same values for Production, Preview, and Development.
+
+`APP_PASSWORD` turns on password protection for the live app. Choose something private before adding real homeowner data.
 
 ## 4. Deploy
 
