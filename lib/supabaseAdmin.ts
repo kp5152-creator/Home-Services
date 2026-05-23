@@ -5,7 +5,7 @@ export function hasSupabaseConfig() {
 }
 
 export function supabaseAdmin() {
-  const supabaseUrl = process.env.SUPABASE_URL;
+  const supabaseUrl = normalizeSupabaseUrl(process.env.SUPABASE_URL);
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
   if (!supabaseUrl || !serviceRoleKey) {
@@ -21,4 +21,15 @@ export function supabaseAdmin() {
 
 export function storageBucket() {
   return process.env.SUPABASE_STORAGE_BUCKET || "inspection-photos";
+}
+
+function normalizeSupabaseUrl(value: string | undefined) {
+  if (!value) return undefined;
+
+  try {
+    const url = new URL(value);
+    return url.origin;
+  } catch {
+    return value.replace(/\/rest\/v1\/?$/i, "").replace(/\/+$/, "");
+  }
 }
