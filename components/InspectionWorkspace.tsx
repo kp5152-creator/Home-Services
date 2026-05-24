@@ -171,6 +171,16 @@ const experienceScreens: ExperienceScreen[] = [
   "Owner Portal"
 ];
 
+const mobileExperienceScreens: ExperienceScreen[] = [
+  "Dashboard",
+  "Property",
+  "Inspection",
+  "Schedule",
+  "Maintenance",
+  "Reports",
+  "Owner Portal"
+];
+
 function formatDateTime(value: string | Date) {
   const date = value instanceof Date ? value : new Date(value);
   return new Intl.DateTimeFormat("en-US", {
@@ -658,25 +668,25 @@ export default function InspectionWorkspace({
   }
 
   return (
-    <main className={`mx-auto min-h-screen w-full max-w-[1480px] p-3 sm:p-6 ${darkMode ? "luxury-dark" : ""}`}>
+    <main className={`mx-auto min-h-screen w-full max-w-[1480px] p-3 pb-28 sm:p-6 xl:pb-6 ${darkMode ? "luxury-dark" : ""}`}>
       <section className="mb-5 overflow-hidden rounded-lg bg-ink text-white shadow-estate">
-        <div className="flex min-h-36 flex-col justify-between gap-5 bg-[linear-gradient(135deg,rgba(217,154,92,0.22),transparent_42%),linear-gradient(315deg,rgba(95,120,108,0.45),transparent_48%)] p-5 md:flex-row md:items-center md:p-7">
+        <div className="flex min-h-28 flex-col justify-between gap-5 bg-[linear-gradient(135deg,rgba(217,154,92,0.22),transparent_42%),linear-gradient(315deg,rgba(95,120,108,0.45),transparent_48%)] p-5 md:flex-row md:items-center md:p-7 xl:min-h-36">
           <div className="flex items-center gap-4">
             <img
               src="/apple-touch-icon.png"
               alt=""
-              className="h-16 w-16 shrink-0 rounded-[18px] border border-white/20 shadow-lift"
+              className="h-12 w-12 shrink-0 rounded-[14px] border border-white/20 shadow-lift xl:h-16 xl:w-16 xl:rounded-[18px]"
             />
             <div>
               <p className="mb-2 text-xs font-extrabold uppercase tracking-[0.16em] text-[#f1c27d]">
                 Coachella Valley Home Watch
               </p>
-              <h1 className="text-4xl font-extrabold leading-none tracking-normal sm:text-6xl">
+              <h1 className="text-3xl font-extrabold leading-none tracking-normal sm:text-5xl xl:text-6xl">
                 Desert Estate Watch
               </h1>
             </div>
           </div>
-          <div className="rounded-lg border border-white/15 bg-white/10 px-5 py-4 text-left text-white/78 md:min-w-48 md:text-right">
+          <div className="hidden rounded-lg border border-white/15 bg-white/10 px-5 py-4 text-left text-white/78 md:min-w-48 md:text-right xl:block">
             <span className="block">{formatShortDate(now)}</span>
             <strong className="block text-2xl text-white">
               {new Intl.DateTimeFormat("en-US", { hour: "numeric", minute: "2-digit" }).format(now)}
@@ -685,7 +695,7 @@ export default function InspectionWorkspace({
         </div>
       </section>
 
-      <section className="estate-panel no-print mb-5 rounded-lg p-3 sm:p-4">
+      <section className="estate-panel no-print mb-5 hidden rounded-lg p-3 sm:p-4 xl:block">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
           <div className="flex gap-2 overflow-x-auto pb-1">
             {experienceScreens.map((screen) => (
@@ -753,7 +763,7 @@ export default function InspectionWorkspace({
       />
 
       <section className="grid gap-5 xl:grid-cols-[300px_minmax(0,1fr)_400px]">
-        <aside className="estate-panel no-print rounded-lg p-5">
+        <aside className={`estate-panel no-print rounded-lg p-5 ${activeExperience === "Property" ? "" : "hidden"} xl:block`}>
           <div className="mb-5 flex items-start justify-between gap-3">
             <div>
               <p className="mb-2 text-xs font-extrabold uppercase tracking-[0.1em] text-clay">
@@ -816,7 +826,7 @@ export default function InspectionWorkspace({
         </aside>
 
         <section className="grid gap-5">
-          <section className="estate-panel rounded-lg p-5">
+          <section className={`estate-panel rounded-lg p-5 ${activeExperience === "Property" ? "" : "hidden"} xl:block`}>
             <div className="mb-5 flex items-start justify-between gap-3">
               <div>
                 <p className="mb-2 text-xs font-extrabold uppercase tracking-[0.1em] text-clay">
@@ -840,7 +850,7 @@ export default function InspectionWorkspace({
             ) : null}
           </section>
 
-          <section className="estate-panel no-print rounded-lg p-5">
+          <section className={`estate-panel no-print rounded-lg p-5 ${activeExperience === "Inspection" ? "" : "hidden"} xl:block`}>
             <div className="mb-5 flex items-start justify-between gap-3">
               <div>
                 <p className="mb-2 text-xs font-extrabold uppercase tracking-[0.1em] text-clay">
@@ -1038,7 +1048,7 @@ export default function InspectionWorkspace({
           </section>
         </section>
 
-        <aside className="estate-panel rounded-lg p-5">
+        <aside className={`estate-panel rounded-lg p-5 ${activeExperience === "Reports" ? "" : "hidden"} xl:block`}>
           <div className="mb-5 flex items-start justify-between gap-3">
             <div>
               <p className="mb-2 text-xs font-extrabold uppercase tracking-[0.1em] text-clay">
@@ -1095,6 +1105,25 @@ export default function InspectionWorkspace({
           </div>
         </aside>
       </section>
+
+      <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-line bg-white/95 px-2 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-2 shadow-[0_-12px_32px_rgba(35,45,41,0.12)] backdrop-blur-xl xl:hidden">
+        <div className="mx-auto flex max-w-[520px] gap-2 overflow-x-auto">
+          {mobileExperienceScreens.map((screen) => (
+            <button
+              key={screen}
+              type="button"
+              onClick={() => setActiveExperience(screen)}
+              className={`min-h-12 shrink-0 rounded-lg px-3 text-xs font-extrabold transition ${
+                activeExperience === screen
+                  ? "bg-ink text-white shadow-lift"
+                  : "bg-[#f4f6f4] text-slate-700"
+              }`}
+            >
+              {screen === "Owner Portal" ? "Owner" : screen}
+            </button>
+          ))}
+        </div>
+      </nav>
 
       {showPropertyForm ? (
         <div className="fixed inset-0 z-20 grid place-items-center bg-ink/45 p-4 backdrop-blur-sm">
