@@ -8,6 +8,7 @@ import type {
   MaintenanceIssuePhoto,
   MaintenancePriority,
   MaintenanceStatus,
+  OwnerUpdate,
   Property,
   ScheduleTask,
   ScheduleTaskStatus,
@@ -55,7 +56,8 @@ export async function readDatabase(): Promise<Database> {
       }))
     })),
     vendors: database.vendors ?? [],
-    scheduleTasks: database.scheduleTasks ?? []
+    scheduleTasks: database.scheduleTasks ?? [],
+    ownerUpdates: database.ownerUpdates ?? []
   };
 }
 
@@ -162,6 +164,23 @@ export async function addScheduleTask(task: Omit<ScheduleTask, "id" | "createdAt
   return newTask;
 }
 
+export async function addOwnerUpdate(update: Omit<OwnerUpdate, "id" | "createdAt">) {
+  if (hasSupabaseConfig()) {
+    return addSupabaseOwnerUpdate(update);
+  }
+
+  const database = await readDatabase();
+  const newUpdate: OwnerUpdate = {
+    id: `owner-update-${Date.now()}`,
+    createdAt: new Date().toISOString(),
+    ...update
+  };
+
+  database.ownerUpdates = [newUpdate, ...(database.ownerUpdates ?? [])];
+  await writeDatabase(database);
+  return newUpdate;
+}
+
 export async function updateMaintenanceIssueStatus(issueId: string, status: MaintenanceStatus) {
   return updateMaintenanceIssue(issueId, { status });
 }
@@ -231,7 +250,8 @@ export async function deleteProperty(propertyId: string) {
     inspections: database.inspections.filter((inspection) => inspection.propertyId !== propertyId),
     maintenanceIssues: (database.maintenanceIssues ?? []).filter((issue) => issue.propertyId !== propertyId),
     vendors: (database.vendors ?? []).filter((vendor) => vendor.propertyId !== propertyId),
-    scheduleTasks: (database.scheduleTasks ?? []).filter((task) => task.propertyId !== propertyId)
+    scheduleTasks: (database.scheduleTasks ?? []).filter((task) => task.propertyId !== propertyId),
+    ownerUpdates: (database.ownerUpdates ?? []).filter((update) => update.propertyId !== propertyId)
   };
 
   await Promise.all(
@@ -388,7 +408,8 @@ async function readSupabaseDatabase(): Promise<Database> {
     { data: inspections, error: inspectionsError },
     { data: maintenanceIssues, error: maintenanceIssuesError },
     { data: vendors, error: vendorsError },
-    { data: scheduleTasks, error: scheduleTasksError }
+    { data: scheduleTasks, error: scheduleTasksError },
+    { data: ownerUpdates, error: ownerUpdatesError }
   ] = await Promise.all([
     supabase.from("properties").select("*").order("created_at", { ascending: false }),
     supabase.from("inspections").select("*, inspection_photos(*)").order("timestamp", { ascending: false }),
@@ -397,7 +418,8 @@ async function readSupabaseDatabase(): Promise<Database> {
       .select("*, maintenance_issue_photos(*)")
       .order("created_at", { ascending: false }),
     supabase.from("vendors").select("*").order("created_at", { ascending: false }),
-    supabase.from("schedule_tasks").select("*").order("scheduled_for", { ascending: true })
+    supabase.from("schedule_tasks").select("*").order("scheduled_for", { ascending: true }),
+    supabase.from("owner_updates").select("*").order("created_at", { ascending: false })
   ]);
 
   if (propertiesError) throw propertiesError;
@@ -405,6 +427,7 @@ async function readSupabaseDatabase(): Promise<Database> {
   const maintenanceIssueRows = maintenanceIssuesError ? [] : (maintenanceIssues ?? []);
   const vendorRows = vendorsError ? [] : (vendors ?? []);
   const scheduleTaskRows = scheduleTasksError ? [] : (scheduleTasks ?? []);
+  const ownerUpdateRows = ownerUpdatesError ? [] : (ownerUpdates ?? []);
 
   return {
     properties: (properties ?? []).map((property) => ({
@@ -475,6 +498,15 @@ async function readSupabaseDatabase(): Promise<Database> {
       status: task.status,
       assignedTo: task.assigned_to ?? "",
       notes: task.notes ?? ""
+    })),
+    ownerUpdates: ownerUpdateRows.map((update) => ({
+      id: update.id,
+      propertyId: update.property_id,
+      createdAt: update.created_at,
+      category: update.category,
+      title: update.title,
+      message: update.message ?? "",
+      status: update.status
     }))
   };
 }
@@ -641,6 +673,28 @@ async function addSupabaseScheduleTask(task: Omit<ScheduleTask, "id" | "createdA
 
   if (error) throw error;
   return newTask;
+}
+
+async function addSupabaseOwnerUpdate(update: Omit<OwnerUpdate, "id" | "createdAt">) {
+  const supabase = supabaseAdmin();
+  const newUpdate: OwnerUpdate = {
+    id: `owner-update-${Date.now()}`,
+    createdAt: new Date().toISOString(),
+    ...update
+  };
+
+  const { error } = await supabase.from("owner_updates").insert({
+    id: newUpdate.id,
+    created_at: newUpdate.createdAt,
+    property_id: newUpdate.propertyId,
+    category: newUpdate.category,
+    title: newUpdate.title,
+    message: newUpdate.message,
+    status: newUpdate.status
+  });
+
+  if (error) throw error;
+  return newUpdate;
 }
 
 async function updateSupabaseScheduleTaskStatus(taskId: string, status: ScheduleTaskStatus) {

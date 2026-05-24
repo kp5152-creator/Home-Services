@@ -16,6 +16,9 @@ import type {
   MaintenanceIssue,
   MaintenancePriority,
   MaintenanceStatus,
+  OwnerUpdate,
+  OwnerUpdateCategory,
+  OwnerUpdateStatus,
   Property,
   ScheduleTask,
   ScheduleTaskStatus,
@@ -60,6 +63,13 @@ type ScheduleTaskForm = {
   status: ScheduleTaskStatus;
   assignedTo: string;
   notes: string;
+};
+
+type OwnerUpdateForm = {
+  category: OwnerUpdateCategory;
+  title: string;
+  message: string;
+  status: OwnerUpdateStatus;
 };
 
 type InspectionForm = {
@@ -129,7 +139,16 @@ const emptyScheduleTaskForm: ScheduleTaskForm = {
   notes: ""
 };
 
+const emptyOwnerUpdateForm: OwnerUpdateForm = {
+  category: "General",
+  title: "",
+  message: "",
+  status: "Draft"
+};
+
 const vendorTypes: VendorType[] = ["Pool", "Landscape", "HVAC", "Cleaning", "Handyman", "Plumbing", "Electrical", "Other"];
+const ownerUpdateCategories: OwnerUpdateCategory[] = ["Inspection", "Maintenance", "Vendor", "Arrival", "General"];
+const ownerUpdateStatuses: OwnerUpdateStatus[] = ["Draft", "Shared", "Archived"];
 const scheduleTaskTypes: ScheduleTaskType[] = [
   "Home Watch",
   "Pre-Guest Arrival",
@@ -220,6 +239,7 @@ export default function InspectionWorkspace({
   );
   const [vendors, setVendors] = useState<VendorContact[]>(initialDatabase.vendors ?? []);
   const [scheduleTasks, setScheduleTasks] = useState<ScheduleTask[]>(initialDatabase.scheduleTasks ?? []);
+  const [ownerUpdates, setOwnerUpdates] = useState<OwnerUpdate[]>(initialDatabase.ownerUpdates ?? []);
   const [selectedPropertyId, setSelectedPropertyId] = useState(initialDatabase.properties[0]?.id ?? "");
   const [activeReportId, setActiveReportId] = useState(initialDatabase.inspections[0]?.id ?? "");
   const [inspectionForm, setInspectionForm] = useState<InspectionForm>(emptyInspectionForm);
@@ -228,10 +248,13 @@ export default function InspectionWorkspace({
     useState<MaintenanceIssueForm>(emptyMaintenanceIssueForm);
   const [vendorForm, setVendorForm] = useState<VendorForm>(emptyVendorForm);
   const [scheduleTaskForm, setScheduleTaskForm] = useState<ScheduleTaskForm>(emptyScheduleTaskForm);
+  const [ownerUpdateForm, setOwnerUpdateForm] = useState<OwnerUpdateForm>(emptyOwnerUpdateForm);
   const [vendorSaveMessage, setVendorSaveMessage] = useState("");
   const [isSavingVendor, setIsSavingVendor] = useState(false);
   const [scheduleSaveMessage, setScheduleSaveMessage] = useState("");
   const [isSavingScheduleTask, setIsSavingScheduleTask] = useState(false);
+  const [ownerUpdateSaveMessage, setOwnerUpdateSaveMessage] = useState("");
+  const [isSavingOwnerUpdate, setIsSavingOwnerUpdate] = useState(false);
   const [propertySaveMessage, setPropertySaveMessage] = useState("");
   const [isSavingProperty, setIsSavingProperty] = useState(false);
   const [maintenanceSaveMessage, setMaintenanceSaveMessage] = useState("");
@@ -268,6 +291,15 @@ export default function InspectionWorkspace({
         .slice()
         .sort((a, b) => new Date(a.scheduledFor).getTime() - new Date(b.scheduledFor).getTime()),
     [scheduleTasks, selectedProperty?.id]
+  );
+
+  const selectedOwnerUpdates = useMemo(
+    () =>
+      ownerUpdates
+        .filter((update) => update.propertyId === selectedProperty?.id)
+        .slice()
+        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()),
+    [ownerUpdates, selectedProperty?.id]
   );
 
   const upcomingScheduleTasks = useMemo(
@@ -375,6 +407,7 @@ export default function InspectionWorkspace({
     setMaintenanceIssues(database.maintenanceIssues ?? []);
     setVendors(database.vendors ?? []);
     setScheduleTasks(database.scheduleTasks ?? []);
+    setOwnerUpdates(database.ownerUpdates ?? []);
     setSelectedPropertyId(database.properties[0]?.id ?? "");
     setActiveReportId("");
   }
@@ -450,6 +483,43 @@ export default function InspectionWorkspace({
       setScheduleSaveMessage("Scheduled item could not be saved. Check your connection and try again.");
     } finally {
       setIsSavingScheduleTask(false);
+    }
+  }
+
+  async function saveOwnerUpdate(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!selectedProperty) {
+      setOwnerUpdateSaveMessage("Select a property before saving an owner update.");
+      return;
+    }
+
+    setIsSavingOwnerUpdate(true);
+    setOwnerUpdateSaveMessage("Saving owner update...");
+
+    try {
+      const response = await fetch("/api/owner-updates", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...ownerUpdateForm,
+          propertyId: selectedProperty.id
+        })
+      });
+
+      if (!response.ok) {
+        const error = (await response.json().catch(() => null)) as { message?: string } | null;
+        setOwnerUpdateSaveMessage(error?.message || "Owner update could not be saved.");
+        return;
+      }
+
+      const update = (await response.json()) as OwnerUpdate;
+      setOwnerUpdates((current) => [update, ...current]);
+      setOwnerUpdateForm(emptyOwnerUpdateForm);
+      setOwnerUpdateSaveMessage(`Owner update saved: ${update.title}`);
+    } catch {
+      setOwnerUpdateSaveMessage("Owner update could not be saved. Check your connection and try again.");
+    } finally {
+      setIsSavingOwnerUpdate(false);
     }
   }
 
@@ -650,6 +720,9 @@ export default function InspectionWorkspace({
         properties={properties}
         maintenanceIssueForm={maintenanceIssueForm}
         maintenanceIssues={selectedMaintenanceIssues}
+        ownerUpdateForm={ownerUpdateForm}
+        ownerUpdateSaveMessage={ownerUpdateSaveMessage}
+        ownerUpdates={selectedOwnerUpdates}
         scheduleTaskForm={scheduleTaskForm}
         scheduleSaveMessage={scheduleSaveMessage}
         scheduleTasks={selectedScheduleTasks}
@@ -660,11 +733,14 @@ export default function InspectionWorkspace({
         selectedProperty={selectedProperty}
         setActiveExperience={setActiveExperience}
         setMaintenanceIssueForm={setMaintenanceIssueForm}
+        setOwnerUpdateForm={setOwnerUpdateForm}
         setScheduleTaskForm={setScheduleTaskForm}
         addMaintenanceIssuePhotoFiles={addMaintenanceIssuePhotoFiles}
         saveMaintenanceIssue={saveMaintenanceIssue}
+        saveOwnerUpdate={saveOwnerUpdate}
         saveScheduleTask={saveScheduleTask}
         isSavingMaintenanceIssue={isSavingMaintenanceIssue}
+        isSavingOwnerUpdate={isSavingOwnerUpdate}
         isSavingScheduleTask={isSavingScheduleTask}
         maintenanceSaveMessage={maintenanceSaveMessage}
         upcomingScheduleTasks={upcomingScheduleTasks}
@@ -1114,11 +1190,15 @@ function LuxuryExperiencePanel({
   maintenanceIssues,
   maintenanceSaveMessage,
   now,
+  ownerUpdateForm,
+  ownerUpdateSaveMessage,
+  ownerUpdates,
   properties,
   scheduleTaskForm,
   scheduleSaveMessage,
   scheduleTasks,
   saveMaintenanceIssue,
+  saveOwnerUpdate,
   saveScheduleTask,
   saveVendor,
   selectedInspections,
@@ -1126,8 +1206,10 @@ function LuxuryExperiencePanel({
   selectedVendors,
   setActiveExperience,
   setMaintenanceIssueForm,
+  setOwnerUpdateForm,
   setScheduleTaskForm,
   setVendorForm,
+  isSavingOwnerUpdate,
   isSavingScheduleTask,
   isSavingMaintenanceIssue,
   upcomingScheduleTasks,
@@ -1146,11 +1228,15 @@ function LuxuryExperiencePanel({
   maintenanceIssues: MaintenanceIssue[];
   maintenanceSaveMessage: string;
   now: Date;
+  ownerUpdateForm: OwnerUpdateForm;
+  ownerUpdateSaveMessage: string;
+  ownerUpdates: OwnerUpdate[];
   properties: Property[];
   scheduleTaskForm: ScheduleTaskForm;
   scheduleSaveMessage: string;
   scheduleTasks: ScheduleTask[];
   saveMaintenanceIssue: (event: FormEvent<HTMLFormElement>) => void;
+  saveOwnerUpdate: (event: FormEvent<HTMLFormElement>) => void;
   saveScheduleTask: (event: FormEvent<HTMLFormElement>) => void;
   saveVendor: (event: FormEvent<HTMLFormElement>) => void;
   selectedInspections: Inspection[];
@@ -1158,8 +1244,10 @@ function LuxuryExperiencePanel({
   selectedVendors: VendorContact[];
   setActiveExperience: (screen: ExperienceScreen) => void;
   setMaintenanceIssueForm: Dispatch<SetStateAction<MaintenanceIssueForm>>;
+  setOwnerUpdateForm: Dispatch<SetStateAction<OwnerUpdateForm>>;
   setScheduleTaskForm: Dispatch<SetStateAction<ScheduleTaskForm>>;
   setVendorForm: Dispatch<SetStateAction<VendorForm>>;
+  isSavingOwnerUpdate: boolean;
   isSavingScheduleTask: boolean;
   updateMaintenanceStatus: (issueId: string, status: MaintenanceStatus) => void;
   updateMaintenanceIssue: (issueId: string, updates: Partial<MaintenanceIssueForm>) => Promise<MaintenanceIssue>;
@@ -1791,21 +1879,96 @@ function LuxuryExperiencePanel({
             <div className="grid gap-3">
               <MetricCard label="Property condition" value="Excellent" detail="No urgent action required" />
               <MetricCard label="Last visit" value={recentReport ? formatDateTime(recentReport.timestamp) : "Pending"} detail="Inspection history" />
+              <MetricCard
+                label="Owner updates"
+                value={`${ownerUpdates.filter((update) => update.status === "Shared").length}`}
+                detail="Shared with homeowner"
+              />
             </div>
           </ConceptCard>
+
+          <ConceptCard eyebrow="Owner update" title="Create homeowner-facing note">
+            <form className="grid gap-3" onSubmit={saveOwnerUpdate}>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <label className="grid gap-2 text-sm font-extrabold">
+                  Category
+                  <select
+                    value={ownerUpdateForm.category}
+                    onChange={(event) =>
+                      setOwnerUpdateForm((current) => ({
+                        ...current,
+                        category: event.target.value as OwnerUpdateCategory
+                      }))
+                    }
+                    className="field-shell rounded-lg p-3"
+                  >
+                    {ownerUpdateCategories.map((category) => (
+                      <option key={category}>{category}</option>
+                    ))}
+                  </select>
+                </label>
+                <label className="grid gap-2 text-sm font-extrabold">
+                  Visibility
+                  <select
+                    value={ownerUpdateForm.status}
+                    onChange={(event) =>
+                      setOwnerUpdateForm((current) => ({
+                        ...current,
+                        status: event.target.value as OwnerUpdateStatus
+                      }))
+                    }
+                    className="field-shell rounded-lg p-3"
+                  >
+                    {ownerUpdateStatuses.map((status) => (
+                      <option key={status}>{status}</option>
+                    ))}
+                  </select>
+                </label>
+              </div>
+              <label className="grid gap-2 text-sm font-extrabold">
+                Update title
+                <input
+                  required
+                  value={ownerUpdateForm.title}
+                  onChange={(event) => setOwnerUpdateForm((current) => ({ ...current, title: event.target.value }))}
+                  className="field-shell rounded-lg p-3"
+                  placeholder="Weekly inspection completed"
+                />
+              </label>
+              <label className="grid gap-2 text-sm font-extrabold">
+                Homeowner message
+                <textarea
+                  rows={5}
+                  value={ownerUpdateForm.message}
+                  onChange={(event) => setOwnerUpdateForm((current) => ({ ...current, message: event.target.value }))}
+                  className="field-shell rounded-lg p-3"
+                  placeholder="Write the concise, professional update the homeowner should see."
+                />
+              </label>
+              {ownerUpdateSaveMessage ? (
+                <div className="rounded-lg border border-line bg-white p-3 text-sm font-semibold text-slate-600">
+                  {ownerUpdateSaveMessage}
+                </div>
+              ) : null}
+              <button
+                type="submit"
+                disabled={isSavingOwnerUpdate}
+                className="button-primary min-h-12 rounded-lg px-5 font-extrabold disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {isSavingOwnerUpdate ? "Saving..." : "Save Owner Update"}
+              </button>
+            </form>
+          </ConceptCard>
+
           <ConceptCard eyebrow="Activity timeline" title="Transparent service record">
             <div className="grid gap-3">
-              {[
-                "Inspection report generated",
-                "Pool area verified",
-                "Cleaner completion confirmed",
-                "Owner notification sent"
-              ].map((item) => (
-                <div key={item} className="rounded-lg border border-line bg-white p-3">
-                  <strong className="block">{item}</strong>
-                  <span className="text-sm text-slate-600">Timestamped operational update</span>
+              {ownerUpdates.length ? (
+                ownerUpdates.map((update) => <OwnerUpdateCard key={update.id} update={update} />)
+              ) : (
+                <div className="rounded-lg border border-line bg-white p-4 text-sm text-slate-600">
+                  No owner updates have been saved for this property yet.
                 </div>
-              ))}
+              )}
             </div>
           </ConceptCard>
         </div>
@@ -1849,6 +2012,35 @@ function MetricCard({
       <strong className={`mt-2 block text-3xl font-extrabold ${urgent ? "text-[#9f352e]" : "text-ink"}`}>{value}</strong>
       <span className="mt-1 block text-sm text-slate-600">{detail}</span>
     </div>
+  );
+}
+
+function OwnerUpdateCard({ update }: { update: OwnerUpdate }) {
+  const statusClass =
+    update.status === "Shared"
+      ? "border-[#c9ddd1] bg-[#f3f8f4] text-sage-dark"
+      : update.status === "Archived"
+        ? "border-line bg-[#fbfcfb] text-slate-600"
+        : "border-[#ead2a8] bg-[#fff8ed] text-[#7b5426]";
+
+  return (
+    <article className={`rounded-lg border p-4 ${statusClass}`}>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <span className="text-xs font-extrabold uppercase tracking-[0.08em] opacity-75">
+            {update.category}
+          </span>
+          <h4 className="mt-1 text-lg font-extrabold">{update.title}</h4>
+        </div>
+        <span className="rounded-full border border-current/20 px-3 py-1 text-xs font-extrabold">
+          {update.status}
+        </span>
+      </div>
+      <p className="mt-3 text-sm leading-6 opacity-80">
+        {update.message || "No message added."}
+      </p>
+      <span className="mt-3 block text-xs font-semibold opacity-65">{formatDateTime(update.createdAt)}</span>
+    </article>
   );
 }
 

@@ -10,6 +10,8 @@ export type ScheduleTaskType =
   | "Vendor"
   | "Other";
 export type ScheduleTaskStatus = "Scheduled" | "In Progress" | "Complete" | "Skipped";
+export type OwnerUpdateCategory = "Inspection" | "Maintenance" | "Vendor" | "Arrival" | "General";
+export type OwnerUpdateStatus = "Draft" | "Shared" | "Archived";
 export type VendorType =
   | "Pool"
   | "Landscape"
@@ -91,10 +93,21 @@ export type ScheduleTask = {
   notes: string;
 };
 
+export type OwnerUpdate = {
+  id: string;
+  propertyId: string;
+  createdAt: string;
+  category: OwnerUpdateCategory;
+  title: string;
+  message: string;
+  status: OwnerUpdateStatus;
+};
+
 export type Database = {
   properties: Property[];
   inspections: Inspection[];
   maintenanceIssues: MaintenanceIssue[];
   vendors: VendorContact[];
   scheduleTasks: ScheduleTask[];
+  ownerUpdates: OwnerUpdate[];
 };
