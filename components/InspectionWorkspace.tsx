@@ -1559,6 +1559,25 @@ function LuxuryExperiencePanel({
                 ))}
               </select>
             </label>
+            <div className="mb-4 grid grid-cols-2 gap-2">
+              <MobileStatusTile
+                label="Last Report"
+                value={recentReport ? formatDateTime(recentReport.timestamp) : "Pending"}
+              />
+              <MobileStatusTile
+                label="Open Issues"
+                value={`${openMaintenanceCount}`}
+                urgent={openMaintenanceCount > 0}
+              />
+              <MobileStatusTile
+                label="Upcoming"
+                value={upcomingScheduleTasks[0] ? upcomingScheduleTasks[0].type : "None"}
+              />
+              <MobileStatusTile
+                label="Owner Updates"
+                value={`${ownerUpdates.length}`}
+              />
+            </div>
             <div className="grid gap-3">
               <MobileActionButton
                 label="Start Inspection"
@@ -2323,6 +2342,27 @@ function MobileProgressTile({
     <div className={`rounded-lg border p-3 ${urgent ? "border-[#e7cbc4] bg-[#fff8f6]" : "border-line bg-white"}`}>
       <span className="block text-xs font-extrabold uppercase tracking-[0.08em] text-slate-500">{label}</span>
       <strong className={`mt-1 block text-xl font-extrabold ${urgent ? "text-[#9f352e]" : "text-ink"}`}>
+        {value}
+      </strong>
+    </div>
+  );
+}
+
+function MobileStatusTile({
+  label,
+  urgent = false,
+  value
+}: {
+  label: string;
+  urgent?: boolean;
+  value: string;
+}) {
+  return (
+    <div className={`min-h-20 rounded-lg border p-3 ${urgent ? "border-[#e7cbc4] bg-[#fff8f6]" : "border-line bg-white"}`}>
+      <span className="block text-[0.68rem] font-extrabold uppercase tracking-[0.08em] text-slate-500">
+        {label}
+      </span>
+      <strong className={`mt-2 block truncate text-sm font-extrabold ${urgent ? "text-[#9f352e]" : "text-ink"}`}>
         {value}
       </strong>
     </div>
