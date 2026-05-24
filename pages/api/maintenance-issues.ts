@@ -1,5 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from "next";
-import { addMaintenanceIssue } from "@/lib/db";
+import { addMaintenanceIssue, updateMaintenanceIssueStatus } from "@/lib/db";
 import type { MaintenancePriority, MaintenanceStatus } from "@/lib/types";
 
 const priorities: MaintenancePriority[] = ["Low", "Medium", "High", "Urgent"];
@@ -14,14 +14,40 @@ export const config = {
 };
 
 export default async function handler(request: NextApiRequest, response: NextApiResponse) {
-  if (request.method !== "POST") {
-    response.setHeader("Allow", "POST");
+  if (request.method !== "POST" && request.method !== "PATCH") {
+    response.setHeader("Allow", "POST, PATCH");
     response.status(405).json({ message: "Method not allowed" });
     return;
   }
 
-  const priority = priorities.includes(request.body.priority) ? request.body.priority : "Medium";
   const status = statuses.includes(request.body.status) ? request.body.status : "Open";
+
+  if (request.method === "PATCH") {
+    try {
+      const issueId = String(request.body.id ?? "");
+
+      if (!issueId) {
+        response.status(400).json({ message: "Maintenance issue id is required." });
+        return;
+      }
+
+      const issue = await updateMaintenanceIssueStatus(issueId, status);
+
+      if (!issue) {
+        response.status(404).json({ message: "Maintenance issue not found." });
+        return;
+      }
+
+      response.status(200).json(issue);
+    } catch (error) {
+      response.status(500).json({
+        message: error instanceof Error ? error.message : "Maintenance issue status could not be updated."
+      });
+    }
+    return;
+  }
+
+  const priority = priorities.includes(request.body.priority) ? request.body.priority : "Medium";
 
   try {
     const issue = await addMaintenanceIssue({

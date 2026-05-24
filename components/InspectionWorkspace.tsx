@@ -370,6 +370,31 @@ export default function InspectionWorkspace({
     }));
   }
 
+  async function updateMaintenanceStatus(issueId: string, status: MaintenanceStatus) {
+    const previousIssues = maintenanceIssues;
+    setMaintenanceIssues((current) =>
+      current.map((issue) => (issue.id === issueId ? { ...issue, status } : issue))
+    );
+
+    const response = await fetch("/api/maintenance-issues", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: issueId, status })
+    });
+
+    if (!response.ok) {
+      const error = (await response.json().catch(() => null)) as { message?: string } | null;
+      setMaintenanceIssues(previousIssues);
+      window.alert(error?.message || "Maintenance status could not be updated.");
+      return;
+    }
+
+    const updatedIssue = (await response.json()) as MaintenanceIssue;
+    setMaintenanceIssues((current) =>
+      current.map((issue) => (issue.id === updatedIssue.id ? updatedIssue : issue))
+    );
+  }
+
   return (
     <main className={`mx-auto min-h-screen w-full max-w-[1480px] p-3 sm:p-6 ${darkMode ? "luxury-dark" : ""}`}>
       <section className="mb-5 overflow-hidden rounded-lg bg-ink text-white shadow-estate">
@@ -441,6 +466,7 @@ export default function InspectionWorkspace({
         saveMaintenanceIssue={saveMaintenanceIssue}
         isSavingMaintenanceIssue={isSavingMaintenanceIssue}
         maintenanceSaveMessage={maintenanceSaveMessage}
+        updateMaintenanceStatus={updateMaintenanceStatus}
       />
 
       <section className="grid gap-5 xl:grid-cols-[300px_minmax(0,1fr)_400px]">
@@ -887,7 +913,8 @@ function LuxuryExperiencePanel({
   selectedProperty,
   setActiveExperience,
   setMaintenanceIssueForm,
-  isSavingMaintenanceIssue
+  isSavingMaintenanceIssue,
+  updateMaintenanceStatus
 }: {
   activeExperience: ExperienceScreen;
   activeReport: Inspection | undefined;
@@ -903,6 +930,7 @@ function LuxuryExperiencePanel({
   selectedProperty: Property | undefined;
   setActiveExperience: (screen: ExperienceScreen) => void;
   setMaintenanceIssueForm: Dispatch<SetStateAction<MaintenanceIssueForm>>;
+  updateMaintenanceStatus: (issueId: string, status: MaintenanceStatus) => void;
 }) {
   const urgentCount = selectedInspections.filter((inspection) => inspection.urgent === "Yes").length;
   const urgentMaintenanceCount = maintenanceIssues.filter((issue) => issue.priority === "Urgent").length;
@@ -1233,7 +1261,13 @@ function LuxuryExperiencePanel({
           <ConceptCard eyebrow={`${openMaintenanceCount} open item${openMaintenanceCount === 1 ? "" : "s"}`} title="Repair tracking">
             <div className="grid gap-3">
               {maintenanceIssues.length ? (
-                maintenanceIssues.map((issue) => <MaintenanceIssueCard key={issue.id} issue={issue} />)
+                maintenanceIssues.map((issue) => (
+                  <MaintenanceIssueCard
+                    key={issue.id}
+                    issue={issue}
+                    updateMaintenanceStatus={updateMaintenanceStatus}
+                  />
+                ))
               ) : (
                 <div className="rounded-lg border border-line bg-white p-4 text-sm text-slate-600">
                   No maintenance issues have been saved for this property yet.
@@ -1311,7 +1345,13 @@ function MetricCard({
   );
 }
 
-function MaintenanceIssueCard({ issue }: { issue: MaintenanceIssue }) {
+function MaintenanceIssueCard({
+  issue,
+  updateMaintenanceStatus
+}: {
+  issue: MaintenanceIssue;
+  updateMaintenanceStatus: (issueId: string, status: MaintenanceStatus) => void;
+}) {
   const issuePhotos = issue.photos ?? [];
   const priorityClass =
     issue.priority === "Urgent"
@@ -1359,6 +1399,18 @@ function MaintenanceIssueCard({ issue }: { issue: MaintenanceIssue }) {
         <DetailStrip label="Vendor" value={issue.vendor || "Not assigned"} />
         <DetailStrip label="Next Step" value={issue.nextStep || "Review needed"} />
       </div>
+      <label className="mt-4 grid gap-2 text-sm font-extrabold">
+        Update status
+        <select
+          value={issue.status}
+          onChange={(event) => updateMaintenanceStatus(issue.id, event.target.value as MaintenanceStatus)}
+          className="field-shell rounded-lg p-3"
+        >
+          {(["Open", "Scheduled", "In Progress", "Resolved"] as MaintenanceStatus[]).map((status) => (
+            <option key={status}>{status}</option>
+          ))}
+        </select>
+      </label>
       <span className="mt-3 block text-xs font-semibold opacity-65">{formatDateTime(issue.createdAt)}</span>
     </article>
   );

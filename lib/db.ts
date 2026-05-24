@@ -6,6 +6,7 @@ import type {
   InspectionPhoto,
   MaintenanceIssue,
   MaintenanceIssuePhoto,
+  MaintenanceStatus,
   Property
 } from "@/lib/types";
 import { hasSupabaseConfig, storageBucket, supabaseAdmin } from "@/lib/supabaseAdmin";
@@ -113,6 +114,30 @@ export async function addMaintenanceIssue(
   database.maintenanceIssues = [newIssue, ...(database.maintenanceIssues ?? [])];
   await writeDatabase(database);
   return newIssue;
+}
+
+export async function updateMaintenanceIssueStatus(issueId: string, status: MaintenanceStatus) {
+  if (hasSupabaseConfig()) {
+    return updateSupabaseMaintenanceIssueStatus(issueId, status);
+  }
+
+  const database = await readDatabase();
+  const issue = database.maintenanceIssues.find((item) => item.id === issueId);
+
+  if (!issue) {
+    return null;
+  }
+
+  const updatedIssue: MaintenanceIssue = {
+    ...issue,
+    status
+  };
+
+  database.maintenanceIssues = database.maintenanceIssues.map((item) =>
+    item.id === issueId ? updatedIssue : item
+  );
+  await writeDatabase(database);
+  return updatedIssue;
 }
 
 export async function deleteProperty(propertyId: string) {
@@ -464,6 +489,39 @@ async function addSupabaseMaintenanceIssue(
   }
 
   return newIssue;
+}
+
+async function updateSupabaseMaintenanceIssueStatus(issueId: string, status: MaintenanceStatus) {
+  const supabase = supabaseAdmin();
+  const { data, error } = await supabase
+    .from("maintenance_issues")
+    .update({ status })
+    .eq("id", issueId)
+    .select("*, maintenance_issue_photos(*)")
+    .single();
+
+  if (error) throw error;
+  if (!data) return null;
+
+  return {
+    id: data.id,
+    propertyId: data.property_id,
+    createdAt: data.created_at,
+    title: data.title,
+    description: data.description ?? "",
+    priority: data.priority,
+    status: data.status,
+    vendor: data.vendor ?? "",
+    nextStep: data.next_step ?? "",
+    photos: (data.maintenance_issue_photos ?? []).map((photo: SupabasePhotoRow) => ({
+      id: photo.id,
+      name: photo.name,
+      url: `/api/maintenance-photos/${data.id}/${path.basename(photo.storage_path)}`,
+      storagePath: photo.storage_path,
+      mimeType: photo.mime_type,
+      size: photo.size
+    }))
+  } satisfies MaintenanceIssue;
 }
 
 async function saveSupabaseInspectionPhotos(inspectionId: string, photos: PhotoUpload[] | InspectionPhoto[]) {
