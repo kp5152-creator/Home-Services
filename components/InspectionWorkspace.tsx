@@ -1336,6 +1336,49 @@ function LuxuryExperiencePanel({
 
       {activeExperience === "Dashboard" ? (
         <div className="grid gap-5">
+          <div className="estate-panel rounded-lg p-5 xl:hidden">
+            <div className="mb-4">
+              <p className="mb-2 text-xs font-extrabold uppercase tracking-[0.12em] text-clay">
+                Mobile command
+              </p>
+              <h2 className="text-2xl font-extrabold leading-tight text-ink">
+                {selectedProperty?.name || "Select a property"}
+              </h2>
+              <p className="mt-2 text-sm font-semibold text-slate-600">
+                {selectedProperty?.owner || "No homeowner selected"}
+              </p>
+            </div>
+            <div className="grid gap-3">
+              <MobileActionButton
+                label="Start Inspection"
+                detail="Checklist, photos, report"
+                onClick={() => setActiveExperience("Inspection")}
+              />
+              <MobileActionButton
+                label="Add Maintenance"
+                detail={`${openMaintenanceCount} open item${openMaintenanceCount === 1 ? "" : "s"}`}
+                onClick={() => setActiveExperience("Maintenance")}
+                urgent={openMaintenanceCount > 0}
+              />
+              <MobileActionButton
+                label="Schedule Visit"
+                detail={
+                  upcomingScheduleTasks[0]
+                    ? `Next: ${formatDateTime(upcomingScheduleTasks[0].scheduledFor)}`
+                    : "No upcoming work"
+                }
+                onClick={() => setActiveExperience("Schedule")}
+              />
+              <MobileActionButton
+                label="Owner Update"
+                detail={`${ownerUpdates.filter((update) => update.status === "Shared").length} shared update${
+                  ownerUpdates.filter((update) => update.status === "Shared").length === 1 ? "" : "s"
+                }`}
+                onClick={() => setActiveExperience("Owner Portal")}
+              />
+            </div>
+          </div>
+
           <div className="estate-panel rounded-lg p-5">
             <div className="mb-5 flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
               <div>
@@ -2021,6 +2064,38 @@ function ConceptCard({
       <h3 className="mb-4 text-2xl font-extrabold text-ink">{title}</h3>
       {children}
     </article>
+  );
+}
+
+function MobileActionButton({
+  detail,
+  label,
+  onClick,
+  urgent = false
+}: {
+  detail: string;
+  label: string;
+  onClick: () => void;
+  urgent?: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`grid min-h-20 grid-cols-[minmax(0,1fr)_36px] items-center gap-3 rounded-lg border p-4 text-left transition active:scale-[0.99] ${
+        urgent ? "border-[#e7cbc4] bg-[#fff8f6]" : "border-line bg-white"
+      }`}
+    >
+      <span>
+        <strong className={`block text-lg font-extrabold ${urgent ? "text-[#9f352e]" : "text-ink"}`}>
+          {label}
+        </strong>
+        <span className="mt-1 block text-sm font-semibold text-slate-600">{detail}</span>
+      </span>
+      <span className="grid h-9 w-9 place-items-center rounded-full bg-ink text-lg font-extrabold text-white">
+        {">"}
+      </span>
+    </button>
   );
 }
 
