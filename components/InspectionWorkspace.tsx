@@ -36,6 +36,7 @@ type MaintenanceIssueForm = {
   status: MaintenanceStatus;
   vendor: string;
   nextStep: string;
+  photoFiles: File[];
 };
 
 type InspectionForm = {
@@ -82,7 +83,8 @@ const emptyMaintenanceIssueForm: MaintenanceIssueForm = {
   priority: "Medium",
   status: "Open",
   vendor: "",
-  nextStep: ""
+  nextStep: "",
+  photoFiles: []
 };
 
 const experienceScreens: ExperienceScreen[] = [
@@ -269,11 +271,22 @@ export default function InspectionWorkspace({
     event.preventDefault();
     if (!selectedProperty) return;
 
+    let photos: Awaited<ReturnType<typeof fileToPhotoUpload>>[];
+
+    try {
+      photos = await Promise.all(maintenanceIssueForm.photoFiles.map(fileToPhotoUpload));
+    } catch {
+      window.alert("One or more maintenance photos could not be processed. Please try JPEG or PNG photos.");
+      return;
+    }
+
     const response = await fetch("/api/maintenance-issues", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         ...maintenanceIssueForm,
+        photoFiles: undefined,
+        photos,
         propertyId: selectedProperty.id
       })
     });
@@ -300,6 +313,13 @@ export default function InspectionWorkspace({
 
   function addPhotoFiles(files: FileList | null) {
     setInspectionForm((current) => ({
+      ...current,
+      photoFiles: files ? [...current.photoFiles, ...Array.from(files)] : current.photoFiles
+    }));
+  }
+
+  function addMaintenanceIssuePhotoFiles(files: FileList | null) {
+    setMaintenanceIssueForm((current) => ({
       ...current,
       photoFiles: files ? [...current.photoFiles, ...Array.from(files)] : current.photoFiles
     }));
@@ -372,6 +392,7 @@ export default function InspectionWorkspace({
         selectedProperty={selectedProperty}
         setActiveExperience={setActiveExperience}
         setMaintenanceIssueForm={setMaintenanceIssueForm}
+        addMaintenanceIssuePhotoFiles={addMaintenanceIssuePhotoFiles}
         saveMaintenanceIssue={saveMaintenanceIssue}
       />
 
@@ -799,6 +820,7 @@ function ProfileItem({ label, value }: { label: string; value: string }) {
 function LuxuryExperiencePanel({
   activeExperience,
   activeReport,
+  addMaintenanceIssuePhotoFiles,
   maintenanceIssueForm,
   maintenanceIssues,
   now,
@@ -811,6 +833,7 @@ function LuxuryExperiencePanel({
 }: {
   activeExperience: ExperienceScreen;
   activeReport: Inspection | undefined;
+  addMaintenanceIssuePhotoFiles: (files: FileList | null) => void;
   maintenanceIssueForm: MaintenanceIssueForm;
   maintenanceIssues: MaintenanceIssue[];
   now: Date;
@@ -1098,6 +1121,29 @@ function LuxuryExperiencePanel({
                   placeholder="Call vendor, request estimate, monitor next visit..."
                 />
               </label>
+              <label className="grid min-h-28 content-center gap-2 rounded-lg border border-dashed border-sage bg-[#f8faf8] p-4 text-sm font-extrabold transition hover:bg-[#eef5ef]">
+                Damage photos
+                <input
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  onChange={(event) => addMaintenanceIssuePhotoFiles(event.target.files)}
+                  className="text-xs font-medium"
+                />
+              </label>
+              {maintenanceIssueForm.photoFiles.length ? (
+                <div className="rounded-lg border border-line bg-[#fbfcfb] p-3 text-sm text-slate-600">
+                  <strong className="text-ink">{maintenanceIssueForm.photoFiles.length} maintenance photo selected</strong>
+                  {maintenanceIssueForm.photoFiles.length === 1 ? "" : "s"}
+                  <button
+                    type="button"
+                    onClick={() => setMaintenanceIssueForm((current) => ({ ...current, photoFiles: [] }))}
+                    className="ml-3 font-extrabold text-[#9f352e]"
+                  >
+                    Clear photos
+                  </button>
+                </div>
+              ) : null}
               <button type="submit" className="button-primary min-h-12 rounded-lg px-5 font-extrabold">
                 Save Maintenance Issue
               </button>
@@ -1205,6 +1251,20 @@ function MaintenanceIssueCard({ issue }: { issue: MaintenanceIssue }) {
         </span>
       </div>
       {issue.description ? <p className="mt-3 text-sm leading-6 opacity-80">{issue.description}</p> : null}
+      {issue.photos.length ? (
+        <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3">
+          {issue.photos.map((photo) => (
+            <a
+              key={photo.id}
+              href={photo.url}
+              target="_blank"
+              className="overflow-hidden rounded-lg border border-line bg-white"
+            >
+              <img src={photo.url} alt={photo.name} className="h-28 w-full bg-slate-100 object-cover" />
+            </a>
+          ))}
+        </div>
+      ) : null}
       <div className="mt-4 grid gap-2 text-sm sm:grid-cols-2">
         <DetailStrip label="Vendor" value={issue.vendor || "Not assigned"} />
         <DetailStrip label="Next Step" value={issue.nextStep || "Review needed"} />

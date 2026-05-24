@@ -22,7 +22,14 @@ export default async function handler(request: NextApiRequest, response: NextApi
     priority,
     status,
     vendor: String(request.body.vendor ?? ""),
-    nextStep: String(request.body.nextStep ?? "")
+    nextStep: String(request.body.nextStep ?? ""),
+    photos: Array.isArray(request.body.photos)
+      ? request.body.photos.map((photo: { name?: string; type?: string; data?: string }) => ({
+          name: String(photo.name ?? "maintenance-photo"),
+          type: String(photo.type ?? ""),
+          data: String(photo.data ?? "")
+        }))
+      : []
   });
 
   response.status(201).json(issue);

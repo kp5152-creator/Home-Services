@@ -1,10 +1,18 @@
 import { promises as fs } from "fs";
 import path from "path";
-import type { Database, Inspection, InspectionPhoto, MaintenanceIssue, Property } from "@/lib/types";
+import type {
+  Database,
+  Inspection,
+  InspectionPhoto,
+  MaintenanceIssue,
+  MaintenanceIssuePhoto,
+  Property
+} from "@/lib/types";
 import { hasSupabaseConfig, storageBucket, supabaseAdmin } from "@/lib/supabaseAdmin";
 
 const dbPath = path.join(process.cwd(), "data", "db.json");
-const uploadsRoot = path.join(process.cwd(), "public", "uploads", "inspections");
+const inspectionUploadsRoot = path.join(process.cwd(), "public", "uploads", "inspections");
+const maintenanceUploadsRoot = path.join(process.cwd(), "public", "uploads", "maintenance");
 
 export type PhotoUpload = {
   name: string;
@@ -21,12 +29,18 @@ export async function readDatabase(): Promise<Database> {
   const database = JSON.parse(raw) as Database;
   return {
     properties: database.properties,
-    maintenanceIssues: database.maintenanceIssues ?? [],
-    inspections: database.inspections.map((inspection) => ({
+    inspections: (database.inspections ?? []).map((inspection) => ({
       ...inspection,
       photos: (inspection.photos ?? []).map((photo) => ({
         ...photo,
-        url: normalizePhotoUrl(photo.url)
+        url: normalizeInspectionPhotoUrl(photo.url)
+      }))
+    })),
+    maintenanceIssues: (database.maintenanceIssues ?? []).map((issue) => ({
+      ...issue,
+      photos: (issue.photos ?? []).map((photo) => ({
+        ...photo,
+        url: normalizeMaintenancePhotoUrl(photo.url)
       }))
     }))
   };
@@ -77,66 +91,28 @@ export async function addInspection(
   return newInspection;
 }
 
-export async function addMaintenanceIssue(issue: Omit<MaintenanceIssue, "id" | "createdAt">) {
+export async function addMaintenanceIssue(
+  issue: Omit<MaintenanceIssue, "id" | "createdAt" | "photos"> & {
+    photos: PhotoUpload[] | MaintenanceIssuePhoto[];
+  }
+) {
   if (hasSupabaseConfig()) {
     return addSupabaseMaintenanceIssue(issue);
   }
 
   const database = await readDatabase();
+  const issueId = `issue-${Date.now()}`;
+  const photos = await saveMaintenanceIssuePhotos(issueId, issue.photos);
   const newIssue: MaintenanceIssue = {
-    id: `issue-${Date.now()}`,
+    id: issueId,
     createdAt: new Date().toISOString(),
-    ...issue
+    ...issue,
+    photos
   };
 
   database.maintenanceIssues = [newIssue, ...(database.maintenanceIssues ?? [])];
   await writeDatabase(database);
   return newIssue;
-}
-
-async function saveInspectionPhotos(inspectionId: string, photos: PhotoUpload[] | InspectionPhoto[]) {
-  if (!photos.length) return [];
-
-  const inspectionUploadDir = path.join(uploadsRoot, inspectionId);
-  await fs.mkdir(inspectionUploadDir, { recursive: true });
-
-  const savedPhotos: InspectionPhoto[] = [];
-
-  for (const [index, photo] of photos.entries()) {
-    if (!("data" in photo)) {
-      savedPhotos.push(photo);
-      continue;
-    }
-
-    const safeBaseName = photo.name
-      .replace(/\.[^/.]+$/, "")
-      .replace(/[^a-z0-9-_]+/gi, "-")
-      .replace(/^-+|-+$/g, "")
-      .toLowerCase();
-    const filename = `${index + 1}-${safeBaseName || "inspection-photo"}.jpg`;
-    const filePath = path.join(inspectionUploadDir, filename);
-    const base64 = photo.data.includes(",") ? photo.data.split(",").pop() ?? "" : photo.data;
-    const buffer = Buffer.from(base64, "base64");
-
-    await fs.writeFile(filePath, buffer);
-    savedPhotos.push({
-      id: `photo-${inspectionId}-${index + 1}`,
-      name: photo.name,
-      url: `/api/photos/${inspectionId}/${filename}`,
-      mimeType: "image/jpeg",
-      size: buffer.byteLength
-    });
-  }
-
-  return savedPhotos;
-}
-
-function normalizePhotoUrl(url: string) {
-  if (url.startsWith("/api/photos/")) {
-    return url;
-  }
-
-  return url.replace("/uploads/inspections/", "/api/photos/");
 }
 
 export async function deleteProperty(propertyId: string) {
@@ -160,7 +136,12 @@ export async function deleteProperty(propertyId: string) {
   await Promise.all(
     database.inspections
       .filter((inspection) => inspection.propertyId === propertyId)
-      .map((inspection) => fs.rm(path.join(uploadsRoot, inspection.id), { force: true, recursive: true }))
+      .map((inspection) => fs.rm(path.join(inspectionUploadsRoot, inspection.id), { force: true, recursive: true }))
+  );
+  await Promise.all(
+    (database.maintenanceIssues ?? [])
+      .filter((issue) => issue.propertyId === propertyId)
+      .map((issue) => fs.rm(path.join(maintenanceUploadsRoot, issue.id), { force: true, recursive: true }))
   );
   await writeDatabase(nextDatabase);
   return nextDatabase;
@@ -182,10 +163,33 @@ export async function readPhotoAsset(inspectionId: string, filename: string) {
     };
   }
 
-  const photoPath = path.join(uploadsRoot, inspectionId, filename);
+  return readLocalPhotoAsset(inspectionUploadsRoot, inspectionId, filename);
+}
+
+export async function readMaintenancePhotoAsset(issueId: string, filename: string) {
+  if (hasSupabaseConfig()) {
+    const supabase = supabaseAdmin();
+    const { data, error } = await supabase.storage.from(storageBucket()).download(`maintenance/${issueId}/${filename}`);
+
+    if (error || !data) {
+      return null;
+    }
+
+    const buffer = Buffer.from(await data.arrayBuffer());
+    return {
+      buffer,
+      contentType: contentTypeForFilename(filename)
+    };
+  }
+
+  return readLocalPhotoAsset(maintenanceUploadsRoot, issueId, filename);
+}
+
+async function readLocalPhotoAsset(root: string, folder: string, filename: string) {
+  const photoPath = path.join(root, folder, filename);
   const resolvedPhotoPath = path.resolve(photoPath);
 
-  if (!resolvedPhotoPath.startsWith(path.resolve(uploadsRoot))) {
+  if (!resolvedPhotoPath.startsWith(path.resolve(root))) {
     return null;
   }
 
@@ -200,18 +204,96 @@ export async function readPhotoAsset(inspectionId: string, filename: string) {
   }
 }
 
+async function saveInspectionPhotos(inspectionId: string, photos: PhotoUpload[] | InspectionPhoto[]) {
+  return saveLocalPhotos({
+    folderId: inspectionId,
+    photos,
+    root: inspectionUploadsRoot,
+    urlPrefix: "/api/photos"
+  });
+}
+
+async function saveMaintenanceIssuePhotos(issueId: string, photos: PhotoUpload[] | MaintenanceIssuePhoto[]) {
+  return saveLocalPhotos({
+    folderId: issueId,
+    photos,
+    root: maintenanceUploadsRoot,
+    urlPrefix: "/api/maintenance-photos"
+  });
+}
+
+async function saveLocalPhotos({
+  folderId,
+  photos,
+  root,
+  urlPrefix
+}: {
+  folderId: string;
+  photos: PhotoUpload[] | InspectionPhoto[];
+  root: string;
+  urlPrefix: string;
+}) {
+  if (!photos.length) return [];
+
+  const uploadDir = path.join(root, folderId);
+  await fs.mkdir(uploadDir, { recursive: true });
+
+  const savedPhotos: InspectionPhoto[] = [];
+
+  for (const [index, photo] of photos.entries()) {
+    if (!("data" in photo)) {
+      savedPhotos.push(photo);
+      continue;
+    }
+
+    const filename = `${index + 1}-${safePhotoBaseName(photo.name)}.jpg`;
+    const filePath = path.join(uploadDir, filename);
+    const base64 = photo.data.includes(",") ? photo.data.split(",").pop() ?? "" : photo.data;
+    const buffer = Buffer.from(base64, "base64");
+
+    await fs.writeFile(filePath, buffer);
+    savedPhotos.push({
+      id: `photo-${folderId}-${index + 1}`,
+      name: photo.name,
+      url: `${urlPrefix}/${folderId}/${filename}`,
+      mimeType: "image/jpeg",
+      size: buffer.byteLength
+    });
+  }
+
+  return savedPhotos;
+}
+
+function normalizeInspectionPhotoUrl(url: string) {
+  if (url.startsWith("/api/photos/")) {
+    return url;
+  }
+
+  return url.replace("/uploads/inspections/", "/api/photos/");
+}
+
+function normalizeMaintenancePhotoUrl(url: string) {
+  if (url.startsWith("/api/maintenance-photos/")) {
+    return url;
+  }
+
+  return url.replace("/uploads/maintenance/", "/api/maintenance-photos/");
+}
+
 async function readSupabaseDatabase(): Promise<Database> {
   const supabase = supabaseAdmin();
   const [
     { data: properties, error: propertiesError },
     { data: inspections, error: inspectionsError },
     { data: maintenanceIssues, error: maintenanceIssuesError }
-  ] =
-    await Promise.all([
-      supabase.from("properties").select("*").order("created_at", { ascending: false }),
-      supabase.from("inspections").select("*, inspection_photos(*)").order("timestamp", { ascending: false }),
-      supabase.from("maintenance_issues").select("*").order("created_at", { ascending: false })
-    ]);
+  ] = await Promise.all([
+    supabase.from("properties").select("*").order("created_at", { ascending: false }),
+    supabase.from("inspections").select("*, inspection_photos(*)").order("timestamp", { ascending: false }),
+    supabase
+      .from("maintenance_issues")
+      .select("*, maintenance_issue_photos(*)")
+      .order("created_at", { ascending: false })
+  ]);
 
   if (propertiesError) throw propertiesError;
   if (inspectionsError) throw inspectionsError;
@@ -255,7 +337,15 @@ async function readSupabaseDatabase(): Promise<Database> {
       priority: issue.priority,
       status: issue.status,
       vendor: issue.vendor ?? "",
-      nextStep: issue.next_step ?? ""
+      nextStep: issue.next_step ?? "",
+      photos: (issue.maintenance_issue_photos ?? []).map((photo: SupabasePhotoRow) => ({
+        id: photo.id,
+        name: photo.name,
+        url: `/api/maintenance-photos/${issue.id}/${path.basename(photo.storage_path)}`,
+        storagePath: photo.storage_path,
+        mimeType: photo.mime_type,
+        size: photo.size
+      }))
     }))
   };
 }
@@ -329,12 +419,19 @@ async function addSupabaseInspection(
   return newInspection;
 }
 
-async function addSupabaseMaintenanceIssue(issue: Omit<MaintenanceIssue, "id" | "createdAt">) {
+async function addSupabaseMaintenanceIssue(
+  issue: Omit<MaintenanceIssue, "id" | "createdAt" | "photos"> & {
+    photos: PhotoUpload[] | MaintenanceIssuePhoto[];
+  }
+) {
   const supabase = supabaseAdmin();
+  const issueId = `issue-${Date.now()}`;
+  const photos = await saveSupabaseMaintenanceIssuePhotos(issueId, issue.photos);
   const newIssue: MaintenanceIssue = {
-    id: `issue-${Date.now()}`,
+    id: issueId,
     createdAt: new Date().toISOString(),
-    ...issue
+    ...issue,
+    photos
   };
 
   const { error } = await supabase.from("maintenance_issues").insert({
@@ -350,14 +447,58 @@ async function addSupabaseMaintenanceIssue(issue: Omit<MaintenanceIssue, "id" | 
   });
 
   if (error) throw error;
+
+  if (photos.length) {
+    const { error: photoError } = await supabase.from("maintenance_issue_photos").insert(
+      photos.map((photo) => ({
+        id: photo.id,
+        issue_id: issueId,
+        name: photo.name,
+        storage_path: photo.storagePath,
+        mime_type: photo.mimeType,
+        size: photo.size
+      }))
+    );
+
+    if (photoError) throw photoError;
+  }
+
   return newIssue;
 }
 
 async function saveSupabaseInspectionPhotos(inspectionId: string, photos: PhotoUpload[] | InspectionPhoto[]) {
+  return saveSupabasePhotos({
+    folderPath: inspectionId,
+    photos,
+    urlPrefix: "/api/photos"
+  });
+}
+
+async function saveSupabaseMaintenanceIssuePhotos(issueId: string, photos: PhotoUpload[] | MaintenanceIssuePhoto[]) {
+  return saveSupabasePhotos({
+    folderPath: `maintenance/${issueId}`,
+    photos,
+    urlPrefix: "/api/maintenance-photos",
+    urlFolderId: issueId
+  });
+}
+
+async function saveSupabasePhotos({
+  folderPath,
+  photos,
+  urlFolderId,
+  urlPrefix
+}: {
+  folderPath: string;
+  photos: PhotoUpload[] | InspectionPhoto[];
+  urlFolderId?: string;
+  urlPrefix: string;
+}) {
   if (!photos.length) return [];
 
   const supabase = supabaseAdmin();
   const savedPhotos: InspectionPhoto[] = [];
+  const urlId = urlFolderId ?? folderPath;
 
   for (const [index, photo] of photos.entries()) {
     if (!("data" in photo)) {
@@ -366,7 +507,7 @@ async function saveSupabaseInspectionPhotos(inspectionId: string, photos: PhotoU
     }
 
     const filename = `${index + 1}-${safePhotoBaseName(photo.name)}.jpg`;
-    const storagePath = `${inspectionId}/${filename}`;
+    const storagePath = `${folderPath}/${filename}`;
     const base64 = photo.data.includes(",") ? photo.data.split(",").pop() ?? "" : photo.data;
     const buffer = Buffer.from(base64, "base64");
     const { error } = await supabase.storage.from(storageBucket()).upload(storagePath, buffer, {
@@ -377,9 +518,9 @@ async function saveSupabaseInspectionPhotos(inspectionId: string, photos: PhotoU
     if (error) throw error;
 
     savedPhotos.push({
-      id: `photo-${inspectionId}-${index + 1}`,
+      id: `photo-${urlId}-${index + 1}`,
       name: photo.name,
-      url: `/api/photos/${inspectionId}/${filename}`,
+      url: `${urlPrefix}/${urlId}/${filename}`,
       storagePath,
       mimeType: "image/jpeg",
       size: buffer.byteLength
@@ -401,9 +542,12 @@ async function deleteSupabaseProperty(propertyId: string) {
   const storagePaths = database.inspections
     .filter((inspection) => inspection.propertyId === propertyId)
     .flatMap((inspection) => inspection.photos.map((photo) => photo.storagePath).filter(Boolean) as string[]);
+  const maintenanceStoragePaths = database.maintenanceIssues
+    .filter((issue) => issue.propertyId === propertyId)
+    .flatMap((issue) => issue.photos.map((photo) => photo.storagePath).filter(Boolean) as string[]);
 
-  if (storagePaths.length) {
-    await supabase.storage.from(storageBucket()).remove(storagePaths);
+  if (storagePaths.length || maintenanceStoragePaths.length) {
+    await supabase.storage.from(storageBucket()).remove([...storagePaths, ...maintenanceStoragePaths]);
   }
 
   const { error } = await supabase.from("properties").delete().eq("id", propertyId);

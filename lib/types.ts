@@ -11,6 +11,8 @@ export type InspectionPhoto = {
   size: number;
 };
 
+export type MaintenanceIssuePhoto = InspectionPhoto;
+
 export type Inspection = {
   id: string;
   propertyId: string;
@@ -44,6 +46,7 @@ export type MaintenanceIssue = {
   status: MaintenanceStatus;
   vendor: string;
   nextStep: string;
+  photos: MaintenanceIssuePhoto[];
 };
 
 export type Database = {
