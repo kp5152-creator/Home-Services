@@ -1305,6 +1305,28 @@ function LuxuryExperiencePanel({
 
   return (
     <section className="no-print mb-5">
+      {activeExperience !== "Dashboard" && activeExperience !== "Login" ? (
+        <div className="estate-panel mb-4 rounded-lg p-4 xl:hidden">
+          <div className="flex items-center justify-between gap-3">
+            <button
+              type="button"
+              onClick={() => setActiveExperience("Dashboard")}
+              className="button-soft min-h-10 rounded-lg px-3 text-sm font-extrabold"
+            >
+              Dashboard
+            </button>
+            <div className="min-w-0 text-right">
+              <span className="block truncate text-xs font-extrabold uppercase tracking-[0.1em] text-clay">
+                {activeExperience}
+              </span>
+              <strong className="block truncate text-sm text-ink">
+                {selectedProperty?.name || "No property selected"}
+              </strong>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
       {activeExperience === "Login" ? (
         <div className="overflow-hidden rounded-lg bg-ink text-white shadow-estate">
           <div className="grid gap-0 lg:grid-cols-[1.05fr_0.95fr]">
