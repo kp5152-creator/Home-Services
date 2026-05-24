@@ -1674,12 +1674,15 @@ function LuxuryExperiencePanel({
                 Vendor assignment
                 <select
                   value={maintenanceIssueForm.vendor}
+                  disabled={!selectedVendors.length}
                   onChange={(event) =>
                     setMaintenanceIssueForm((current) => ({ ...current, vendor: event.target.value }))
                   }
-                  className="field-shell rounded-lg p-3"
+                  className="field-shell rounded-lg p-3 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-500"
                 >
-                  <option value="">Select vendor or leave unassigned</option>
+                  <option value="">
+                    {selectedVendors.length ? "Select vendor or leave unassigned" : "No vendors saved for this property"}
+                  </option>
                   {selectedVendors.map((vendor) => (
                     <option key={vendor.id} value={vendor.name}>
                       {vendor.type}: {vendor.name}
@@ -1687,6 +1690,19 @@ function LuxuryExperiencePanel({
                   ))}
                 </select>
               </label>
+              {!selectedVendors.length ? (
+                <div className="rounded-lg border border-line bg-white p-3 text-sm font-semibold text-slate-600">
+                  Vendors are saved per property. Add a vendor to {selectedProperty?.name || "this property"} first, then
+                  it will appear here.
+                  <button
+                    type="button"
+                    onClick={() => setActiveExperience("Property")}
+                    className="mt-3 block min-h-10 rounded-lg border border-line bg-[#fbfcfb] px-4 text-sm font-extrabold text-ink transition hover:border-sage hover:shadow-lift"
+                  >
+                    Add Vendor Contact
+                  </button>
+                </div>
+              ) : null}
               <label className="grid gap-2 text-sm font-extrabold">
                 Next step
                 <input
