@@ -868,7 +868,7 @@ export default function InspectionWorkspace({
               </span>
             </div>
 
-            <form className="grid gap-4" onSubmit={saveInspection}>
+            <form id="inspection-form" className="grid gap-4" onSubmit={saveInspection}>
               <fieldset className="grid gap-3 rounded-lg border border-line bg-white/70 p-4">
                 <legend className="px-2 font-extrabold">Inspection type</legend>
                 <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
@@ -1129,6 +1129,26 @@ export default function InspectionWorkspace({
           ))}
         </div>
       </nav>
+
+      {activeExperience === "Inspection" ? (
+        <div className="fixed inset-x-0 bottom-[4.85rem] z-30 px-3 xl:hidden">
+          <div className="mx-auto grid max-w-[520px] grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-lg border border-line bg-white/95 p-3 shadow-[0_-8px_28px_rgba(35,45,41,0.12)] backdrop-blur-xl">
+            <div className="min-w-0">
+              <strong className="block truncate text-sm text-ink">Inspection ready?</strong>
+              <span className="block truncate text-xs font-semibold text-slate-600">
+                {inspectionForm.checklist.length} checks / {inspectionForm.photoFiles.length} photos
+              </span>
+            </div>
+            <button
+              type="submit"
+              form="inspection-form"
+              className="button-primary min-h-11 rounded-lg px-4 text-sm font-extrabold"
+            >
+              Generate
+            </button>
+          </div>
+        </div>
+      ) : null}
 
       {showPropertyForm ? (
         <div className="fixed inset-0 z-20 grid place-items-center bg-ink/45 p-4 backdrop-blur-sm">
