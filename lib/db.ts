@@ -8,7 +8,8 @@ import type {
   MaintenanceIssuePhoto,
   MaintenancePriority,
   MaintenanceStatus,
-  Property
+  Property,
+  VendorContact
 } from "@/lib/types";
 import { hasSupabaseConfig, storageBucket, supabaseAdmin } from "@/lib/supabaseAdmin";
 
@@ -48,7 +49,8 @@ export async function readDatabase(): Promise<Database> {
         ...photo,
         url: normalizeMaintenancePhotoUrl(photo.url)
       }))
-    }))
+    })),
+    vendors: database.vendors ?? []
   };
 }
 
@@ -121,6 +123,23 @@ export async function addMaintenanceIssue(
   return newIssue;
 }
 
+export async function addVendorContact(vendor: Omit<VendorContact, "id" | "createdAt">) {
+  if (hasSupabaseConfig()) {
+    return addSupabaseVendorContact(vendor);
+  }
+
+  const database = await readDatabase();
+  const newVendor: VendorContact = {
+    id: `vendor-${Date.now()}`,
+    createdAt: new Date().toISOString(),
+    ...vendor
+  };
+
+  database.vendors = [newVendor, ...(database.vendors ?? [])];
+  await writeDatabase(database);
+  return newVendor;
+}
+
 export async function updateMaintenanceIssueStatus(issueId: string, status: MaintenanceStatus) {
   return updateMaintenanceIssue(issueId, { status });
 }
@@ -164,7 +183,8 @@ export async function deleteProperty(propertyId: string) {
   const nextDatabase: Database = {
     properties: database.properties.filter((property) => property.id !== propertyId),
     inspections: database.inspections.filter((inspection) => inspection.propertyId !== propertyId),
-    maintenanceIssues: (database.maintenanceIssues ?? []).filter((issue) => issue.propertyId !== propertyId)
+    maintenanceIssues: (database.maintenanceIssues ?? []).filter((issue) => issue.propertyId !== propertyId),
+    vendors: (database.vendors ?? []).filter((vendor) => vendor.propertyId !== propertyId)
   };
 
   await Promise.all(
@@ -319,19 +339,22 @@ async function readSupabaseDatabase(): Promise<Database> {
   const [
     { data: properties, error: propertiesError },
     { data: inspections, error: inspectionsError },
-    { data: maintenanceIssues, error: maintenanceIssuesError }
+    { data: maintenanceIssues, error: maintenanceIssuesError },
+    { data: vendors, error: vendorsError }
   ] = await Promise.all([
     supabase.from("properties").select("*").order("created_at", { ascending: false }),
     supabase.from("inspections").select("*, inspection_photos(*)").order("timestamp", { ascending: false }),
     supabase
       .from("maintenance_issues")
       .select("*, maintenance_issue_photos(*)")
-      .order("created_at", { ascending: false })
+      .order("created_at", { ascending: false }),
+    supabase.from("vendors").select("*").order("created_at", { ascending: false })
   ]);
 
   if (propertiesError) throw propertiesError;
   if (inspectionsError) throw inspectionsError;
   const maintenanceIssueRows = maintenanceIssuesError ? [] : (maintenanceIssues ?? []);
+  const vendorRows = vendorsError ? [] : (vendors ?? []);
 
   return {
     properties: (properties ?? []).map((property) => ({
@@ -380,6 +403,17 @@ async function readSupabaseDatabase(): Promise<Database> {
         mimeType: photo.mime_type,
         size: photo.size
       }))
+    })),
+    vendors: vendorRows.map((vendor) => ({
+      id: vendor.id,
+      propertyId: vendor.property_id,
+      createdAt: vendor.created_at,
+      name: vendor.name,
+      type: vendor.type,
+      contactName: vendor.contact_name ?? "",
+      phone: vendor.phone ?? "",
+      email: vendor.email ?? "",
+      notes: vendor.notes ?? ""
     }))
   };
 }
@@ -498,6 +532,30 @@ async function addSupabaseMaintenanceIssue(
   }
 
   return newIssue;
+}
+
+async function addSupabaseVendorContact(vendor: Omit<VendorContact, "id" | "createdAt">) {
+  const supabase = supabaseAdmin();
+  const newVendor: VendorContact = {
+    id: `vendor-${Date.now()}`,
+    createdAt: new Date().toISOString(),
+    ...vendor
+  };
+
+  const { error } = await supabase.from("vendors").insert({
+    id: newVendor.id,
+    created_at: newVendor.createdAt,
+    property_id: newVendor.propertyId,
+    name: newVendor.name,
+    type: newVendor.type,
+    contact_name: newVendor.contactName,
+    phone: newVendor.phone,
+    email: newVendor.email,
+    notes: newVendor.notes
+  });
+
+  if (error) throw error;
+  return newVendor;
 }
 
 async function updateSupabaseMaintenanceIssue(issueId: string, updates: MaintenanceIssueUpdate) {

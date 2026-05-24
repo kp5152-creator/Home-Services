@@ -1,6 +1,15 @@
 export type UrgentStatus = "Yes" | "No";
 export type MaintenancePriority = "Low" | "Medium" | "High" | "Urgent";
 export type MaintenanceStatus = "Open" | "Scheduled" | "In Progress" | "Resolved";
+export type VendorType =
+  | "Pool"
+  | "Landscape"
+  | "HVAC"
+  | "Cleaning"
+  | "Handyman"
+  | "Plumbing"
+  | "Electrical"
+  | "Other";
 
 export type InspectionPhoto = {
   id: string;
@@ -49,8 +58,21 @@ export type MaintenanceIssue = {
   photos: MaintenanceIssuePhoto[];
 };
 
+export type VendorContact = {
+  id: string;
+  propertyId: string;
+  createdAt: string;
+  name: string;
+  type: VendorType;
+  contactName: string;
+  phone: string;
+  email: string;
+  notes: string;
+};
+
 export type Database = {
   properties: Property[];
   inspections: Inspection[];
   maintenanceIssues: MaintenanceIssue[];
+  vendors: VendorContact[];
 };

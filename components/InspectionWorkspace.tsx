@@ -17,7 +17,9 @@ import type {
   MaintenancePriority,
   MaintenanceStatus,
   Property,
-  UrgentStatus
+  UrgentStatus,
+  VendorContact,
+  VendorType
 } from "@/lib/types";
 
 type NewPropertyForm = {
@@ -37,6 +39,15 @@ type MaintenanceIssueForm = {
   vendor: string;
   nextStep: string;
   photoFiles: File[];
+};
+
+type VendorForm = {
+  name: string;
+  type: VendorType;
+  contactName: string;
+  phone: string;
+  email: string;
+  notes: string;
 };
 
 type InspectionForm = {
@@ -86,6 +97,17 @@ const emptyMaintenanceIssueForm: MaintenanceIssueForm = {
   nextStep: "",
   photoFiles: []
 };
+
+const emptyVendorForm: VendorForm = {
+  name: "",
+  type: "Other",
+  contactName: "",
+  phone: "",
+  email: "",
+  notes: ""
+};
+
+const vendorTypes: VendorType[] = ["Pool", "Landscape", "HVAC", "Cleaning", "Handyman", "Plumbing", "Electrical", "Other"];
 
 const experienceScreens: ExperienceScreen[] = [
   "Login",
@@ -163,12 +185,16 @@ export default function InspectionWorkspace({
   const [maintenanceIssues, setMaintenanceIssues] = useState<MaintenanceIssue[]>(
     initialDatabase.maintenanceIssues ?? []
   );
+  const [vendors, setVendors] = useState<VendorContact[]>(initialDatabase.vendors ?? []);
   const [selectedPropertyId, setSelectedPropertyId] = useState(initialDatabase.properties[0]?.id ?? "");
   const [activeReportId, setActiveReportId] = useState(initialDatabase.inspections[0]?.id ?? "");
   const [inspectionForm, setInspectionForm] = useState<InspectionForm>(emptyInspectionForm);
   const [propertyForm, setPropertyForm] = useState<NewPropertyForm>(emptyPropertyForm);
   const [maintenanceIssueForm, setMaintenanceIssueForm] =
     useState<MaintenanceIssueForm>(emptyMaintenanceIssueForm);
+  const [vendorForm, setVendorForm] = useState<VendorForm>(emptyVendorForm);
+  const [vendorSaveMessage, setVendorSaveMessage] = useState("");
+  const [isSavingVendor, setIsSavingVendor] = useState(false);
   const [propertySaveMessage, setPropertySaveMessage] = useState("");
   const [isSavingProperty, setIsSavingProperty] = useState(false);
   const [maintenanceSaveMessage, setMaintenanceSaveMessage] = useState("");
@@ -191,6 +217,11 @@ export default function InspectionWorkspace({
   const selectedMaintenanceIssues = useMemo(
     () => maintenanceIssues.filter((issue) => issue.propertyId === selectedProperty?.id),
     [maintenanceIssues, selectedProperty?.id]
+  );
+
+  const selectedVendors = useMemo(
+    () => vendors.filter((vendor) => vendor.propertyId === selectedProperty?.id),
+    [vendors, selectedProperty?.id]
   );
 
   const activeReport =
@@ -286,8 +317,46 @@ export default function InspectionWorkspace({
     setProperties(database.properties);
     setInspections(database.inspections);
     setMaintenanceIssues(database.maintenanceIssues ?? []);
+    setVendors(database.vendors ?? []);
     setSelectedPropertyId(database.properties[0]?.id ?? "");
     setActiveReportId("");
+  }
+
+  async function saveVendor(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!selectedProperty) {
+      setVendorSaveMessage("Select a property before saving a vendor.");
+      return;
+    }
+
+    setIsSavingVendor(true);
+    setVendorSaveMessage("Saving vendor...");
+
+    try {
+      const response = await fetch("/api/vendors", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...vendorForm,
+          propertyId: selectedProperty.id
+        })
+      });
+
+      if (!response.ok) {
+        const error = (await response.json().catch(() => null)) as { message?: string } | null;
+        setVendorSaveMessage(error?.message || "Vendor could not be saved.");
+        return;
+      }
+
+      const vendor = (await response.json()) as VendorContact;
+      setVendors((current) => [vendor, ...current]);
+      setVendorForm(emptyVendorForm);
+      setVendorSaveMessage(`Vendor saved: ${vendor.name}`);
+    } catch {
+      setVendorSaveMessage("Vendor could not be saved. Check your connection and try again.");
+    } finally {
+      setIsSavingVendor(false);
+    }
   }
 
   async function saveMaintenanceIssue(event: FormEvent<HTMLFormElement>) {
@@ -462,6 +531,9 @@ export default function InspectionWorkspace({
         properties={properties}
         maintenanceIssueForm={maintenanceIssueForm}
         maintenanceIssues={selectedMaintenanceIssues}
+        selectedVendors={selectedVendors}
+        vendorForm={vendorForm}
+        vendorSaveMessage={vendorSaveMessage}
         selectedInspections={selectedInspections}
         selectedProperty={selectedProperty}
         setActiveExperience={setActiveExperience}
@@ -472,6 +544,9 @@ export default function InspectionWorkspace({
         maintenanceSaveMessage={maintenanceSaveMessage}
         updateMaintenanceStatus={updateMaintenanceStatus}
         updateMaintenanceIssue={updateMaintenanceIssue}
+        setVendorForm={setVendorForm}
+        saveVendor={saveVendor}
+        isSavingVendor={isSavingVendor}
       />
 
       <section className="grid gap-5 xl:grid-cols-[300px_minmax(0,1fr)_400px]">
@@ -914,13 +989,19 @@ function LuxuryExperiencePanel({
   now,
   properties,
   saveMaintenanceIssue,
+  saveVendor,
   selectedInspections,
   selectedProperty,
+  selectedVendors,
   setActiveExperience,
   setMaintenanceIssueForm,
+  setVendorForm,
   isSavingMaintenanceIssue,
   updateMaintenanceStatus,
-  updateMaintenanceIssue
+  updateMaintenanceIssue,
+  vendorForm,
+  vendorSaveMessage,
+  isSavingVendor
 }: {
   activeExperience: ExperienceScreen;
   activeReport: Inspection | undefined;
@@ -932,12 +1013,18 @@ function LuxuryExperiencePanel({
   now: Date;
   properties: Property[];
   saveMaintenanceIssue: (event: FormEvent<HTMLFormElement>) => void;
+  saveVendor: (event: FormEvent<HTMLFormElement>) => void;
   selectedInspections: Inspection[];
   selectedProperty: Property | undefined;
+  selectedVendors: VendorContact[];
   setActiveExperience: (screen: ExperienceScreen) => void;
   setMaintenanceIssueForm: Dispatch<SetStateAction<MaintenanceIssueForm>>;
+  setVendorForm: Dispatch<SetStateAction<VendorForm>>;
   updateMaintenanceStatus: (issueId: string, status: MaintenanceStatus) => void;
   updateMaintenanceIssue: (issueId: string, updates: Partial<MaintenanceIssueForm>) => Promise<MaintenanceIssue>;
+  vendorForm: VendorForm;
+  vendorSaveMessage: string;
+  isSavingVendor: boolean;
 }) {
   const urgentCount = selectedInspections.filter((inspection) => inspection.urgent === "Yes").length;
   const urgentMaintenanceCount = maintenanceIssues.filter(
@@ -1067,7 +1154,102 @@ function LuxuryExperiencePanel({
               <DetailStrip label="Access" value={selectedProperty?.accessNotes || "Gate, lockbox, alarm notes"} />
               <DetailStrip label="Smart home" value="Thermostat, alarm, WiFi, lighting scenes" />
               <DetailStrip label="Vehicle / cart" value="Golf cart charged, vehicle tender connected" />
-              <DetailStrip label="Vendors" value="Pool, landscape, cleaning, HVAC, handyman" />
+              <DetailStrip
+                label="Vendors"
+                value={
+                  selectedVendors.length
+                    ? selectedVendors.map((vendor) => `${vendor.type}: ${vendor.name}`).join(", ")
+                    : "No vendors saved yet"
+                }
+              />
+            </div>
+          </ConceptCard>
+          <ConceptCard eyebrow="Vendor directory" title="Property vendor contacts">
+            <form className="grid gap-3" onSubmit={saveVendor}>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <label className="grid gap-2 text-sm font-extrabold">
+                  Vendor name
+                  <input
+                    required
+                    value={vendorForm.name}
+                    onChange={(event) => setVendorForm((current) => ({ ...current, name: event.target.value }))}
+                    className="field-shell rounded-lg p-3"
+                    placeholder="Desert Pool Care"
+                  />
+                </label>
+                <label className="grid gap-2 text-sm font-extrabold">
+                  Vendor type
+                  <select
+                    value={vendorForm.type}
+                    onChange={(event) =>
+                      setVendorForm((current) => ({ ...current, type: event.target.value as VendorType }))
+                    }
+                    className="field-shell rounded-lg p-3"
+                  >
+                    {vendorTypes.map((type) => (
+                      <option key={type}>{type}</option>
+                    ))}
+                  </select>
+                </label>
+              </div>
+              <div className="grid gap-3 sm:grid-cols-3">
+                <label className="grid gap-2 text-sm font-extrabold">
+                  Contact
+                  <input
+                    value={vendorForm.contactName}
+                    onChange={(event) => setVendorForm((current) => ({ ...current, contactName: event.target.value }))}
+                    className="field-shell rounded-lg p-3"
+                  />
+                </label>
+                <label className="grid gap-2 text-sm font-extrabold">
+                  Phone
+                  <input
+                    value={vendorForm.phone}
+                    onChange={(event) => setVendorForm((current) => ({ ...current, phone: event.target.value }))}
+                    className="field-shell rounded-lg p-3"
+                  />
+                </label>
+                <label className="grid gap-2 text-sm font-extrabold">
+                  Email
+                  <input
+                    type="email"
+                    value={vendorForm.email}
+                    onChange={(event) => setVendorForm((current) => ({ ...current, email: event.target.value }))}
+                    className="field-shell rounded-lg p-3"
+                  />
+                </label>
+              </div>
+              <label className="grid gap-2 text-sm font-extrabold">
+                Notes
+                <textarea
+                  rows={3}
+                  value={vendorForm.notes}
+                  onChange={(event) => setVendorForm((current) => ({ ...current, notes: event.target.value }))}
+                  className="field-shell rounded-lg p-3"
+                  placeholder="Preferred schedule, account number, gate instructions, emergency notes..."
+                />
+              </label>
+              {vendorSaveMessage ? (
+                <div className="rounded-lg border border-line bg-white p-3 text-sm font-semibold text-slate-600">
+                  {vendorSaveMessage}
+                </div>
+              ) : null}
+              <button
+                type="submit"
+                disabled={isSavingVendor}
+                className="button-primary min-h-11 rounded-lg px-4 font-extrabold disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {isSavingVendor ? "Saving..." : "Save Vendor"}
+              </button>
+            </form>
+            <div className="mt-4 grid gap-3">
+              {selectedVendors.length ? (
+                selectedVendors.map((vendor) => <VendorCard key={vendor.id} vendor={vendor} />)
+              ) : (
+                <div className="rounded-lg border border-line bg-white p-4 text-sm text-slate-600">
+                  No vendor contacts have been saved for this property yet.
+                </div>
+              )}
             </div>
           </ConceptCard>
         </div>
@@ -1198,14 +1380,20 @@ function LuxuryExperiencePanel({
               </div>
               <label className="grid gap-2 text-sm font-extrabold">
                 Vendor assignment
-                <input
+                <select
                   value={maintenanceIssueForm.vendor}
                   onChange={(event) =>
                     setMaintenanceIssueForm((current) => ({ ...current, vendor: event.target.value }))
                   }
                   className="field-shell rounded-lg p-3"
-                  placeholder="Pool vendor, handyman, HVAC, landscaper..."
-                />
+                >
+                  <option value="">Select vendor or leave unassigned</option>
+                  {selectedVendors.map((vendor) => (
+                    <option key={vendor.id} value={vendor.name}>
+                      {vendor.type}: {vendor.name}
+                    </option>
+                  ))}
+                </select>
               </label>
               <label className="grid gap-2 text-sm font-extrabold">
                 Next step
@@ -1352,6 +1540,30 @@ function MetricCard({
       <strong className={`mt-2 block text-3xl font-extrabold ${urgent ? "text-[#9f352e]" : "text-ink"}`}>{value}</strong>
       <span className="mt-1 block text-sm text-slate-600">{detail}</span>
     </div>
+  );
+}
+
+function VendorCard({ vendor }: { vendor: VendorContact }) {
+  return (
+    <article className="rounded-lg border border-line bg-white p-4">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <span className="text-xs font-extrabold uppercase tracking-[0.08em] text-clay">{vendor.type}</span>
+          <h4 className="mt-1 text-lg font-extrabold text-ink">{vendor.name}</h4>
+        </div>
+        {vendor.phone ? (
+          <a href={`tel:${vendor.phone}`} className="button-soft rounded-lg px-3 py-2 text-sm font-extrabold">
+            Call
+          </a>
+        ) : null}
+      </div>
+      <div className="mt-3 grid gap-2 text-sm sm:grid-cols-2">
+        <DetailStrip label="Contact" value={vendor.contactName || "Not provided"} />
+        <DetailStrip label="Phone" value={vendor.phone || "Not provided"} />
+        <DetailStrip label="Email" value={vendor.email || "Not provided"} />
+        <DetailStrip label="Notes" value={vendor.notes || "No vendor notes."} />
+      </div>
+    </article>
   );
 }
 
