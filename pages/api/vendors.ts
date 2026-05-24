@@ -43,7 +43,26 @@ export default async function handler(request: NextApiRequest, response: NextApi
     response.status(201).json(vendor);
   } catch (error) {
     response.status(500).json({
-      message: error instanceof Error ? error.message : "Vendor could not be saved."
+      message: `Vendor could not be saved: ${formatErrorMessage(error)}`
     });
   }
+}
+
+function formatErrorMessage(error: unknown) {
+  if (error instanceof Error) {
+    return error.message;
+  }
+
+  if (error && typeof error === "object") {
+    const maybeError = error as { message?: unknown; code?: unknown; details?: unknown; hint?: unknown };
+    const parts = [maybeError.message, maybeError.code, maybeError.details, maybeError.hint]
+      .filter(Boolean)
+      .map(String);
+
+    if (parts.length) {
+      return parts.join(" / ");
+    }
+  }
+
+  return "Please confirm the vendors table exists in Supabase and try again.";
 }
