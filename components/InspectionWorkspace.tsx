@@ -933,7 +933,9 @@ function LuxuryExperiencePanel({
   updateMaintenanceStatus: (issueId: string, status: MaintenanceStatus) => void;
 }) {
   const urgentCount = selectedInspections.filter((inspection) => inspection.urgent === "Yes").length;
-  const urgentMaintenanceCount = maintenanceIssues.filter((issue) => issue.priority === "Urgent").length;
+  const urgentMaintenanceCount = maintenanceIssues.filter(
+    (issue) => issue.priority === "Urgent" && issue.status !== "Resolved"
+  ).length;
   const openMaintenanceCount = maintenanceIssues.filter((issue) => issue.status !== "Resolved").length;
   const recentReport = selectedInspections[0];
   const completedItems = activeReport ? visibleChecklistItems(activeReport.checklist).length : 0;
