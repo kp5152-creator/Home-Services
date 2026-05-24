@@ -169,6 +169,8 @@ export default function InspectionWorkspace({
   const [propertyForm, setPropertyForm] = useState<NewPropertyForm>(emptyPropertyForm);
   const [maintenanceIssueForm, setMaintenanceIssueForm] =
     useState<MaintenanceIssueForm>(emptyMaintenanceIssueForm);
+  const [maintenanceSaveMessage, setMaintenanceSaveMessage] = useState("");
+  const [isSavingMaintenanceIssue, setIsSavingMaintenanceIssue] = useState(false);
   const [showPropertyForm, setShowPropertyForm] = useState(false);
   const [activeExperience, setActiveExperience] = useState<ExperienceScreen>("Dashboard");
   const [darkMode, setDarkMode] = useState(false);
@@ -269,46 +271,59 @@ export default function InspectionWorkspace({
 
   async function saveMaintenanceIssue(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!selectedProperty) return;
+    if (!selectedProperty) {
+      setMaintenanceSaveMessage("Select a property before saving a maintenance issue.");
+      return;
+    }
+
+    setIsSavingMaintenanceIssue(true);
+    setMaintenanceSaveMessage("Saving maintenance issue...");
 
     let photos: Awaited<ReturnType<typeof fileToPhotoUpload>>[];
 
     try {
       photos = await Promise.all(maintenanceIssueForm.photoFiles.map(fileToPhotoUpload));
     } catch {
-      window.alert("One or more maintenance photos could not be processed. Please try JPEG or PNG photos.");
+      setMaintenanceSaveMessage("One or more maintenance photos could not be processed. Please try JPEG or PNG photos.");
+      setIsSavingMaintenanceIssue(false);
       return;
     }
 
-    const response = await fetch("/api/maintenance-issues", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        ...maintenanceIssueForm,
-        photoFiles: undefined,
-        photos,
-        propertyId: selectedProperty.id
-      })
-    });
+    try {
+      const response = await fetch("/api/maintenance-issues", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...maintenanceIssueForm,
+          photoFiles: undefined,
+          photos,
+          propertyId: selectedProperty.id
+        })
+      });
 
-    if (!response.ok) {
-      const error = (await response.json().catch(() => null)) as { message?: string } | null;
-      window.alert(error?.message || "Maintenance issue could not be saved. Please try again.");
-      return;
-    }
+      if (!response.ok) {
+        const error = (await response.json().catch(() => null)) as { message?: string } | null;
+        setMaintenanceSaveMessage(error?.message || "Maintenance issue could not be saved. Please try again.");
+        setIsSavingMaintenanceIssue(false);
+        return;
+      }
 
-    const issue = (await response.json()) as MaintenanceIssue;
-    const savedPhotoCount = issue.photos?.length ?? 0;
+      const issue = (await response.json()) as MaintenanceIssue;
+      const savedPhotoCount = issue.photos?.length ?? 0;
 
-    if (maintenanceIssueForm.photoFiles.length && savedPhotoCount === 0) {
-      window.alert(
-        "The maintenance issue was saved, but the photo did not attach. Please confirm the Supabase maintenance photo table was created and try a smaller photo."
+      setMaintenanceIssues((current) => [issue, ...current]);
+      setMaintenanceIssueForm(emptyMaintenanceIssueForm);
+      setActiveExperience("Maintenance");
+      setMaintenanceSaveMessage(
+        maintenanceIssueForm.photoFiles.length && savedPhotoCount === 0
+          ? "Issue saved, but no photos attached. Confirm the Supabase maintenance photo table exists."
+          : `Issue saved with ${savedPhotoCount} photo${savedPhotoCount === 1 ? "" : "s"}.`
       );
+    } catch {
+      setMaintenanceSaveMessage("Maintenance issue could not be saved. Check your connection and try again.");
+    } finally {
+      setIsSavingMaintenanceIssue(false);
     }
-
-    setMaintenanceIssues((current) => [issue, ...current]);
-    setMaintenanceIssueForm(emptyMaintenanceIssueForm);
-    setActiveExperience("Maintenance");
   }
 
   function toggleChecklistItem(item: string) {
@@ -403,6 +418,8 @@ export default function InspectionWorkspace({
         setMaintenanceIssueForm={setMaintenanceIssueForm}
         addMaintenanceIssuePhotoFiles={addMaintenanceIssuePhotoFiles}
         saveMaintenanceIssue={saveMaintenanceIssue}
+        isSavingMaintenanceIssue={isSavingMaintenanceIssue}
+        maintenanceSaveMessage={maintenanceSaveMessage}
       />
 
       <section className="grid gap-5 xl:grid-cols-[300px_minmax(0,1fr)_400px]">
@@ -832,19 +849,23 @@ function LuxuryExperiencePanel({
   addMaintenanceIssuePhotoFiles,
   maintenanceIssueForm,
   maintenanceIssues,
+  maintenanceSaveMessage,
   now,
   properties,
   saveMaintenanceIssue,
   selectedInspections,
   selectedProperty,
   setActiveExperience,
-  setMaintenanceIssueForm
+  setMaintenanceIssueForm,
+  isSavingMaintenanceIssue
 }: {
   activeExperience: ExperienceScreen;
   activeReport: Inspection | undefined;
   addMaintenanceIssuePhotoFiles: (files: FileList | null) => void;
+  isSavingMaintenanceIssue: boolean;
   maintenanceIssueForm: MaintenanceIssueForm;
   maintenanceIssues: MaintenanceIssue[];
+  maintenanceSaveMessage: string;
   now: Date;
   properties: Property[];
   saveMaintenanceIssue: (event: FormEvent<HTMLFormElement>) => void;
@@ -1164,8 +1185,17 @@ function LuxuryExperiencePanel({
                   </div>
                 </div>
               ) : null}
-              <button type="submit" className="button-primary min-h-12 rounded-lg px-5 font-extrabold">
-                Save Maintenance Issue
+              {maintenanceSaveMessage ? (
+                <div className="rounded-lg border border-line bg-white p-3 text-sm font-semibold text-slate-600">
+                  {maintenanceSaveMessage}
+                </div>
+              ) : null}
+              <button
+                type="submit"
+                disabled={isSavingMaintenanceIssue}
+                className="button-primary min-h-12 rounded-lg px-5 font-extrabold disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {isSavingMaintenanceIssue ? "Saving..." : "Save Maintenance Issue"}
               </button>
             </form>
           </ConceptCard>
