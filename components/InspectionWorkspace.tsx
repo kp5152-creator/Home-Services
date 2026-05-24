@@ -255,7 +255,10 @@ export default function InspectionWorkspace({
       setActiveReportId("");
       setPropertyForm(emptyPropertyForm);
       setPropertySaveMessage(`Property saved: ${property.name}`);
-      setShowPropertyForm(false);
+      setTimeout(() => {
+        setShowPropertyForm(false);
+        setPropertySaveMessage("");
+      }, 650);
     } catch {
       setPropertySaveMessage("Property could not be saved. Check your connection and try again.");
     } finally {
@@ -451,7 +454,10 @@ export default function InspectionWorkspace({
             </div>
             <button
               type="button"
-              onClick={() => setShowPropertyForm(true)}
+              onClick={() => {
+                setPropertySaveMessage("");
+                setShowPropertyForm(true);
+              }}
               className="button-primary grid h-11 w-11 place-items-center rounded-lg text-2xl font-extrabold leading-none"
               aria-label="Add property"
             >
