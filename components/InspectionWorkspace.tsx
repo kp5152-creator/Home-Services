@@ -1402,7 +1402,7 @@ function LuxuryExperiencePanel({
             </div>
           </div>
 
-          <div className="estate-panel rounded-lg p-5">
+          <div className="hidden estate-panel rounded-lg p-5 xl:block">
             <div className="mb-5 flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
               <div>
                 <p className="mb-2 text-xs font-extrabold uppercase tracking-[0.12em] text-clay">
@@ -1426,7 +1426,7 @@ function LuxuryExperiencePanel({
               <MetricCard label="Readiness" value="96%" detail="Operational score" />
             </div>
           </div>
-          <div className="grid gap-5 lg:grid-cols-[1.2fr_0.8fr]">
+          <div className="hidden gap-5 xl:grid lg:grid-cols-[1.2fr_0.8fr]">
             <ConceptCard eyebrow="Occupancy overview" title="Next 7 days">
               <div className="grid grid-cols-7 gap-2">
                 {["M", "T", "W", "T", "F", "S", "S"].map((day, index) => (
@@ -1604,7 +1604,7 @@ function LuxuryExperiencePanel({
       ) : null}
 
       {activeExperience === "Inspection" ? (
-        <div className="grid gap-5 lg:grid-cols-[0.9fr_1.1fr]">
+        <div className="hidden gap-5 xl:grid lg:grid-cols-[0.9fr_1.1fr]">
           <ConceptCard eyebrow="Mobile workflow" title="Fast field completion">
             <div className="grid gap-3">
               {["Choose inspection type", "Complete checklist", "Upload required photos", "Flag issues", "Generate report"].map(
@@ -1760,7 +1760,7 @@ function LuxuryExperiencePanel({
       ) : null}
 
       {activeExperience === "Reports" ? (
-        <div className="grid gap-5 lg:grid-cols-[0.8fr_1.2fr]">
+        <div className="hidden gap-5 xl:grid lg:grid-cols-[0.8fr_1.2fr]">
           <ConceptCard eyebrow="Report summary" title="Owner-ready presentation">
             <MetricCard label="Inspection Score" value={completedItems ? "A" : "Pending"} detail="Clean report status" />
             <div className="mt-4 grid gap-2">
