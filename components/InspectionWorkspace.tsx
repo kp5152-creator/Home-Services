@@ -1462,6 +1462,7 @@ function LuxuryExperiencePanel({
                   <MaintenanceIssueCard
                     key={issue.id}
                     issue={issue}
+                    selectedVendors={selectedVendors}
                     updateMaintenanceStatus={updateMaintenanceStatus}
                     updateMaintenanceIssue={updateMaintenanceIssue}
                   />
@@ -1569,10 +1570,12 @@ function VendorCard({ vendor }: { vendor: VendorContact }) {
 
 function MaintenanceIssueCard({
   issue,
+  selectedVendors,
   updateMaintenanceStatus,
   updateMaintenanceIssue
 }: {
   issue: MaintenanceIssue;
+  selectedVendors: VendorContact[];
   updateMaintenanceStatus: (issueId: string, status: MaintenanceStatus) => void;
   updateMaintenanceIssue: (issueId: string, updates: Partial<MaintenanceIssueForm>) => Promise<MaintenanceIssue>;
 }) {
@@ -1588,6 +1591,7 @@ function MaintenanceIssueCard({
     photoFiles: []
   });
   const issuePhotos = issue.photos ?? [];
+  const assignedVendor = selectedVendors.find((vendor) => vendor.name === issue.vendor);
   const priorityClass =
     issue.priority === "Urgent"
       ? "border-[#d9a5a0] bg-[#fff8f6] text-[#9f352e]"
@@ -1664,6 +1668,31 @@ function MaintenanceIssueCard({
         <DetailStrip label="Vendor" value={issue.vendor || "Not assigned"} />
         <DetailStrip label="Next Step" value={issue.nextStep || "Review needed"} />
       </div>
+      {assignedVendor ? (
+        <div className="mt-4 rounded-lg border border-line bg-white/80 p-3">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <span className="text-xs font-extrabold uppercase tracking-[0.08em] text-clay">
+                Assigned Vendor
+              </span>
+              <strong className="mt-1 block text-ink">{assignedVendor.name}</strong>
+              <span className="mt-1 block text-sm opacity-75">
+                {assignedVendor.type}
+                {assignedVendor.contactName ? ` / ${assignedVendor.contactName}` : ""}
+              </span>
+            </div>
+            {assignedVendor.phone ? (
+              <a href={`tel:${assignedVendor.phone}`} className="button-soft rounded-lg px-3 py-2 text-sm font-extrabold">
+                Call Vendor
+              </a>
+            ) : null}
+          </div>
+          <div className="mt-3 grid gap-2 text-sm sm:grid-cols-2">
+            <DetailStrip label="Phone" value={assignedVendor.phone || "Not provided"} />
+            <DetailStrip label="Email" value={assignedVendor.email || "Not provided"} />
+          </div>
+        </div>
+      ) : null}
       <div className="mt-4 grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
         <label className="grid gap-2 text-sm font-extrabold">
           Update status
@@ -1752,7 +1781,13 @@ function MaintenanceIssueCard({
               value={editForm.vendor}
               onChange={(event) => setEditForm((current) => ({ ...current, vendor: event.target.value }))}
               className="field-shell rounded-lg p-3"
+              list={`vendor-options-${issue.id}`}
             />
+            <datalist id={`vendor-options-${issue.id}`}>
+              {selectedVendors.map((vendor) => (
+                <option key={vendor.id} value={vendor.name} />
+              ))}
+            </datalist>
           </label>
           <label className="grid gap-2 text-sm font-extrabold">
             Next step
