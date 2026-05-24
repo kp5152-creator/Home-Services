@@ -667,8 +667,21 @@ export default function InspectionWorkspace({
     );
   }
 
+  const hasMobileActionBar = [
+    "Inspection",
+    "Maintenance",
+    "Schedule",
+    "Owner Portal",
+    "Reports",
+    "Property"
+  ].includes(activeExperience);
+
   return (
-    <main className={`mx-auto min-h-screen w-full max-w-[1480px] p-3 pb-28 sm:p-6 xl:pb-6 ${darkMode ? "luxury-dark" : ""}`}>
+    <main
+      className={`mx-auto min-h-screen w-full max-w-[1480px] p-3 ${
+        hasMobileActionBar ? "pb-44" : "pb-28"
+      } sm:p-6 xl:pb-6 ${darkMode ? "luxury-dark" : ""}`}
+    >
       <section className="mb-5 overflow-hidden rounded-lg bg-ink text-white shadow-estate">
         <div className="flex min-h-28 flex-col justify-between gap-5 bg-[linear-gradient(135deg,rgba(217,154,92,0.22),transparent_42%),linear-gradient(315deg,rgba(95,120,108,0.45),transparent_48%)] p-5 md:flex-row md:items-center md:p-7 xl:min-h-36">
           <div className="flex items-center gap-4">
