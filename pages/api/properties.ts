@@ -30,10 +30,7 @@ export default async function handler(request: NextApiRequest, response: NextApi
       response.status(201).json(property);
     } catch (error) {
       response.status(500).json({
-        message:
-          error instanceof Error
-            ? error.message
-            : "Property could not be saved. Please check the database setup and try again."
+        message: `Property could not be saved: ${formatErrorMessage(error)}`
       });
     }
     return;
@@ -54,4 +51,23 @@ export default async function handler(request: NextApiRequest, response: NextApi
 
   response.setHeader("Allow", "GET, POST, DELETE");
   response.status(405).json({ message: "Method not allowed" });
+}
+
+function formatErrorMessage(error: unknown) {
+  if (error instanceof Error) {
+    return error.message;
+  }
+
+  if (error && typeof error === "object") {
+    const maybeError = error as { message?: unknown; code?: unknown; details?: unknown; hint?: unknown };
+    const parts = [maybeError.message, maybeError.code, maybeError.details, maybeError.hint]
+      .filter(Boolean)
+      .map(String);
+
+    if (parts.length) {
+      return parts.join(" / ");
+    }
+  }
+
+  return "Please check the database setup and try again.";
 }
