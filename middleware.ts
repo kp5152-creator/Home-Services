@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
-const publicFilePattern = /\.(?:css|js|ico|png|jpg|jpeg|webp|svg|woff2?)$/i;
+const publicFilePattern = /\.(?:css|js|ico|png|jpg|jpeg|webp|svg|webmanifest|woff2?)$/i;
 
 export function middleware(request: NextRequest) {
   const username = process.env.APP_USERNAME || "admin";
@@ -38,6 +38,7 @@ function isPublicRequest(request: NextRequest) {
   return (
     pathname.startsWith("/_next/") ||
     pathname === "/favicon.ico" ||
+    pathname === "/offline.html" ||
     pathname === "/robots.txt" ||
     pathname === "/sitemap.xml" ||
     publicFilePattern.test(pathname)
