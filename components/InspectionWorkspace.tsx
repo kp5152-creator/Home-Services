@@ -371,28 +371,32 @@ export default function InspectionWorkspace({
   }
 
   async function updateMaintenanceStatus(issueId: string, status: MaintenanceStatus) {
+    await updateMaintenanceIssue(issueId, { status });
+  }
+
+  async function updateMaintenanceIssue(issueId: string, updates: Partial<MaintenanceIssueForm>) {
     const previousIssues = maintenanceIssues;
     setMaintenanceIssues((current) =>
-      current.map((issue) => (issue.id === issueId ? { ...issue, status } : issue))
+      current.map((issue) => (issue.id === issueId ? { ...issue, ...updates } : issue))
     );
 
     const response = await fetch("/api/maintenance-issues", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id: issueId, status })
+      body: JSON.stringify({ id: issueId, ...updates })
     });
 
     if (!response.ok) {
       const error = (await response.json().catch(() => null)) as { message?: string } | null;
       setMaintenanceIssues(previousIssues);
-      window.alert(error?.message || "Maintenance status could not be updated.");
-      return;
+      throw new Error(error?.message || "Maintenance issue could not be updated.");
     }
 
     const updatedIssue = (await response.json()) as MaintenanceIssue;
     setMaintenanceIssues((current) =>
       current.map((issue) => (issue.id === updatedIssue.id ? updatedIssue : issue))
     );
+    return updatedIssue;
   }
 
   return (
@@ -467,6 +471,7 @@ export default function InspectionWorkspace({
         isSavingMaintenanceIssue={isSavingMaintenanceIssue}
         maintenanceSaveMessage={maintenanceSaveMessage}
         updateMaintenanceStatus={updateMaintenanceStatus}
+        updateMaintenanceIssue={updateMaintenanceIssue}
       />
 
       <section className="grid gap-5 xl:grid-cols-[300px_minmax(0,1fr)_400px]">
@@ -914,7 +919,8 @@ function LuxuryExperiencePanel({
   setActiveExperience,
   setMaintenanceIssueForm,
   isSavingMaintenanceIssue,
-  updateMaintenanceStatus
+  updateMaintenanceStatus,
+  updateMaintenanceIssue
 }: {
   activeExperience: ExperienceScreen;
   activeReport: Inspection | undefined;
@@ -931,6 +937,7 @@ function LuxuryExperiencePanel({
   setActiveExperience: (screen: ExperienceScreen) => void;
   setMaintenanceIssueForm: Dispatch<SetStateAction<MaintenanceIssueForm>>;
   updateMaintenanceStatus: (issueId: string, status: MaintenanceStatus) => void;
+  updateMaintenanceIssue: (issueId: string, updates: Partial<MaintenanceIssueForm>) => Promise<MaintenanceIssue>;
 }) {
   const urgentCount = selectedInspections.filter((inspection) => inspection.urgent === "Yes").length;
   const urgentMaintenanceCount = maintenanceIssues.filter(
@@ -1268,6 +1275,7 @@ function LuxuryExperiencePanel({
                     key={issue.id}
                     issue={issue}
                     updateMaintenanceStatus={updateMaintenanceStatus}
+                    updateMaintenanceIssue={updateMaintenanceIssue}
                   />
                 ))
               ) : (
@@ -1349,11 +1357,24 @@ function MetricCard({
 
 function MaintenanceIssueCard({
   issue,
-  updateMaintenanceStatus
+  updateMaintenanceStatus,
+  updateMaintenanceIssue
 }: {
   issue: MaintenanceIssue;
   updateMaintenanceStatus: (issueId: string, status: MaintenanceStatus) => void;
+  updateMaintenanceIssue: (issueId: string, updates: Partial<MaintenanceIssueForm>) => Promise<MaintenanceIssue>;
 }) {
+  const [isEditing, setIsEditing] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [editForm, setEditForm] = useState<MaintenanceIssueForm>({
+    title: issue.title,
+    description: issue.description,
+    priority: issue.priority,
+    status: issue.status,
+    vendor: issue.vendor,
+    nextStep: issue.nextStep,
+    photoFiles: []
+  });
   const issuePhotos = issue.photos ?? [];
   const priorityClass =
     issue.priority === "Urgent"
@@ -1361,6 +1382,36 @@ function MaintenanceIssueCard({
       : issue.priority === "High"
         ? "border-[#ead2a8] bg-[#fff8ed] text-[#7b5426]"
         : "border-line bg-white text-ink";
+
+  async function saveIssueEdits(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setIsSaving(true);
+
+    try {
+      const updatedIssue = await updateMaintenanceIssue(issue.id, {
+        title: editForm.title,
+        description: editForm.description,
+        priority: editForm.priority,
+        status: editForm.status,
+        vendor: editForm.vendor,
+        nextStep: editForm.nextStep
+      });
+      setEditForm({
+        title: updatedIssue.title,
+        description: updatedIssue.description,
+        priority: updatedIssue.priority,
+        status: updatedIssue.status,
+        vendor: updatedIssue.vendor,
+        nextStep: updatedIssue.nextStep,
+        photoFiles: []
+      });
+      setIsEditing(false);
+    } catch (error) {
+      window.alert(error instanceof Error ? error.message : "Maintenance issue could not be updated.");
+    } finally {
+      setIsSaving(false);
+    }
+  }
 
   return (
     <article className={`rounded-lg border p-4 ${priorityClass}`}>
@@ -1401,18 +1452,122 @@ function MaintenanceIssueCard({
         <DetailStrip label="Vendor" value={issue.vendor || "Not assigned"} />
         <DetailStrip label="Next Step" value={issue.nextStep || "Review needed"} />
       </div>
-      <label className="mt-4 grid gap-2 text-sm font-extrabold">
-        Update status
-        <select
-          value={issue.status}
-          onChange={(event) => updateMaintenanceStatus(issue.id, event.target.value as MaintenanceStatus)}
-          className="field-shell rounded-lg p-3"
+      <div className="mt-4 grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
+        <label className="grid gap-2 text-sm font-extrabold">
+          Update status
+          <select
+            value={issue.status}
+            onChange={(event) => updateMaintenanceStatus(issue.id, event.target.value as MaintenanceStatus)}
+            className="field-shell rounded-lg p-3"
+          >
+            {(["Open", "Scheduled", "In Progress", "Resolved"] as MaintenanceStatus[]).map((status) => (
+              <option key={status}>{status}</option>
+            ))}
+          </select>
+        </label>
+        <button
+          type="button"
+          onClick={() => {
+            setEditForm({
+              title: issue.title,
+              description: issue.description,
+              priority: issue.priority,
+              status: issue.status,
+              vendor: issue.vendor,
+              nextStep: issue.nextStep,
+              photoFiles: []
+            });
+            setIsEditing((current) => !current);
+          }}
+          className="button-soft min-h-11 rounded-lg px-4 font-extrabold"
         >
-          {(["Open", "Scheduled", "In Progress", "Resolved"] as MaintenanceStatus[]).map((status) => (
-            <option key={status}>{status}</option>
-          ))}
-        </select>
-      </label>
+          {isEditing ? "Close Edit" : "Edit Details"}
+        </button>
+      </div>
+      {isEditing ? (
+        <form className="mt-4 grid gap-3 rounded-lg border border-line bg-white/70 p-3" onSubmit={saveIssueEdits}>
+          <label className="grid gap-2 text-sm font-extrabold">
+            Issue title
+            <input
+              required
+              value={editForm.title}
+              onChange={(event) => setEditForm((current) => ({ ...current, title: event.target.value }))}
+              className="field-shell rounded-lg p-3"
+            />
+          </label>
+          <label className="grid gap-2 text-sm font-extrabold">
+            Description
+            <textarea
+              rows={3}
+              value={editForm.description}
+              onChange={(event) => setEditForm((current) => ({ ...current, description: event.target.value }))}
+              className="field-shell rounded-lg p-3"
+            />
+          </label>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <label className="grid gap-2 text-sm font-extrabold">
+              Priority
+              <select
+                value={editForm.priority}
+                onChange={(event) =>
+                  setEditForm((current) => ({ ...current, priority: event.target.value as MaintenancePriority }))
+                }
+                className="field-shell rounded-lg p-3"
+              >
+                {(["Low", "Medium", "High", "Urgent"] as MaintenancePriority[]).map((priority) => (
+                  <option key={priority}>{priority}</option>
+                ))}
+              </select>
+            </label>
+            <label className="grid gap-2 text-sm font-extrabold">
+              Status
+              <select
+                value={editForm.status}
+                onChange={(event) =>
+                  setEditForm((current) => ({ ...current, status: event.target.value as MaintenanceStatus }))
+                }
+                className="field-shell rounded-lg p-3"
+              >
+                {(["Open", "Scheduled", "In Progress", "Resolved"] as MaintenanceStatus[]).map((status) => (
+                  <option key={status}>{status}</option>
+                ))}
+              </select>
+            </label>
+          </div>
+          <label className="grid gap-2 text-sm font-extrabold">
+            Vendor
+            <input
+              value={editForm.vendor}
+              onChange={(event) => setEditForm((current) => ({ ...current, vendor: event.target.value }))}
+              className="field-shell rounded-lg p-3"
+            />
+          </label>
+          <label className="grid gap-2 text-sm font-extrabold">
+            Next step
+            <input
+              value={editForm.nextStep}
+              onChange={(event) => setEditForm((current) => ({ ...current, nextStep: event.target.value }))}
+              className="field-shell rounded-lg p-3"
+            />
+          </label>
+          <div className="flex flex-wrap justify-end gap-2">
+            <button
+              type="button"
+              onClick={() => setIsEditing(false)}
+              className="button-soft min-h-11 rounded-lg px-4 font-extrabold"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={isSaving}
+              className="button-primary min-h-11 rounded-lg px-4 font-extrabold disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {isSaving ? "Saving..." : "Save Changes"}
+            </button>
+          </div>
+        </form>
+      ) : null}
       <span className="mt-3 block text-xs font-semibold opacity-65">{formatDateTime(issue.createdAt)}</span>
     </article>
   );

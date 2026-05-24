@@ -1,5 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from "next";
-import { addMaintenanceIssue, updateMaintenanceIssueStatus } from "@/lib/db";
+import { addMaintenanceIssue, updateMaintenanceIssue } from "@/lib/db";
 import type { MaintenancePriority, MaintenanceStatus } from "@/lib/types";
 
 const priorities: MaintenancePriority[] = ["Low", "Medium", "High", "Urgent"];
@@ -25,13 +25,22 @@ export default async function handler(request: NextApiRequest, response: NextApi
   if (request.method === "PATCH") {
     try {
       const issueId = String(request.body.id ?? "");
+      const priority = priorities.includes(request.body.priority) ? request.body.priority : undefined;
+      const requestedStatus = statuses.includes(request.body.status) ? request.body.status : undefined;
 
       if (!issueId) {
         response.status(400).json({ message: "Maintenance issue id is required." });
         return;
       }
 
-      const issue = await updateMaintenanceIssueStatus(issueId, status);
+      const issue = await updateMaintenanceIssue(issueId, {
+        title: request.body.title === undefined ? undefined : String(request.body.title ?? "").trim(),
+        description: request.body.description === undefined ? undefined : String(request.body.description ?? ""),
+        priority,
+        status: requestedStatus,
+        vendor: request.body.vendor === undefined ? undefined : String(request.body.vendor ?? ""),
+        nextStep: request.body.nextStep === undefined ? undefined : String(request.body.nextStep ?? "")
+      });
 
       if (!issue) {
         response.status(404).json({ message: "Maintenance issue not found." });

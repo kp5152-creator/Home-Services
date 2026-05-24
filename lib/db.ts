@@ -6,6 +6,7 @@ import type {
   InspectionPhoto,
   MaintenanceIssue,
   MaintenanceIssuePhoto,
+  MaintenancePriority,
   MaintenanceStatus,
   Property
 } from "@/lib/types";
@@ -20,6 +21,10 @@ export type PhotoUpload = {
   type: string;
   data: string;
 };
+
+export type MaintenanceIssueUpdate = Partial<
+  Pick<MaintenanceIssue, "title" | "description" | "priority" | "status" | "vendor" | "nextStep">
+>;
 
 export async function readDatabase(): Promise<Database> {
   if (hasSupabaseConfig()) {
@@ -117,8 +122,12 @@ export async function addMaintenanceIssue(
 }
 
 export async function updateMaintenanceIssueStatus(issueId: string, status: MaintenanceStatus) {
+  return updateMaintenanceIssue(issueId, { status });
+}
+
+export async function updateMaintenanceIssue(issueId: string, updates: MaintenanceIssueUpdate) {
   if (hasSupabaseConfig()) {
-    return updateSupabaseMaintenanceIssueStatus(issueId, status);
+    return updateSupabaseMaintenanceIssue(issueId, updates);
   }
 
   const database = await readDatabase();
@@ -130,7 +139,7 @@ export async function updateMaintenanceIssueStatus(issueId: string, status: Main
 
   const updatedIssue: MaintenanceIssue = {
     ...issue,
-    status
+    ...updates
   };
 
   database.maintenanceIssues = database.maintenanceIssues.map((item) =>
@@ -491,11 +500,27 @@ async function addSupabaseMaintenanceIssue(
   return newIssue;
 }
 
-async function updateSupabaseMaintenanceIssueStatus(issueId: string, status: MaintenanceStatus) {
+async function updateSupabaseMaintenanceIssue(issueId: string, updates: MaintenanceIssueUpdate) {
   const supabase = supabaseAdmin();
+  const updateRow: {
+    title?: string;
+    description?: string;
+    priority?: MaintenancePriority;
+    status?: MaintenanceStatus;
+    vendor?: string;
+    next_step?: string;
+  } = {};
+
+  if (updates.title !== undefined) updateRow.title = updates.title;
+  if (updates.description !== undefined) updateRow.description = updates.description;
+  if (updates.priority !== undefined) updateRow.priority = updates.priority;
+  if (updates.status !== undefined) updateRow.status = updates.status;
+  if (updates.vendor !== undefined) updateRow.vendor = updates.vendor;
+  if (updates.nextStep !== undefined) updateRow.next_step = updates.nextStep;
+
   const { data, error } = await supabase
     .from("maintenance_issues")
-    .update({ status })
+    .update(updateRow)
     .eq("id", issueId)
     .select("*, maintenance_issue_photos(*)")
     .single();
