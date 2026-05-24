@@ -7,13 +7,16 @@ const config: Config = {
       colors: {
         ink: "#17211f",
         clay: "#b76e46",
-        sage: "#6e8478",
-        "sage-dark": "#40584d",
+        sun: "#d99a5c",
+        sage: "#5f786c",
+        "sage-dark": "#344b43",
         paper: "#fbfaf7",
-        line: "#dbe2dd"
+        sand: "#f5f2eb",
+        line: "#d9e1dc"
       },
       boxShadow: {
-        estate: "0 24px 60px rgba(35, 45, 41, 0.12)"
+        estate: "0 18px 44px rgba(35, 45, 41, 0.09)",
+        lift: "0 12px 28px rgba(35, 45, 41, 0.1)"
       }
     }
   },
