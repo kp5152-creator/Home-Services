@@ -8,16 +8,34 @@ export default async function handler(request: NextApiRequest, response: NextApi
   }
 
   if (request.method === "POST") {
-    const property = await addProperty({
-      name: String(request.body.name ?? ""),
-      owner: String(request.body.owner ?? ""),
-      address: String(request.body.address ?? ""),
-      phone: String(request.body.phone ?? ""),
-      email: String(request.body.email ?? ""),
-      accessNotes: String(request.body.accessNotes ?? "")
-    });
+    try {
+      const name = String(request.body.name ?? "").trim();
+      const owner = String(request.body.owner ?? "").trim();
+      const address = String(request.body.address ?? "").trim();
 
-    response.status(201).json(property);
+      if (!name || !owner || !address) {
+        response.status(400).json({ message: "Property name, homeowner, and address are required." });
+        return;
+      }
+
+      const property = await addProperty({
+        name,
+        owner,
+        address,
+        phone: String(request.body.phone ?? ""),
+        email: String(request.body.email ?? ""),
+        accessNotes: String(request.body.accessNotes ?? "")
+      });
+
+      response.status(201).json(property);
+    } catch (error) {
+      response.status(500).json({
+        message:
+          error instanceof Error
+            ? error.message
+            : "Property could not be saved. Please check the database setup and try again."
+      });
+    }
     return;
   }
 

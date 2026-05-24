@@ -169,6 +169,8 @@ export default function InspectionWorkspace({
   const [propertyForm, setPropertyForm] = useState<NewPropertyForm>(emptyPropertyForm);
   const [maintenanceIssueForm, setMaintenanceIssueForm] =
     useState<MaintenanceIssueForm>(emptyMaintenanceIssueForm);
+  const [propertySaveMessage, setPropertySaveMessage] = useState("");
+  const [isSavingProperty, setIsSavingProperty] = useState(false);
   const [maintenanceSaveMessage, setMaintenanceSaveMessage] = useState("");
   const [isSavingMaintenanceIssue, setIsSavingMaintenanceIssue] = useState(false);
   const [showPropertyForm, setShowPropertyForm] = useState(false);
@@ -230,19 +232,35 @@ export default function InspectionWorkspace({
 
   async function saveProperty(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    setIsSavingProperty(true);
+    setPropertySaveMessage("Saving property...");
 
-    const response = await fetch("/api/properties", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(propertyForm)
-    });
+    try {
+      const response = await fetch("/api/properties", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(propertyForm)
+      });
 
-    const property = (await response.json()) as Property;
-    setProperties((current) => [property, ...current]);
-    setSelectedPropertyId(property.id);
-    setActiveReportId("");
-    setPropertyForm(emptyPropertyForm);
-    setShowPropertyForm(false);
+      if (!response.ok) {
+        const error = (await response.json().catch(() => null)) as { message?: string } | null;
+        setPropertySaveMessage(error?.message || "Property could not be saved. Please try again.");
+        setIsSavingProperty(false);
+        return;
+      }
+
+      const property = (await response.json()) as Property;
+      setProperties((current) => [property, ...current]);
+      setSelectedPropertyId(property.id);
+      setActiveReportId("");
+      setPropertyForm(emptyPropertyForm);
+      setPropertySaveMessage(`Property saved: ${property.name}`);
+      setShowPropertyForm(false);
+    } catch {
+      setPropertySaveMessage("Property could not be saved. Check your connection and try again.");
+    } finally {
+      setIsSavingProperty(false);
+    }
   }
 
   async function deleteSelectedProperty(property: Property) {
@@ -771,6 +789,11 @@ export default function InspectionWorkspace({
                 New Property
               </p>
               <h2 className="text-xl font-extrabold">Add Homeowner Profile</h2>
+              {propertySaveMessage ? (
+                <p className="mt-2 rounded-lg border border-line bg-[#fbfcfb] p-3 text-sm font-semibold text-slate-600">
+                  {propertySaveMessage}
+                </p>
+              ) : null}
             </div>
             <PropertyInput
               label="Property name"
@@ -822,9 +845,10 @@ export default function InspectionWorkspace({
               </button>
               <button
                 type="submit"
-                className="button-primary min-h-11 flex-1 rounded-lg px-5 font-extrabold sm:flex-none"
+                disabled={isSavingProperty}
+                className="button-primary min-h-11 flex-1 rounded-lg px-5 font-extrabold disabled:cursor-not-allowed disabled:opacity-60 sm:flex-none"
               >
-                Save Property
+                {isSavingProperty ? "Saving..." : "Save Property"}
               </button>
             </div>
           </form>
