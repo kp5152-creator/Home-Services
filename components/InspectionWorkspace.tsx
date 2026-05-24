@@ -736,11 +736,16 @@ export default function InspectionWorkspace({
         scheduleTaskForm={scheduleTaskForm}
         scheduleSaveMessage={scheduleSaveMessage}
         scheduleTasks={selectedScheduleTasks}
+        selectedPropertyId={selectedProperty?.id ?? ""}
         selectedVendors={selectedVendors}
         vendorForm={vendorForm}
         vendorSaveMessage={vendorSaveMessage}
         selectedInspections={selectedInspections}
         selectedProperty={selectedProperty}
+        onSelectProperty={(propertyId) => {
+          setSelectedPropertyId(propertyId);
+          setActiveReportId("");
+        }}
         setActiveExperience={setActiveExperience}
         setMaintenanceIssueForm={setMaintenanceIssueForm}
         setOwnerUpdateForm={setOwnerUpdateForm}
@@ -1223,6 +1228,7 @@ function LuxuryExperiencePanel({
   ownerUpdateSaveMessage,
   ownerUpdates,
   properties,
+  selectedPropertyId,
   scheduleTaskForm,
   scheduleSaveMessage,
   scheduleTasks,
@@ -1230,6 +1236,7 @@ function LuxuryExperiencePanel({
   saveOwnerUpdate,
   saveScheduleTask,
   saveVendor,
+  onSelectProperty,
   selectedInspections,
   selectedProperty,
   selectedVendors,
@@ -1261,6 +1268,7 @@ function LuxuryExperiencePanel({
   ownerUpdateSaveMessage: string;
   ownerUpdates: OwnerUpdate[];
   properties: Property[];
+  selectedPropertyId: string;
   scheduleTaskForm: ScheduleTaskForm;
   scheduleSaveMessage: string;
   scheduleTasks: ScheduleTask[];
@@ -1268,6 +1276,7 @@ function LuxuryExperiencePanel({
   saveOwnerUpdate: (event: FormEvent<HTMLFormElement>) => void;
   saveScheduleTask: (event: FormEvent<HTMLFormElement>) => void;
   saveVendor: (event: FormEvent<HTMLFormElement>) => void;
+  onSelectProperty: (propertyId: string) => void;
   selectedInspections: Inspection[];
   selectedProperty: Property | undefined;
   selectedVendors: VendorContact[];
@@ -1348,6 +1357,20 @@ function LuxuryExperiencePanel({
                 {selectedProperty?.owner || "No homeowner selected"}
               </p>
             </div>
+            <label className="mb-4 grid gap-2 text-sm font-extrabold text-ink">
+              Active property
+              <select
+                value={selectedPropertyId}
+                onChange={(event) => onSelectProperty(event.target.value)}
+                className="field-shell rounded-lg p-3"
+              >
+                {properties.map((property) => (
+                  <option key={property.id} value={property.id}>
+                    {property.name}
+                  </option>
+                ))}
+              </select>
+            </label>
             <div className="grid gap-3">
               <MobileActionButton
                 label="Start Inspection"
