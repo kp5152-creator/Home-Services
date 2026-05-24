@@ -1242,6 +1242,27 @@ export default function InspectionWorkspace({
         </div>
       ) : null}
 
+      {activeExperience === "Property" ? (
+        <div className="fixed inset-x-0 bottom-[4.85rem] z-30 px-3 xl:hidden">
+          <div className="mx-auto grid max-w-[520px] grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-lg border border-line bg-white/95 p-3 shadow-[0_-8px_28px_rgba(35,45,41,0.12)] backdrop-blur-xl">
+            <div className="min-w-0">
+              <strong className="block truncate text-sm text-ink">Vendor contact</strong>
+              <span className="block truncate text-xs font-semibold text-slate-600">
+                {vendorForm.name || "Add vendor"} / {vendorForm.type}
+              </span>
+            </div>
+            <button
+              type="submit"
+              form="vendor-form"
+              disabled={isSavingVendor}
+              className="button-primary min-h-11 rounded-lg px-4 text-sm font-extrabold disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {isSavingVendor ? "Saving" : "Save"}
+            </button>
+          </div>
+        </div>
+      ) : null}
+
       {showPropertyForm ? (
         <div className="fixed inset-0 z-20 grid place-items-center bg-ink/45 p-4 backdrop-blur-sm">
           <form className="grid w-full max-w-xl gap-4 rounded-lg bg-white p-5 shadow-estate" onSubmit={saveProperty}>
@@ -1647,7 +1668,7 @@ function LuxuryExperiencePanel({
             </div>
           </ConceptCard>
           <ConceptCard eyebrow="Vendor directory" title="Property vendor contacts">
-            <form className="grid gap-3" onSubmit={saveVendor}>
+            <form id="vendor-form" className="grid gap-3" onSubmit={saveVendor}>
               <div className="grid gap-3 sm:grid-cols-2">
                 <label className="grid gap-2 text-sm font-extrabold">
                   Vendor name
