@@ -1133,15 +1133,26 @@ function LuxuryExperiencePanel({
               </label>
               {maintenanceIssueForm.photoFiles.length ? (
                 <div className="rounded-lg border border-line bg-[#fbfcfb] p-3 text-sm text-slate-600">
-                  <strong className="text-ink">{maintenanceIssueForm.photoFiles.length} maintenance photo selected</strong>
-                  {maintenanceIssueForm.photoFiles.length === 1 ? "" : "s"}
-                  <button
-                    type="button"
-                    onClick={() => setMaintenanceIssueForm((current) => ({ ...current, photoFiles: [] }))}
-                    className="ml-3 font-extrabold text-[#9f352e]"
-                  >
-                    Clear photos
-                  </button>
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <strong className="text-ink">
+                      {maintenanceIssueForm.photoFiles.length} maintenance photo selected
+                      {maintenanceIssueForm.photoFiles.length === 1 ? "" : "s"}
+                    </strong>
+                    <button
+                      type="button"
+                      onClick={() => setMaintenanceIssueForm((current) => ({ ...current, photoFiles: [] }))}
+                      className="font-extrabold text-[#9f352e]"
+                    >
+                      Clear photos
+                    </button>
+                  </div>
+                  <div className="mt-2 grid gap-1">
+                    {maintenanceIssueForm.photoFiles.slice(0, 4).map((file) => (
+                      <span key={`${file.name}-${file.lastModified}`} className="truncate text-xs">
+                        {file.name}
+                      </span>
+                    ))}
+                  </div>
                 </div>
               ) : null}
               <button type="submit" className="button-primary min-h-12 rounded-lg px-5 font-extrabold">
@@ -1232,6 +1243,7 @@ function MetricCard({
 }
 
 function MaintenanceIssueCard({ issue }: { issue: MaintenanceIssue }) {
+  const issuePhotos = issue.photos ?? [];
   const priorityClass =
     issue.priority === "Urgent"
       ? "border-[#d9a5a0] bg-[#fff8f6] text-[#9f352e]"
@@ -1251,9 +1263,9 @@ function MaintenanceIssueCard({ issue }: { issue: MaintenanceIssue }) {
         </span>
       </div>
       {issue.description ? <p className="mt-3 text-sm leading-6 opacity-80">{issue.description}</p> : null}
-      {issue.photos.length ? (
+      {issuePhotos.length ? (
         <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3">
-          {issue.photos.map((photo) => (
+          {issuePhotos.map((photo) => (
             <a
               key={photo.id}
               href={photo.url}

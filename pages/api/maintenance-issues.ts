@@ -5,6 +5,14 @@ import type { MaintenancePriority, MaintenanceStatus } from "@/lib/types";
 const priorities: MaintenancePriority[] = ["Low", "Medium", "High", "Urgent"];
 const statuses: MaintenanceStatus[] = ["Open", "Scheduled", "In Progress", "Resolved"];
 
+export const config = {
+  api: {
+    bodyParser: {
+      sizeLimit: "25mb"
+    }
+  }
+};
+
 export default async function handler(request: NextApiRequest, response: NextApiResponse) {
   if (request.method !== "POST") {
     response.setHeader("Allow", "POST");
