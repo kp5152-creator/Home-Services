@@ -9,6 +9,8 @@ import type {
   MaintenancePriority,
   MaintenanceStatus,
   Property,
+  ScheduleTask,
+  ScheduleTaskStatus,
   VendorContact
 } from "@/lib/types";
 import { hasSupabaseConfig, storageBucket, supabaseAdmin } from "@/lib/supabaseAdmin";
@@ -26,6 +28,8 @@ export type PhotoUpload = {
 export type MaintenanceIssueUpdate = Partial<
   Pick<MaintenanceIssue, "title" | "description" | "priority" | "status" | "vendor" | "nextStep">
 >;
+
+export type ScheduleTaskUpdate = Partial<Pick<ScheduleTask, "status">>;
 
 export async function readDatabase(): Promise<Database> {
   if (hasSupabaseConfig()) {
@@ -50,7 +54,8 @@ export async function readDatabase(): Promise<Database> {
         url: normalizeMaintenancePhotoUrl(photo.url)
       }))
     })),
-    vendors: database.vendors ?? []
+    vendors: database.vendors ?? [],
+    scheduleTasks: database.scheduleTasks ?? []
   };
 }
 
@@ -140,8 +145,49 @@ export async function addVendorContact(vendor: Omit<VendorContact, "id" | "creat
   return newVendor;
 }
 
+export async function addScheduleTask(task: Omit<ScheduleTask, "id" | "createdAt">) {
+  if (hasSupabaseConfig()) {
+    return addSupabaseScheduleTask(task);
+  }
+
+  const database = await readDatabase();
+  const newTask: ScheduleTask = {
+    id: `schedule-${Date.now()}`,
+    createdAt: new Date().toISOString(),
+    ...task
+  };
+
+  database.scheduleTasks = [newTask, ...(database.scheduleTasks ?? [])];
+  await writeDatabase(database);
+  return newTask;
+}
+
 export async function updateMaintenanceIssueStatus(issueId: string, status: MaintenanceStatus) {
   return updateMaintenanceIssue(issueId, { status });
+}
+
+export async function updateScheduleTaskStatus(taskId: string, status: ScheduleTaskStatus) {
+  if (hasSupabaseConfig()) {
+    return updateSupabaseScheduleTaskStatus(taskId, status);
+  }
+
+  const database = await readDatabase();
+  const task = (database.scheduleTasks ?? []).find((item) => item.id === taskId);
+
+  if (!task) {
+    return null;
+  }
+
+  const updatedTask: ScheduleTask = {
+    ...task,
+    status
+  };
+
+  database.scheduleTasks = (database.scheduleTasks ?? []).map((item) =>
+    item.id === taskId ? updatedTask : item
+  );
+  await writeDatabase(database);
+  return updatedTask;
 }
 
 export async function updateMaintenanceIssue(issueId: string, updates: MaintenanceIssueUpdate) {
@@ -184,7 +230,8 @@ export async function deleteProperty(propertyId: string) {
     properties: database.properties.filter((property) => property.id !== propertyId),
     inspections: database.inspections.filter((inspection) => inspection.propertyId !== propertyId),
     maintenanceIssues: (database.maintenanceIssues ?? []).filter((issue) => issue.propertyId !== propertyId),
-    vendors: (database.vendors ?? []).filter((vendor) => vendor.propertyId !== propertyId)
+    vendors: (database.vendors ?? []).filter((vendor) => vendor.propertyId !== propertyId),
+    scheduleTasks: (database.scheduleTasks ?? []).filter((task) => task.propertyId !== propertyId)
   };
 
   await Promise.all(
@@ -340,7 +387,8 @@ async function readSupabaseDatabase(): Promise<Database> {
     { data: properties, error: propertiesError },
     { data: inspections, error: inspectionsError },
     { data: maintenanceIssues, error: maintenanceIssuesError },
-    { data: vendors, error: vendorsError }
+    { data: vendors, error: vendorsError },
+    { data: scheduleTasks, error: scheduleTasksError }
   ] = await Promise.all([
     supabase.from("properties").select("*").order("created_at", { ascending: false }),
     supabase.from("inspections").select("*, inspection_photos(*)").order("timestamp", { ascending: false }),
@@ -348,13 +396,15 @@ async function readSupabaseDatabase(): Promise<Database> {
       .from("maintenance_issues")
       .select("*, maintenance_issue_photos(*)")
       .order("created_at", { ascending: false }),
-    supabase.from("vendors").select("*").order("created_at", { ascending: false })
+    supabase.from("vendors").select("*").order("created_at", { ascending: false }),
+    supabase.from("schedule_tasks").select("*").order("scheduled_for", { ascending: true })
   ]);
 
   if (propertiesError) throw propertiesError;
   if (inspectionsError) throw inspectionsError;
   const maintenanceIssueRows = maintenanceIssuesError ? [] : (maintenanceIssues ?? []);
   const vendorRows = vendorsError ? [] : (vendors ?? []);
+  const scheduleTaskRows = scheduleTasksError ? [] : (scheduleTasks ?? []);
 
   return {
     properties: (properties ?? []).map((property) => ({
@@ -414,6 +464,17 @@ async function readSupabaseDatabase(): Promise<Database> {
       phone: vendor.phone ?? "",
       email: vendor.email ?? "",
       notes: vendor.notes ?? ""
+    })),
+    scheduleTasks: scheduleTaskRows.map((task) => ({
+      id: task.id,
+      propertyId: task.property_id,
+      createdAt: task.created_at,
+      scheduledFor: task.scheduled_for,
+      type: task.type,
+      title: task.title,
+      status: task.status,
+      assignedTo: task.assigned_to ?? "",
+      notes: task.notes ?? ""
     }))
   };
 }
@@ -556,6 +617,55 @@ async function addSupabaseVendorContact(vendor: Omit<VendorContact, "id" | "crea
 
   if (error) throw error;
   return newVendor;
+}
+
+async function addSupabaseScheduleTask(task: Omit<ScheduleTask, "id" | "createdAt">) {
+  const supabase = supabaseAdmin();
+  const newTask: ScheduleTask = {
+    id: `schedule-${Date.now()}`,
+    createdAt: new Date().toISOString(),
+    ...task
+  };
+
+  const { error } = await supabase.from("schedule_tasks").insert({
+    id: newTask.id,
+    created_at: newTask.createdAt,
+    property_id: newTask.propertyId,
+    scheduled_for: newTask.scheduledFor,
+    type: newTask.type,
+    title: newTask.title,
+    status: newTask.status,
+    assigned_to: newTask.assignedTo,
+    notes: newTask.notes
+  });
+
+  if (error) throw error;
+  return newTask;
+}
+
+async function updateSupabaseScheduleTaskStatus(taskId: string, status: ScheduleTaskStatus) {
+  const supabase = supabaseAdmin();
+  const { data, error } = await supabase
+    .from("schedule_tasks")
+    .update({ status })
+    .eq("id", taskId)
+    .select("*")
+    .single();
+
+  if (error) throw error;
+  if (!data) return null;
+
+  return {
+    id: data.id,
+    propertyId: data.property_id,
+    createdAt: data.created_at,
+    scheduledFor: data.scheduled_for,
+    type: data.type,
+    title: data.title,
+    status: data.status,
+    assignedTo: data.assigned_to ?? "",
+    notes: data.notes ?? ""
+  } satisfies ScheduleTask;
 }
 
 async function updateSupabaseMaintenanceIssue(issueId: string, updates: MaintenanceIssueUpdate) {

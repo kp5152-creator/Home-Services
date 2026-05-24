@@ -66,6 +66,18 @@ create table if not exists public.vendors (
   notes text not null default ''
 );
 
+create table if not exists public.schedule_tasks (
+  id text primary key,
+  created_at timestamptz not null default now(),
+  property_id text not null references public.properties(id) on delete cascade,
+  scheduled_for timestamptz not null,
+  type text not null default 'Home Watch',
+  title text not null,
+  status text not null default 'Scheduled',
+  assigned_to text not null default '',
+  notes text not null default ''
+);
+
 insert into storage.buckets (id, name, public)
 values ('inspection-photos', 'inspection-photos', false)
 on conflict (id) do nothing;
@@ -76,6 +88,7 @@ alter table public.inspection_photos enable row level security;
 alter table public.maintenance_issues enable row level security;
 alter table public.maintenance_issue_photos enable row level security;
 alter table public.vendors enable row level security;
+alter table public.schedule_tasks enable row level security;
 
 -- The app uses SUPABASE_SERVICE_ROLE_KEY from server-side API routes.
 -- No public browser access policies are required for this first version.

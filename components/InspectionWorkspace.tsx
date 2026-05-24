@@ -17,6 +17,9 @@ import type {
   MaintenancePriority,
   MaintenanceStatus,
   Property,
+  ScheduleTask,
+  ScheduleTaskStatus,
+  ScheduleTaskType,
   UrgentStatus,
   VendorContact,
   VendorType
@@ -50,6 +53,15 @@ type VendorForm = {
   notes: string;
 };
 
+type ScheduleTaskForm = {
+  title: string;
+  type: ScheduleTaskType;
+  scheduledFor: string;
+  status: ScheduleTaskStatus;
+  assignedTo: string;
+  notes: string;
+};
+
 type InspectionForm = {
   inspectionType: InspectionType;
   inspectorName: string;
@@ -65,6 +77,7 @@ type ExperienceScreen =
   | "Dashboard"
   | "Property"
   | "Inspection"
+  | "Schedule"
   | "Reports"
   | "Maintenance"
   | "Owner Portal";
@@ -107,13 +120,33 @@ const emptyVendorForm: VendorForm = {
   notes: ""
 };
 
+const emptyScheduleTaskForm: ScheduleTaskForm = {
+  title: "",
+  type: "Home Watch",
+  scheduledFor: "",
+  status: "Scheduled",
+  assignedTo: "",
+  notes: ""
+};
+
 const vendorTypes: VendorType[] = ["Pool", "Landscape", "HVAC", "Cleaning", "Handyman", "Plumbing", "Electrical", "Other"];
+const scheduleTaskTypes: ScheduleTaskType[] = [
+  "Home Watch",
+  "Pre-Guest Arrival",
+  "Post-Checkout",
+  "Cleaner",
+  "Maintenance",
+  "Vendor",
+  "Other"
+];
+const scheduleTaskStatuses: ScheduleTaskStatus[] = ["Scheduled", "In Progress", "Complete", "Skipped"];
 
 const experienceScreens: ExperienceScreen[] = [
   "Login",
   "Dashboard",
   "Property",
   "Inspection",
+  "Schedule",
   "Reports",
   "Maintenance",
   "Owner Portal"
@@ -186,6 +219,7 @@ export default function InspectionWorkspace({
     initialDatabase.maintenanceIssues ?? []
   );
   const [vendors, setVendors] = useState<VendorContact[]>(initialDatabase.vendors ?? []);
+  const [scheduleTasks, setScheduleTasks] = useState<ScheduleTask[]>(initialDatabase.scheduleTasks ?? []);
   const [selectedPropertyId, setSelectedPropertyId] = useState(initialDatabase.properties[0]?.id ?? "");
   const [activeReportId, setActiveReportId] = useState(initialDatabase.inspections[0]?.id ?? "");
   const [inspectionForm, setInspectionForm] = useState<InspectionForm>(emptyInspectionForm);
@@ -193,8 +227,11 @@ export default function InspectionWorkspace({
   const [maintenanceIssueForm, setMaintenanceIssueForm] =
     useState<MaintenanceIssueForm>(emptyMaintenanceIssueForm);
   const [vendorForm, setVendorForm] = useState<VendorForm>(emptyVendorForm);
+  const [scheduleTaskForm, setScheduleTaskForm] = useState<ScheduleTaskForm>(emptyScheduleTaskForm);
   const [vendorSaveMessage, setVendorSaveMessage] = useState("");
   const [isSavingVendor, setIsSavingVendor] = useState(false);
+  const [scheduleSaveMessage, setScheduleSaveMessage] = useState("");
+  const [isSavingScheduleTask, setIsSavingScheduleTask] = useState(false);
   const [propertySaveMessage, setPropertySaveMessage] = useState("");
   const [isSavingProperty, setIsSavingProperty] = useState(false);
   const [maintenanceSaveMessage, setMaintenanceSaveMessage] = useState("");
@@ -222,6 +259,25 @@ export default function InspectionWorkspace({
   const selectedVendors = useMemo(
     () => vendors.filter((vendor) => vendor.propertyId === selectedProperty?.id),
     [vendors, selectedProperty?.id]
+  );
+
+  const selectedScheduleTasks = useMemo(
+    () =>
+      scheduleTasks
+        .filter((task) => task.propertyId === selectedProperty?.id)
+        .slice()
+        .sort((a, b) => new Date(a.scheduledFor).getTime() - new Date(b.scheduledFor).getTime()),
+    [scheduleTasks, selectedProperty?.id]
+  );
+
+  const upcomingScheduleTasks = useMemo(
+    () =>
+      scheduleTasks
+        .filter((task) => task.status !== "Complete" && task.status !== "Skipped")
+        .slice()
+        .sort((a, b) => new Date(a.scheduledFor).getTime() - new Date(b.scheduledFor).getTime())
+        .slice(0, 6),
+    [scheduleTasks]
   );
 
   const activeReport =
@@ -318,6 +374,7 @@ export default function InspectionWorkspace({
     setInspections(database.inspections);
     setMaintenanceIssues(database.maintenanceIssues ?? []);
     setVendors(database.vendors ?? []);
+    setScheduleTasks(database.scheduleTasks ?? []);
     setSelectedPropertyId(database.properties[0]?.id ?? "");
     setActiveReportId("");
   }
@@ -356,6 +413,43 @@ export default function InspectionWorkspace({
       setVendorSaveMessage("Vendor could not be saved. Check your connection and try again.");
     } finally {
       setIsSavingVendor(false);
+    }
+  }
+
+  async function saveScheduleTask(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!selectedProperty) {
+      setScheduleSaveMessage("Select a property before scheduling work.");
+      return;
+    }
+
+    setIsSavingScheduleTask(true);
+    setScheduleSaveMessage("Saving schedule item...");
+
+    try {
+      const response = await fetch("/api/schedule-tasks", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...scheduleTaskForm,
+          propertyId: selectedProperty.id
+        })
+      });
+
+      if (!response.ok) {
+        const error = (await response.json().catch(() => null)) as { message?: string } | null;
+        setScheduleSaveMessage(error?.message || "Scheduled item could not be saved.");
+        return;
+      }
+
+      const task = (await response.json()) as ScheduleTask;
+      setScheduleTasks((current) => [task, ...current]);
+      setScheduleTaskForm(emptyScheduleTaskForm);
+      setScheduleSaveMessage(`Scheduled: ${task.title}`);
+    } catch {
+      setScheduleSaveMessage("Scheduled item could not be saved. Check your connection and try again.");
+    } finally {
+      setIsSavingScheduleTask(false);
     }
   }
 
@@ -468,6 +562,31 @@ export default function InspectionWorkspace({
     return updatedIssue;
   }
 
+  async function updateScheduleTaskStatus(taskId: string, status: ScheduleTaskStatus) {
+    const previousTasks = scheduleTasks;
+    setScheduleTasks((current) =>
+      current.map((task) => (task.id === taskId ? { ...task, status } : task))
+    );
+
+    const response = await fetch("/api/schedule-tasks", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: taskId, status })
+    });
+
+    if (!response.ok) {
+      setScheduleTasks(previousTasks);
+      const error = (await response.json().catch(() => null)) as { message?: string } | null;
+      window.alert(error?.message || "Scheduled item could not be updated.");
+      return;
+    }
+
+    const updatedTask = (await response.json()) as ScheduleTask;
+    setScheduleTasks((current) =>
+      current.map((task) => (task.id === updatedTask.id ? updatedTask : task))
+    );
+  }
+
   return (
     <main className={`mx-auto min-h-screen w-full max-w-[1480px] p-3 sm:p-6 ${darkMode ? "luxury-dark" : ""}`}>
       <section className="mb-5 overflow-hidden rounded-lg bg-ink text-white shadow-estate">
@@ -531,6 +650,9 @@ export default function InspectionWorkspace({
         properties={properties}
         maintenanceIssueForm={maintenanceIssueForm}
         maintenanceIssues={selectedMaintenanceIssues}
+        scheduleTaskForm={scheduleTaskForm}
+        scheduleSaveMessage={scheduleSaveMessage}
+        scheduleTasks={selectedScheduleTasks}
         selectedVendors={selectedVendors}
         vendorForm={vendorForm}
         vendorSaveMessage={vendorSaveMessage}
@@ -538,12 +660,17 @@ export default function InspectionWorkspace({
         selectedProperty={selectedProperty}
         setActiveExperience={setActiveExperience}
         setMaintenanceIssueForm={setMaintenanceIssueForm}
+        setScheduleTaskForm={setScheduleTaskForm}
         addMaintenanceIssuePhotoFiles={addMaintenanceIssuePhotoFiles}
         saveMaintenanceIssue={saveMaintenanceIssue}
+        saveScheduleTask={saveScheduleTask}
         isSavingMaintenanceIssue={isSavingMaintenanceIssue}
+        isSavingScheduleTask={isSavingScheduleTask}
         maintenanceSaveMessage={maintenanceSaveMessage}
+        upcomingScheduleTasks={upcomingScheduleTasks}
         updateMaintenanceStatus={updateMaintenanceStatus}
         updateMaintenanceIssue={updateMaintenanceIssue}
+        updateScheduleTaskStatus={updateScheduleTaskStatus}
         setVendorForm={setVendorForm}
         saveVendor={saveVendor}
         isSavingVendor={isSavingVendor}
@@ -988,17 +1115,25 @@ function LuxuryExperiencePanel({
   maintenanceSaveMessage,
   now,
   properties,
+  scheduleTaskForm,
+  scheduleSaveMessage,
+  scheduleTasks,
   saveMaintenanceIssue,
+  saveScheduleTask,
   saveVendor,
   selectedInspections,
   selectedProperty,
   selectedVendors,
   setActiveExperience,
   setMaintenanceIssueForm,
+  setScheduleTaskForm,
   setVendorForm,
+  isSavingScheduleTask,
   isSavingMaintenanceIssue,
+  upcomingScheduleTasks,
   updateMaintenanceStatus,
   updateMaintenanceIssue,
+  updateScheduleTaskStatus,
   vendorForm,
   vendorSaveMessage,
   isSavingVendor
@@ -1012,16 +1147,24 @@ function LuxuryExperiencePanel({
   maintenanceSaveMessage: string;
   now: Date;
   properties: Property[];
+  scheduleTaskForm: ScheduleTaskForm;
+  scheduleSaveMessage: string;
+  scheduleTasks: ScheduleTask[];
   saveMaintenanceIssue: (event: FormEvent<HTMLFormElement>) => void;
+  saveScheduleTask: (event: FormEvent<HTMLFormElement>) => void;
   saveVendor: (event: FormEvent<HTMLFormElement>) => void;
   selectedInspections: Inspection[];
   selectedProperty: Property | undefined;
   selectedVendors: VendorContact[];
   setActiveExperience: (screen: ExperienceScreen) => void;
   setMaintenanceIssueForm: Dispatch<SetStateAction<MaintenanceIssueForm>>;
+  setScheduleTaskForm: Dispatch<SetStateAction<ScheduleTaskForm>>;
   setVendorForm: Dispatch<SetStateAction<VendorForm>>;
+  isSavingScheduleTask: boolean;
   updateMaintenanceStatus: (issueId: string, status: MaintenanceStatus) => void;
   updateMaintenanceIssue: (issueId: string, updates: Partial<MaintenanceIssueForm>) => Promise<MaintenanceIssue>;
+  upcomingScheduleTasks: ScheduleTask[];
+  updateScheduleTaskStatus: (taskId: string, status: ScheduleTaskStatus) => void;
   vendorForm: VendorForm;
   vendorSaveMessage: string;
   isSavingVendor: boolean;
@@ -1090,7 +1233,7 @@ function LuxuryExperiencePanel({
             </div>
             <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
               <MetricCard label="Portfolio" value={`${properties.length}`} detail="Active residences" />
-              <MetricCard label="Upcoming" value="3" detail="Arrivals and inspections" />
+              <MetricCard label="Upcoming" value={`${upcomingScheduleTasks.length}`} detail="Scheduled work" />
               <MetricCard
                 label="Urgent"
                 value={`${urgentCount + urgentMaintenanceCount}`}
@@ -1122,7 +1265,7 @@ function LuxuryExperiencePanel({
             </ConceptCard>
             <ConceptCard eyebrow="Quick actions" title="Move work forward">
               <div className="grid gap-2">
-                {(["Inspection", "Maintenance", "Reports", "Owner Portal"] as ExperienceScreen[]).map((screen) => (
+                {(["Inspection", "Schedule", "Maintenance", "Reports", "Owner Portal"] as ExperienceScreen[]).map((screen) => (
                   <button
                     key={screen}
                     type="button"
@@ -1135,6 +1278,28 @@ function LuxuryExperiencePanel({
               </div>
             </ConceptCard>
           </div>
+          <ConceptCard eyebrow="Upcoming work" title="Operations schedule">
+            <div className="grid gap-3">
+              {upcomingScheduleTasks.length ? (
+                upcomingScheduleTasks.map((task) => {
+                  const property = properties.find((item) => item.id === task.propertyId);
+
+                  return (
+                    <ScheduleTaskCard
+                      key={task.id}
+                      task={task}
+                      propertyName={property?.name}
+                      updateScheduleTaskStatus={updateScheduleTaskStatus}
+                    />
+                  );
+                })
+              ) : (
+                <div className="rounded-lg border border-line bg-white p-4 text-sm text-slate-600">
+                  No upcoming work has been scheduled yet.
+                </div>
+              )}
+            </div>
+          </ConceptCard>
         </div>
       ) : null}
 
@@ -1279,6 +1444,133 @@ function LuxuryExperiencePanel({
                   <span className="mt-1 block text-sm leading-5 text-slate-600">{template.description}</span>
                 </div>
               ))}
+            </div>
+          </ConceptCard>
+        </div>
+      ) : null}
+
+      {activeExperience === "Schedule" ? (
+        <div className="grid gap-5 lg:grid-cols-[0.95fr_1.05fr]">
+          <ConceptCard eyebrow="Schedule work" title="Plan the next visit">
+            <form className="grid gap-3" onSubmit={saveScheduleTask}>
+              <label className="grid gap-2 text-sm font-extrabold">
+                Task title
+                <input
+                  required
+                  value={scheduleTaskForm.title}
+                  onChange={(event) =>
+                    setScheduleTaskForm((current) => ({ ...current, title: event.target.value }))
+                  }
+                  className="field-shell rounded-lg p-3"
+                  placeholder="Weekly home watch inspection"
+                />
+              </label>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <label className="grid gap-2 text-sm font-extrabold">
+                  Work type
+                  <select
+                    value={scheduleTaskForm.type}
+                    onChange={(event) =>
+                      setScheduleTaskForm((current) => ({
+                        ...current,
+                        type: event.target.value as ScheduleTaskType
+                      }))
+                    }
+                    className="field-shell rounded-lg p-3"
+                  >
+                    {scheduleTaskTypes.map((type) => (
+                      <option key={type}>{type}</option>
+                    ))}
+                  </select>
+                </label>
+                <label className="grid gap-2 text-sm font-extrabold">
+                  Date and time
+                  <input
+                    required
+                    type="datetime-local"
+                    value={scheduleTaskForm.scheduledFor}
+                    onChange={(event) =>
+                      setScheduleTaskForm((current) => ({ ...current, scheduledFor: event.target.value }))
+                    }
+                    className="field-shell rounded-lg p-3"
+                  />
+                </label>
+              </div>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <label className="grid gap-2 text-sm font-extrabold">
+                  Assigned to
+                  <input
+                    value={scheduleTaskForm.assignedTo}
+                    onChange={(event) =>
+                      setScheduleTaskForm((current) => ({ ...current, assignedTo: event.target.value }))
+                    }
+                    className="field-shell rounded-lg p-3"
+                    placeholder="Inspector, cleaner, or vendor"
+                  />
+                </label>
+                <label className="grid gap-2 text-sm font-extrabold">
+                  Status
+                  <select
+                    value={scheduleTaskForm.status}
+                    onChange={(event) =>
+                      setScheduleTaskForm((current) => ({
+                        ...current,
+                        status: event.target.value as ScheduleTaskStatus
+                      }))
+                    }
+                    className="field-shell rounded-lg p-3"
+                  >
+                    {scheduleTaskStatuses.map((status) => (
+                      <option key={status}>{status}</option>
+                    ))}
+                  </select>
+                </label>
+              </div>
+              <label className="grid gap-2 text-sm font-extrabold">
+                Notes
+                <textarea
+                  rows={4}
+                  value={scheduleTaskForm.notes}
+                  onChange={(event) =>
+                    setScheduleTaskForm((current) => ({ ...current, notes: event.target.value }))
+                  }
+                  className="field-shell rounded-lg p-3"
+                  placeholder="Arrival prep, vendor instructions, gate notes, owner requests..."
+                />
+              </label>
+              {scheduleSaveMessage ? (
+                <div className="rounded-lg border border-line bg-white p-3 text-sm font-semibold text-slate-600">
+                  {scheduleSaveMessage}
+                </div>
+              ) : null}
+              <button
+                type="submit"
+                disabled={isSavingScheduleTask}
+                className="button-primary min-h-12 rounded-lg px-5 font-extrabold disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {isSavingScheduleTask ? "Saving..." : "Save Schedule Item"}
+              </button>
+            </form>
+          </ConceptCard>
+
+          <ConceptCard
+            eyebrow={`${scheduleTasks.length} scheduled item${scheduleTasks.length === 1 ? "" : "s"}`}
+            title="Property calendar"
+          >
+            <div className="grid gap-3">
+              {scheduleTasks.length ? (
+                scheduleTasks.map((task) => (
+                  <ScheduleTaskCard
+                    key={task.id}
+                    task={task}
+                    updateScheduleTaskStatus={updateScheduleTaskStatus}
+                  />
+                ))
+              ) : (
+                <div className="rounded-lg border border-line bg-white p-4 text-sm text-slate-600">
+                  No work has been scheduled for this property yet.
+                </div>
+              )}
             </div>
           </ConceptCard>
         </div>
@@ -1541,6 +1833,57 @@ function MetricCard({
       <strong className={`mt-2 block text-3xl font-extrabold ${urgent ? "text-[#9f352e]" : "text-ink"}`}>{value}</strong>
       <span className="mt-1 block text-sm text-slate-600">{detail}</span>
     </div>
+  );
+}
+
+function ScheduleTaskCard({
+  propertyName,
+  task,
+  updateScheduleTaskStatus
+}: {
+  propertyName?: string;
+  task: ScheduleTask;
+  updateScheduleTaskStatus: (taskId: string, status: ScheduleTaskStatus) => void;
+}) {
+  const statusClass =
+    task.status === "Complete"
+      ? "border-[#c9ddd1] bg-[#f3f8f4] text-sage-dark"
+      : task.status === "Skipped"
+        ? "border-[#e7cbc4] bg-[#fff8f6] text-[#9f352e]"
+        : "border-line bg-white text-ink";
+
+  return (
+    <article className={`rounded-lg border p-4 ${statusClass}`}>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <span className="text-xs font-extrabold uppercase tracking-[0.08em] opacity-75">
+            {task.type}
+          </span>
+          <h4 className="mt-1 text-lg font-extrabold">{task.title}</h4>
+          {propertyName ? <span className="mt-1 block text-sm opacity-75">{propertyName}</span> : null}
+        </div>
+        <span className="rounded-full border border-current/20 px-3 py-1 text-xs font-extrabold">
+          {task.status}
+        </span>
+      </div>
+      <div className="mt-4 grid gap-2 text-sm sm:grid-cols-2">
+        <DetailStrip label="Date" value={formatDateTime(task.scheduledFor)} />
+        <DetailStrip label="Assigned To" value={task.assignedTo || "Not assigned"} />
+      </div>
+      {task.notes ? <p className="mt-3 text-sm leading-6 opacity-80">{task.notes}</p> : null}
+      <label className="mt-4 grid gap-2 text-sm font-extrabold">
+        Update status
+        <select
+          value={task.status}
+          onChange={(event) => updateScheduleTaskStatus(task.id, event.target.value as ScheduleTaskStatus)}
+          className="field-shell rounded-lg p-3"
+        >
+          {scheduleTaskStatuses.map((status) => (
+            <option key={status}>{status}</option>
+          ))}
+        </select>
+      </label>
+    </article>
   );
 }
 

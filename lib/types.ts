@@ -1,6 +1,15 @@
 export type UrgentStatus = "Yes" | "No";
 export type MaintenancePriority = "Low" | "Medium" | "High" | "Urgent";
 export type MaintenanceStatus = "Open" | "Scheduled" | "In Progress" | "Resolved";
+export type ScheduleTaskType =
+  | "Home Watch"
+  | "Pre-Guest Arrival"
+  | "Post-Checkout"
+  | "Cleaner"
+  | "Maintenance"
+  | "Vendor"
+  | "Other";
+export type ScheduleTaskStatus = "Scheduled" | "In Progress" | "Complete" | "Skipped";
 export type VendorType =
   | "Pool"
   | "Landscape"
@@ -70,9 +79,22 @@ export type VendorContact = {
   notes: string;
 };
 
+export type ScheduleTask = {
+  id: string;
+  propertyId: string;
+  createdAt: string;
+  scheduledFor: string;
+  type: ScheduleTaskType;
+  title: string;
+  status: ScheduleTaskStatus;
+  assignedTo: string;
+  notes: string;
+};
+
 export type Database = {
   properties: Property[];
   inspections: Inspection[];
   maintenanceIssues: MaintenanceIssue[];
   vendors: VendorContact[];
+  scheduleTasks: ScheduleTask[];
 };
