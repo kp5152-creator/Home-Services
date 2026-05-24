@@ -1591,7 +1591,8 @@ function MaintenanceIssueCard({
     photoFiles: []
   });
   const issuePhotos = issue.photos ?? [];
-  const assignedVendor = selectedVendors.find((vendor) => vendor.name === issue.vendor);
+  const normalizedIssueVendor = issue.vendor.trim().toLowerCase();
+  const assignedVendor = selectedVendors.find((vendor) => vendor.name.trim().toLowerCase() === normalizedIssueVendor);
   const priorityClass =
     issue.priority === "Urgent"
       ? "border-[#d9a5a0] bg-[#fff8f6] text-[#9f352e]"
@@ -1668,28 +1669,33 @@ function MaintenanceIssueCard({
         <DetailStrip label="Vendor" value={issue.vendor || "Not assigned"} />
         <DetailStrip label="Next Step" value={issue.nextStep || "Review needed"} />
       </div>
-      {assignedVendor ? (
+      {issue.vendor ? (
         <div className="mt-4 rounded-lg border border-line bg-white/80 p-3">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
               <span className="text-xs font-extrabold uppercase tracking-[0.08em] text-clay">
                 Assigned Vendor
               </span>
-              <strong className="mt-1 block text-ink">{assignedVendor.name}</strong>
+              <strong className="mt-1 block text-ink">{assignedVendor?.name || issue.vendor}</strong>
               <span className="mt-1 block text-sm opacity-75">
-                {assignedVendor.type}
-                {assignedVendor.contactName ? ` / ${assignedVendor.contactName}` : ""}
+                {assignedVendor
+                  ? `${assignedVendor.type}${assignedVendor.contactName ? ` / ${assignedVendor.contactName}` : ""}`
+                  : "No saved vendor match found"}
               </span>
             </div>
-            {assignedVendor.phone ? (
+            {assignedVendor?.phone ? (
               <a href={`tel:${assignedVendor.phone}`} className="button-soft rounded-lg px-3 py-2 text-sm font-extrabold">
                 Call Vendor
               </a>
-            ) : null}
+            ) : (
+              <span className="rounded-lg border border-line bg-[#fbfcfb] px-3 py-2 text-sm font-extrabold opacity-75">
+                No phone saved
+              </span>
+            )}
           </div>
           <div className="mt-3 grid gap-2 text-sm sm:grid-cols-2">
-            <DetailStrip label="Phone" value={assignedVendor.phone || "Not provided"} />
-            <DetailStrip label="Email" value={assignedVendor.email || "Not provided"} />
+            <DetailStrip label="Phone" value={assignedVendor?.phone || "Not provided"} />
+            <DetailStrip label="Email" value={assignedVendor?.email || "Not provided"} />
           </div>
         </div>
       ) : null}
