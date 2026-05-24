@@ -1,4 +1,6 @@
 export type UrgentStatus = "Yes" | "No";
+export type MaintenancePriority = "Low" | "Medium" | "High" | "Urgent";
+export type MaintenanceStatus = "Open" | "Scheduled" | "In Progress" | "Resolved";
 
 export type InspectionPhoto = {
   id: string;
@@ -32,7 +34,20 @@ export type Property = {
   status: "Active" | "Seasonal";
 };
 
+export type MaintenanceIssue = {
+  id: string;
+  propertyId: string;
+  createdAt: string;
+  title: string;
+  description: string;
+  priority: MaintenancePriority;
+  status: MaintenanceStatus;
+  vendor: string;
+  nextStep: string;
+};
+
 export type Database = {
   properties: Property[];
   inspections: Inspection[];
+  maintenanceIssues: MaintenanceIssue[];
 };

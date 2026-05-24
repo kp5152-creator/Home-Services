@@ -32,6 +32,18 @@ create table if not exists public.inspection_photos (
   size integer not null default 0
 );
 
+create table if not exists public.maintenance_issues (
+  id text primary key,
+  created_at timestamptz not null default now(),
+  property_id text not null references public.properties(id) on delete cascade,
+  title text not null,
+  description text not null default '',
+  priority text not null default 'Medium',
+  status text not null default 'Open',
+  vendor text not null default '',
+  next_step text not null default ''
+);
+
 insert into storage.buckets (id, name, public)
 values ('inspection-photos', 'inspection-photos', false)
 on conflict (id) do nothing;
@@ -39,6 +51,7 @@ on conflict (id) do nothing;
 alter table public.properties enable row level security;
 alter table public.inspections enable row level security;
 alter table public.inspection_photos enable row level security;
+alter table public.maintenance_issues enable row level security;
 
 -- The app uses SUPABASE_SERVICE_ROLE_KEY from server-side API routes.
 -- No public browser access policies are required for this first version.

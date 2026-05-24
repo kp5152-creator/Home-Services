@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useMemo, useState } from "react";
+import { Dispatch, FormEvent, SetStateAction, useMemo, useState } from "react";
 import {
   defaultInspectionType,
   getInspectionTemplate,
@@ -10,7 +10,15 @@ import {
   visibleChecklistItems
 } from "@/lib/checklists";
 import type { InspectionType } from "@/lib/checklists";
-import type { Database, Inspection, Property, UrgentStatus } from "@/lib/types";
+import type {
+  Database,
+  Inspection,
+  MaintenanceIssue,
+  MaintenancePriority,
+  MaintenanceStatus,
+  Property,
+  UrgentStatus
+} from "@/lib/types";
 
 type NewPropertyForm = {
   name: string;
@@ -19,6 +27,15 @@ type NewPropertyForm = {
   phone: string;
   email: string;
   accessNotes: string;
+};
+
+type MaintenanceIssueForm = {
+  title: string;
+  description: string;
+  priority: MaintenancePriority;
+  status: MaintenanceStatus;
+  vendor: string;
+  nextStep: string;
 };
 
 type InspectionForm = {
@@ -57,6 +74,15 @@ const emptyPropertyForm: NewPropertyForm = {
   phone: "",
   email: "",
   accessNotes: ""
+};
+
+const emptyMaintenanceIssueForm: MaintenanceIssueForm = {
+  title: "",
+  description: "",
+  priority: "Medium",
+  status: "Open",
+  vendor: "",
+  nextStep: ""
 };
 
 const experienceScreens: ExperienceScreen[] = [
@@ -132,10 +158,15 @@ export default function InspectionWorkspace({
 }) {
   const [properties, setProperties] = useState<Property[]>(initialDatabase.properties);
   const [inspections, setInspections] = useState<Inspection[]>(initialDatabase.inspections);
+  const [maintenanceIssues, setMaintenanceIssues] = useState<MaintenanceIssue[]>(
+    initialDatabase.maintenanceIssues ?? []
+  );
   const [selectedPropertyId, setSelectedPropertyId] = useState(initialDatabase.properties[0]?.id ?? "");
   const [activeReportId, setActiveReportId] = useState(initialDatabase.inspections[0]?.id ?? "");
   const [inspectionForm, setInspectionForm] = useState<InspectionForm>(emptyInspectionForm);
   const [propertyForm, setPropertyForm] = useState<NewPropertyForm>(emptyPropertyForm);
+  const [maintenanceIssueForm, setMaintenanceIssueForm] =
+    useState<MaintenanceIssueForm>(emptyMaintenanceIssueForm);
   const [showPropertyForm, setShowPropertyForm] = useState(false);
   const [activeExperience, setActiveExperience] = useState<ExperienceScreen>("Dashboard");
   const [darkMode, setDarkMode] = useState(false);
@@ -149,6 +180,11 @@ export default function InspectionWorkspace({
   const selectedInspections = useMemo(
     () => inspections.filter((inspection) => inspection.propertyId === selectedProperty?.id),
     [inspections, selectedProperty?.id]
+  );
+
+  const selectedMaintenanceIssues = useMemo(
+    () => maintenanceIssues.filter((issue) => issue.propertyId === selectedProperty?.id),
+    [maintenanceIssues, selectedProperty?.id]
   );
 
   const activeReport =
@@ -224,8 +260,33 @@ export default function InspectionWorkspace({
     const database = (await response.json()) as Database;
     setProperties(database.properties);
     setInspections(database.inspections);
+    setMaintenanceIssues(database.maintenanceIssues ?? []);
     setSelectedPropertyId(database.properties[0]?.id ?? "");
     setActiveReportId("");
+  }
+
+  async function saveMaintenanceIssue(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!selectedProperty) return;
+
+    const response = await fetch("/api/maintenance-issues", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        ...maintenanceIssueForm,
+        propertyId: selectedProperty.id
+      })
+    });
+
+    if (!response.ok) {
+      window.alert("Maintenance issue could not be saved. Please try again.");
+      return;
+    }
+
+    const issue = (await response.json()) as MaintenanceIssue;
+    setMaintenanceIssues((current) => [issue, ...current]);
+    setMaintenanceIssueForm(emptyMaintenanceIssueForm);
+    setActiveExperience("Maintenance");
   }
 
   function toggleChecklistItem(item: string) {
@@ -305,9 +366,13 @@ export default function InspectionWorkspace({
         activeReport={activeReport}
         now={now}
         properties={properties}
+        maintenanceIssueForm={maintenanceIssueForm}
+        maintenanceIssues={selectedMaintenanceIssues}
         selectedInspections={selectedInspections}
         selectedProperty={selectedProperty}
         setActiveExperience={setActiveExperience}
+        setMaintenanceIssueForm={setMaintenanceIssueForm}
+        saveMaintenanceIssue={saveMaintenanceIssue}
       />
 
       <section className="grid gap-5 xl:grid-cols-[300px_minmax(0,1fr)_400px]">
@@ -734,21 +799,31 @@ function ProfileItem({ label, value }: { label: string; value: string }) {
 function LuxuryExperiencePanel({
   activeExperience,
   activeReport,
+  maintenanceIssueForm,
+  maintenanceIssues,
   now,
   properties,
+  saveMaintenanceIssue,
   selectedInspections,
   selectedProperty,
-  setActiveExperience
+  setActiveExperience,
+  setMaintenanceIssueForm
 }: {
   activeExperience: ExperienceScreen;
   activeReport: Inspection | undefined;
+  maintenanceIssueForm: MaintenanceIssueForm;
+  maintenanceIssues: MaintenanceIssue[];
   now: Date;
   properties: Property[];
+  saveMaintenanceIssue: (event: FormEvent<HTMLFormElement>) => void;
   selectedInspections: Inspection[];
   selectedProperty: Property | undefined;
   setActiveExperience: (screen: ExperienceScreen) => void;
+  setMaintenanceIssueForm: Dispatch<SetStateAction<MaintenanceIssueForm>>;
 }) {
   const urgentCount = selectedInspections.filter((inspection) => inspection.urgent === "Yes").length;
+  const urgentMaintenanceCount = maintenanceIssues.filter((issue) => issue.priority === "Urgent").length;
+  const openMaintenanceCount = maintenanceIssues.filter((issue) => issue.status !== "Resolved").length;
   const recentReport = selectedInspections[0];
   const completedItems = activeReport ? visibleChecklistItems(activeReport.checklist).length : 0;
 
@@ -809,7 +884,12 @@ function LuxuryExperiencePanel({
             <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
               <MetricCard label="Portfolio" value={`${properties.length}`} detail="Active residences" />
               <MetricCard label="Upcoming" value="3" detail="Arrivals and inspections" />
-              <MetricCard label="Urgent" value={`${urgentCount}`} detail="Needs attention" urgent={urgentCount > 0} />
+              <MetricCard
+                label="Urgent"
+                value={`${urgentCount + urgentMaintenanceCount}`}
+                detail="Needs attention"
+                urgent={urgentCount + urgentMaintenanceCount > 0}
+              />
               <MetricCard label="Readiness" value="96%" detail="Operational score" />
             </div>
           </div>
@@ -933,19 +1013,108 @@ function LuxuryExperiencePanel({
       ) : null}
 
       {activeExperience === "Maintenance" ? (
-        <div className="grid gap-5 lg:grid-cols-3">
-          {[
-            ["High", "Irrigation leak near south gate", "Vendor assignment pending"],
-            ["Medium", "Guest bath drain running slow", "Handyman review"],
-            ["Low", "Patio umbrella fabric wear", "Monitor next visit"]
-          ].map(([priority, title, detail]) => (
-            <ConceptCard key={title} eyebrow={`${priority} priority`} title={title}>
-              <p className="text-sm leading-6 text-slate-600">{detail}</p>
-              <div className="mt-4 rounded-lg border border-line bg-white p-3 text-sm font-semibold">
-                Photos, vendor, estimate, and repair status would live here.
+        <div className="grid gap-5 lg:grid-cols-[0.95fr_1.05fr]">
+          <ConceptCard eyebrow="Maintenance issue" title="Create and assign repair work">
+            <form className="grid gap-3" onSubmit={saveMaintenanceIssue}>
+              <label className="grid gap-2 text-sm font-extrabold">
+                Issue title
+                <input
+                  required
+                  value={maintenanceIssueForm.title}
+                  onChange={(event) =>
+                    setMaintenanceIssueForm((current) => ({ ...current, title: event.target.value }))
+                  }
+                  className="field-shell rounded-lg p-3"
+                  placeholder="Irrigation leak near south gate"
+                />
+              </label>
+              <label className="grid gap-2 text-sm font-extrabold">
+                Description
+                <textarea
+                  rows={4}
+                  value={maintenanceIssueForm.description}
+                  onChange={(event) =>
+                    setMaintenanceIssueForm((current) => ({ ...current, description: event.target.value }))
+                  }
+                  className="field-shell rounded-lg p-3"
+                  placeholder="Document what happened, where it is, and what the owner/vendor should know."
+                />
+              </label>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <label className="grid gap-2 text-sm font-extrabold">
+                  Priority
+                  <select
+                    value={maintenanceIssueForm.priority}
+                    onChange={(event) =>
+                      setMaintenanceIssueForm((current) => ({
+                        ...current,
+                        priority: event.target.value as MaintenancePriority
+                      }))
+                    }
+                    className="field-shell rounded-lg p-3"
+                  >
+                    {(["Low", "Medium", "High", "Urgent"] as MaintenancePriority[]).map((priority) => (
+                      <option key={priority}>{priority}</option>
+                    ))}
+                  </select>
+                </label>
+                <label className="grid gap-2 text-sm font-extrabold">
+                  Status
+                  <select
+                    value={maintenanceIssueForm.status}
+                    onChange={(event) =>
+                      setMaintenanceIssueForm((current) => ({
+                        ...current,
+                        status: event.target.value as MaintenanceStatus
+                      }))
+                    }
+                    className="field-shell rounded-lg p-3"
+                  >
+                    {(["Open", "Scheduled", "In Progress", "Resolved"] as MaintenanceStatus[]).map((status) => (
+                      <option key={status}>{status}</option>
+                    ))}
+                  </select>
+                </label>
               </div>
-            </ConceptCard>
-          ))}
+              <label className="grid gap-2 text-sm font-extrabold">
+                Vendor assignment
+                <input
+                  value={maintenanceIssueForm.vendor}
+                  onChange={(event) =>
+                    setMaintenanceIssueForm((current) => ({ ...current, vendor: event.target.value }))
+                  }
+                  className="field-shell rounded-lg p-3"
+                  placeholder="Pool vendor, handyman, HVAC, landscaper..."
+                />
+              </label>
+              <label className="grid gap-2 text-sm font-extrabold">
+                Next step
+                <input
+                  value={maintenanceIssueForm.nextStep}
+                  onChange={(event) =>
+                    setMaintenanceIssueForm((current) => ({ ...current, nextStep: event.target.value }))
+                  }
+                  className="field-shell rounded-lg p-3"
+                  placeholder="Call vendor, request estimate, monitor next visit..."
+                />
+              </label>
+              <button type="submit" className="button-primary min-h-12 rounded-lg px-5 font-extrabold">
+                Save Maintenance Issue
+              </button>
+            </form>
+          </ConceptCard>
+
+          <ConceptCard eyebrow={`${openMaintenanceCount} open item${openMaintenanceCount === 1 ? "" : "s"}`} title="Repair tracking">
+            <div className="grid gap-3">
+              {maintenanceIssues.length ? (
+                maintenanceIssues.map((issue) => <MaintenanceIssueCard key={issue.id} issue={issue} />)
+              ) : (
+                <div className="rounded-lg border border-line bg-white p-4 text-sm text-slate-600">
+                  No maintenance issues have been saved for this property yet.
+                </div>
+              )}
+            </div>
+          </ConceptCard>
         </div>
       ) : null}
 
@@ -1013,6 +1182,35 @@ function MetricCard({
       <strong className={`mt-2 block text-3xl font-extrabold ${urgent ? "text-[#9f352e]" : "text-ink"}`}>{value}</strong>
       <span className="mt-1 block text-sm text-slate-600">{detail}</span>
     </div>
+  );
+}
+
+function MaintenanceIssueCard({ issue }: { issue: MaintenanceIssue }) {
+  const priorityClass =
+    issue.priority === "Urgent"
+      ? "border-[#d9a5a0] bg-[#fff8f6] text-[#9f352e]"
+      : issue.priority === "High"
+        ? "border-[#ead2a8] bg-[#fff8ed] text-[#7b5426]"
+        : "border-line bg-white text-ink";
+
+  return (
+    <article className={`rounded-lg border p-4 ${priorityClass}`}>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <span className="text-xs font-extrabold uppercase tracking-[0.08em] opacity-75">{issue.priority}</span>
+          <h4 className="mt-1 text-lg font-extrabold">{issue.title}</h4>
+        </div>
+        <span className="rounded-full border border-current/20 px-3 py-1 text-xs font-extrabold">
+          {issue.status}
+        </span>
+      </div>
+      {issue.description ? <p className="mt-3 text-sm leading-6 opacity-80">{issue.description}</p> : null}
+      <div className="mt-4 grid gap-2 text-sm sm:grid-cols-2">
+        <DetailStrip label="Vendor" value={issue.vendor || "Not assigned"} />
+        <DetailStrip label="Next Step" value={issue.nextStep || "Review needed"} />
+      </div>
+      <span className="mt-3 block text-xs font-semibold opacity-65">{formatDateTime(issue.createdAt)}</span>
+    </article>
   );
 }
 

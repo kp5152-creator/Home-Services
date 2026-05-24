@@ -1,6 +1,6 @@
 import { promises as fs } from "fs";
 import path from "path";
-import type { Database, Inspection, InspectionPhoto, Property } from "@/lib/types";
+import type { Database, Inspection, InspectionPhoto, MaintenanceIssue, Property } from "@/lib/types";
 import { hasSupabaseConfig, storageBucket, supabaseAdmin } from "@/lib/supabaseAdmin";
 
 const dbPath = path.join(process.cwd(), "data", "db.json");
@@ -21,6 +21,7 @@ export async function readDatabase(): Promise<Database> {
   const database = JSON.parse(raw) as Database;
   return {
     properties: database.properties,
+    maintenanceIssues: database.maintenanceIssues ?? [],
     inspections: database.inspections.map((inspection) => ({
       ...inspection,
       photos: (inspection.photos ?? []).map((photo) => ({
@@ -74,6 +75,23 @@ export async function addInspection(
   database.inspections.unshift(newInspection);
   await writeDatabase(database);
   return newInspection;
+}
+
+export async function addMaintenanceIssue(issue: Omit<MaintenanceIssue, "id" | "createdAt">) {
+  if (hasSupabaseConfig()) {
+    return addSupabaseMaintenanceIssue(issue);
+  }
+
+  const database = await readDatabase();
+  const newIssue: MaintenanceIssue = {
+    id: `issue-${Date.now()}`,
+    createdAt: new Date().toISOString(),
+    ...issue
+  };
+
+  database.maintenanceIssues = [newIssue, ...(database.maintenanceIssues ?? [])];
+  await writeDatabase(database);
+  return newIssue;
 }
 
 async function saveInspectionPhotos(inspectionId: string, photos: PhotoUpload[] | InspectionPhoto[]) {
@@ -135,7 +153,8 @@ export async function deleteProperty(propertyId: string) {
 
   const nextDatabase: Database = {
     properties: database.properties.filter((property) => property.id !== propertyId),
-    inspections: database.inspections.filter((inspection) => inspection.propertyId !== propertyId)
+    inspections: database.inspections.filter((inspection) => inspection.propertyId !== propertyId),
+    maintenanceIssues: (database.maintenanceIssues ?? []).filter((issue) => issue.propertyId !== propertyId)
   };
 
   await Promise.all(
@@ -183,14 +202,20 @@ export async function readPhotoAsset(inspectionId: string, filename: string) {
 
 async function readSupabaseDatabase(): Promise<Database> {
   const supabase = supabaseAdmin();
-  const [{ data: properties, error: propertiesError }, { data: inspections, error: inspectionsError }] =
+  const [
+    { data: properties, error: propertiesError },
+    { data: inspections, error: inspectionsError },
+    { data: maintenanceIssues, error: maintenanceIssuesError }
+  ] =
     await Promise.all([
       supabase.from("properties").select("*").order("created_at", { ascending: false }),
-      supabase.from("inspections").select("*, inspection_photos(*)").order("timestamp", { ascending: false })
+      supabase.from("inspections").select("*, inspection_photos(*)").order("timestamp", { ascending: false }),
+      supabase.from("maintenance_issues").select("*").order("created_at", { ascending: false })
     ]);
 
   if (propertiesError) throw propertiesError;
   if (inspectionsError) throw inspectionsError;
+  const maintenanceIssueRows = maintenanceIssuesError ? [] : (maintenanceIssues ?? []);
 
   return {
     properties: (properties ?? []).map((property) => ({
@@ -220,6 +245,17 @@ async function readSupabaseDatabase(): Promise<Database> {
         mimeType: photo.mime_type,
         size: photo.size
       }))
+    })),
+    maintenanceIssues: maintenanceIssueRows.map((issue) => ({
+      id: issue.id,
+      propertyId: issue.property_id,
+      createdAt: issue.created_at,
+      title: issue.title,
+      description: issue.description ?? "",
+      priority: issue.priority,
+      status: issue.status,
+      vendor: issue.vendor ?? "",
+      nextStep: issue.next_step ?? ""
     }))
   };
 }
@@ -291,6 +327,30 @@ async function addSupabaseInspection(
   }
 
   return newInspection;
+}
+
+async function addSupabaseMaintenanceIssue(issue: Omit<MaintenanceIssue, "id" | "createdAt">) {
+  const supabase = supabaseAdmin();
+  const newIssue: MaintenanceIssue = {
+    id: `issue-${Date.now()}`,
+    createdAt: new Date().toISOString(),
+    ...issue
+  };
+
+  const { error } = await supabase.from("maintenance_issues").insert({
+    id: newIssue.id,
+    property_id: newIssue.propertyId,
+    created_at: newIssue.createdAt,
+    title: newIssue.title,
+    description: newIssue.description,
+    priority: newIssue.priority,
+    status: newIssue.status,
+    vendor: newIssue.vendor,
+    next_step: newIssue.nextStep
+  });
+
+  if (error) throw error;
+  return newIssue;
 }
 
 async function saveSupabaseInspectionPhotos(inspectionId: string, photos: PhotoUpload[] | InspectionPhoto[]) {
