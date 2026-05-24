@@ -1,6 +1,7 @@
 import path from "path";
 import PDFDocument from "pdfkit";
 import type { NextApiRequest, NextApiResponse } from "next";
+import { groupChecklistItems } from "@/lib/checklists";
 import { readDatabase, readPhotoAsset } from "@/lib/db";
 
 export const config = {
@@ -63,7 +64,15 @@ export default async function handler(request: NextApiRequest, response: NextApi
   doc.moveDown(0.8).fontSize(13).fillColor("#17211f").text("Completed Checks", { underline: true });
   doc.moveDown(0.4).fontSize(11).fillColor("#17211f");
   if (inspection.checklist.length) {
-    inspection.checklist.forEach((item) => doc.text(`- ${item}`, { indent: 10 }));
+    groupChecklistItems(inspection.checklist).forEach((section) => {
+      if (!section.items.length) {
+        return;
+      }
+
+      doc.moveDown(0.4).fontSize(11).fillColor("#b76e46").text(section.title);
+      doc.fontSize(10).fillColor("#17211f");
+      section.items.forEach((item) => doc.text(`- ${item}`, { indent: 10 }));
+    });
   } else {
     doc.text("No checklist items were marked complete.");
   }

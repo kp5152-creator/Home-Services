@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import ReportPageActions from "@/components/ReportPageActions";
+import { groupChecklistItems } from "@/lib/checklists";
 import { readDatabase } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
@@ -53,17 +54,26 @@ export default async function ReportPage({
 
         <section className="mt-6">
           <h2 className="mb-3 text-sm font-extrabold uppercase">Completed Checks</h2>
-          <ul className="grid gap-2">
-            {inspection.checklist.length ? (
-              inspection.checklist.map((item) => (
-                <li key={item} className="rounded-lg border border-line bg-[#fbfcfb] px-3 py-2">
-                  {item}
-                </li>
-              ))
-            ) : (
-              <li>No checklist items were marked complete.</li>
-            )}
-          </ul>
+          {inspection.checklist.length ? (
+            <div className="grid gap-5">
+              {groupChecklistItems(inspection.checklist).map((section) =>
+                section.items.length ? (
+                  <section key={section.title}>
+                    <h3 className="mb-2 text-xs font-black uppercase tracking-[0.08em] text-clay">{section.title}</h3>
+                    <ul className="grid gap-2">
+                      {section.items.map((item) => (
+                        <li key={item} className="rounded-lg border border-line bg-[#fbfcfb] px-3 py-2">
+                          {item}
+                        </li>
+                      ))}
+                    </ul>
+                  </section>
+                ) : null
+              )}
+            </div>
+          ) : (
+            <p>No checklist items were marked complete.</p>
+          )}
         </section>
 
         <section className="mt-6">

@@ -1,19 +1,8 @@
 "use client";
 
 import { FormEvent, useMemo, useState } from "react";
+import { checklistSections, groupChecklistItems } from "@/lib/checklists";
 import type { Database, Inspection, Property, UrgentStatus } from "@/lib/types";
-
-const checklistItems = [
-  "Entry and lock security verified",
-  "Garage secured",
-  "HVAC running and thermostat checked",
-  "Refrigerator/freezer operational",
-  "Plumbing fixtures and visible leaks checked",
-  "Windows, sliders, and shades inspected",
-  "Pool, spa, and exterior water features observed",
-  "Landscape/irrigation observed",
-  "Mail, packages, and exterior entry cleared"
-];
 
 type NewPropertyForm = {
   name: string;
@@ -371,16 +360,26 @@ export default function InspectionWorkspace({
 
               <fieldset className="grid gap-3 rounded-lg border border-line p-4">
                 <legend className="px-2 font-extrabold">Inspection checklist</legend>
-                {checklistItems.map((item) => (
-                  <label key={item} className="grid grid-cols-[22px_minmax(0,1fr)] items-center gap-2 font-semibold">
-                    <input
-                      type="checkbox"
-                      checked={inspectionForm.checklist.includes(item)}
-                      onChange={() => toggleChecklistItem(item)}
-                      className="accent-sage-dark"
-                    />
-                    {item}
-                  </label>
+                {checklistSections.map((section) => (
+                  <div key={section.title} className="grid gap-3">
+                    <h3 className="text-sm font-black uppercase tracking-[0.08em] text-clay">{section.title}</h3>
+                    <div className="grid gap-2 md:grid-cols-2">
+                      {section.items.map((item) => (
+                        <label
+                          key={item}
+                          className="grid grid-cols-[22px_minmax(0,1fr)] items-center gap-2 font-semibold"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={inspectionForm.checklist.includes(item)}
+                            onChange={() => toggleChecklistItem(item)}
+                            className="accent-sage-dark"
+                          />
+                          {item}
+                        </label>
+                      ))}
+                    </div>
+                  </div>
                 ))}
               </fieldset>
 
@@ -640,13 +639,24 @@ function ReportCard({
       <ReportRow label="Photos" value={`${inspection.photos.length} uploaded`} />
 
       <h4 className="mb-2 mt-5 text-sm font-extrabold uppercase">Completed Checks</h4>
-      <ul className="list-disc space-y-2 pl-5">
-        {inspection.checklist.length ? (
-          inspection.checklist.map((item) => <li key={item}>{item}</li>)
-        ) : (
-          <li>No checklist items were marked complete.</li>
-        )}
-      </ul>
+      {inspection.checklist.length ? (
+        <div className="grid gap-4">
+          {groupChecklistItems(inspection.checklist).map((section) =>
+            section.items.length ? (
+              <section key={section.title}>
+                <h5 className="mb-2 text-xs font-black uppercase tracking-[0.08em] text-clay">{section.title}</h5>
+                <ul className="list-disc space-y-2 pl-5">
+                  {section.items.map((item) => (
+                    <li key={item}>{item}</li>
+                  ))}
+                </ul>
+              </section>
+            ) : null
+          )}
+        </div>
+      ) : (
+        <p className="text-sm text-slate-600">No checklist items were marked complete.</p>
+      )}
 
       <h4 className="mb-2 mt-5 text-sm font-extrabold uppercase">Notes / Issues</h4>
       <p>{inspection.notes || "No issues were noted during this visit."}</p>
