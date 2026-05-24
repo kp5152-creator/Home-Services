@@ -1150,6 +1150,27 @@ export default function InspectionWorkspace({
         </div>
       ) : null}
 
+      {activeExperience === "Maintenance" ? (
+        <div className="fixed inset-x-0 bottom-[4.85rem] z-30 px-3 xl:hidden">
+          <div className="mx-auto grid max-w-[520px] grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-lg border border-line bg-white/95 p-3 shadow-[0_-8px_28px_rgba(35,45,41,0.12)] backdrop-blur-xl">
+            <div className="min-w-0">
+              <strong className="block truncate text-sm text-ink">Maintenance item</strong>
+              <span className="block truncate text-xs font-semibold text-slate-600">
+                {maintenanceIssueForm.priority} / {maintenanceIssueForm.photoFiles.length} photos
+              </span>
+            </div>
+            <button
+              type="submit"
+              form="maintenance-form"
+              disabled={isSavingMaintenanceIssue}
+              className="button-primary min-h-11 rounded-lg px-4 text-sm font-extrabold disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {isSavingMaintenanceIssue ? "Saving" : "Save"}
+            </button>
+          </div>
+        </div>
+      ) : null}
+
       {showPropertyForm ? (
         <div className="fixed inset-0 z-20 grid place-items-center bg-ink/45 p-4 backdrop-blur-sm">
           <form className="grid w-full max-w-xl gap-4 rounded-lg bg-white p-5 shadow-estate" onSubmit={saveProperty}>
@@ -1834,7 +1855,7 @@ function LuxuryExperiencePanel({
       {activeExperience === "Maintenance" ? (
         <div className="grid gap-5 lg:grid-cols-[0.95fr_1.05fr]">
           <ConceptCard eyebrow="Maintenance issue" title="Create and assign repair work">
-            <form className="grid gap-3" onSubmit={saveMaintenanceIssue}>
+            <form id="maintenance-form" className="grid gap-3" onSubmit={saveMaintenanceIssue}>
               <label className="grid gap-2 text-sm font-extrabold">
                 Issue title
                 <input
