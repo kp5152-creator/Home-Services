@@ -881,6 +881,26 @@ export default function InspectionWorkspace({
               </span>
             </div>
 
+            <div className="mb-5 grid gap-2 xl:hidden">
+              <div className="grid grid-cols-3 gap-2">
+                <MobileProgressTile label="Checks" value={`${inspectionForm.checklist.length}`} />
+                <MobileProgressTile label="Photos" value={`${inspectionForm.photoFiles.length}`} />
+                <MobileProgressTile
+                  label="Urgent"
+                  value={inspectionForm.urgent}
+                  urgent={inspectionForm.urgent === "Yes"}
+                />
+              </div>
+              <div className="h-2 overflow-hidden rounded-full bg-[#e7eee9]">
+                <div
+                  className="h-full rounded-full bg-sage transition-all"
+                  style={{
+                    width: `${Math.min(100, Math.round((inspectionForm.checklist.length / Math.max(1, activeInspectionTemplate.sections.flatMap((section) => section.items).length)) * 100))}%`
+                  }}
+                />
+              </div>
+            </div>
+
             <form id="inspection-form" className="grid gap-4" onSubmit={saveInspection}>
               <fieldset className="grid gap-3 rounded-lg border border-line bg-white/70 p-4">
                 <legend className="px-2 font-extrabold">Inspection type</legend>
@@ -2287,6 +2307,25 @@ function MobileActionButton({
         {">"}
       </span>
     </button>
+  );
+}
+
+function MobileProgressTile({
+  label,
+  urgent = false,
+  value
+}: {
+  label: string;
+  urgent?: boolean;
+  value: string;
+}) {
+  return (
+    <div className={`rounded-lg border p-3 ${urgent ? "border-[#e7cbc4] bg-[#fff8f6]" : "border-line bg-white"}`}>
+      <span className="block text-xs font-extrabold uppercase tracking-[0.08em] text-slate-500">{label}</span>
+      <strong className={`mt-1 block text-xl font-extrabold ${urgent ? "text-[#9f352e]" : "text-ink"}`}>
+        {value}
+      </strong>
+    </div>
   );
 }
 
