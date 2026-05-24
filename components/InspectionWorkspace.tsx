@@ -1,7 +1,15 @@
 "use client";
 
 import { FormEvent, useMemo, useState } from "react";
-import { checklistSections, groupChecklistItems } from "@/lib/checklists";
+import {
+  defaultInspectionType,
+  getInspectionTemplate,
+  getInspectionType,
+  groupChecklistItems,
+  inspectionTemplates,
+  visibleChecklistItems
+} from "@/lib/checklists";
+import type { InspectionType } from "@/lib/checklists";
 import type { Database, Inspection, Property, UrgentStatus } from "@/lib/types";
 
 type NewPropertyForm = {
@@ -14,6 +22,7 @@ type NewPropertyForm = {
 };
 
 type InspectionForm = {
+  inspectionType: InspectionType;
   inspectorName: string;
   interiorTemperature: string;
   checklist: string[];
@@ -23,6 +32,7 @@ type InspectionForm = {
 };
 
 const emptyInspectionForm: InspectionForm = {
+  inspectionType: defaultInspectionType,
   inspectorName: "",
   interiorTemperature: "",
   checklist: [],
@@ -122,6 +132,10 @@ export default function InspectionWorkspace({
 
   const activeReport =
     selectedInspections.find((inspection) => inspection.id === activeReportId) ?? selectedInspections[0];
+  const activeInspectionTemplate = useMemo(
+    () => getInspectionTemplate(inspectionForm.inspectionType),
+    [inspectionForm.inspectionType]
+  );
 
   async function saveInspection(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -325,6 +339,43 @@ export default function InspectionWorkspace({
             </div>
 
             <form className="grid gap-4" onSubmit={saveInspection}>
+              <fieldset className="grid gap-3 rounded-lg border border-line p-4">
+                <legend className="px-2 font-extrabold">Inspection type</legend>
+                <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                  {inspectionTemplates.map((template) => {
+                    const active = inspectionForm.inspectionType === template.title;
+
+                    return (
+                      <label
+                        key={template.title}
+                        className={`grid cursor-pointer gap-2 rounded-lg border p-3 transition ${
+                          active ? "border-sage bg-[#eef5ef]" : "border-line bg-white hover:border-sage"
+                        }`}
+                      >
+                        <span className="grid grid-cols-[22px_minmax(0,1fr)] gap-2">
+                          <input
+                            type="radio"
+                            name="inspectionType"
+                            value={template.title}
+                            checked={active}
+                            onChange={() =>
+                              setInspectionForm((current) => ({
+                                ...current,
+                                inspectionType: template.title,
+                                checklist: []
+                              }))
+                            }
+                            className="mt-1 accent-sage-dark"
+                          />
+                          <span className="font-extrabold text-ink">{template.title}</span>
+                        </span>
+                        <span className="pl-7 text-sm font-medium leading-5 text-slate-600">{template.description}</span>
+                      </label>
+                    );
+                  })}
+                </div>
+              </fieldset>
+
               <div className="grid gap-4 md:grid-cols-2">
                 <label className="grid gap-2 text-sm font-extrabold text-ink">
                   Inspector name
@@ -360,7 +411,7 @@ export default function InspectionWorkspace({
 
               <fieldset className="grid gap-3 rounded-lg border border-line p-4">
                 <legend className="px-2 font-extrabold">Inspection checklist</legend>
-                {checklistSections.map((section) => (
+                {activeInspectionTemplate.sections.map((section) => (
                   <div key={section.title} className="grid gap-3">
                     <h3 className="text-sm font-black uppercase tracking-[0.08em] text-clay">{section.title}</h3>
                     <div className="grid gap-2 md:grid-cols-2">
@@ -515,7 +566,8 @@ export default function InspectionWorkspace({
                   >
                     <strong className="block text-ink">{formatDateTime(inspection.timestamp)}</strong>
                     <span className="mt-1 block text-sm text-slate-600">
-                      {inspection.inspectorName} / {inspection.interiorTemperature} F / Urgent: {inspection.urgent}
+                      {getInspectionType(inspection.checklist)} / {inspection.inspectorName} /{" "}
+                      {inspection.interiorTemperature} F / Urgent: {inspection.urgent}
                     </span>
                   </button>
                 ))
@@ -629,6 +681,7 @@ function ReportCard({
         {property.owner} / {property.address}
       </p>
       <ReportRow label="Date" value={formatDateTime(inspection.timestamp)} />
+      <ReportRow label="Inspection Type" value={getInspectionType(inspection.checklist)} />
       <ReportRow label="Inspector" value={inspection.inspectorName} />
       <ReportRow label="Temperature" value={`${inspection.interiorTemperature} F`} />
       <ReportRow
@@ -639,7 +692,7 @@ function ReportCard({
       <ReportRow label="Photos" value={`${inspection.photos.length} uploaded`} />
 
       <h4 className="mb-2 mt-5 text-sm font-extrabold uppercase">Completed Checks</h4>
-      {inspection.checklist.length ? (
+      {visibleChecklistItems(inspection.checklist).length ? (
         <div className="grid gap-4">
           {groupChecklistItems(inspection.checklist).map((section) =>
             section.items.length ? (

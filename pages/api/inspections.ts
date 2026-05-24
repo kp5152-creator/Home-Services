@@ -1,4 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from "next";
+import { defaultInspectionType, withInspectionType } from "@/lib/checklists";
 import { addInspection } from "@/lib/db";
 import type { UrgentStatus } from "@/lib/types";
 
@@ -21,7 +22,10 @@ export default async function handler(request: NextApiRequest, response: NextApi
     propertyId: String(request.body.propertyId ?? ""),
     inspectorName: String(request.body.inspectorName ?? ""),
     interiorTemperature: String(request.body.interiorTemperature ?? ""),
-    checklist: Array.isArray(request.body.checklist) ? request.body.checklist.map(String) : [],
+    checklist: withInspectionType(
+      Array.isArray(request.body.checklist) ? request.body.checklist.map(String) : [],
+      String(request.body.inspectionType ?? defaultInspectionType)
+    ),
     notes: String(request.body.notes ?? ""),
     urgent: request.body.urgent === "Yes" ? "Yes" : ("No" as UrgentStatus),
     photos: Array.isArray(request.body.photos)

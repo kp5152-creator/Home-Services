@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import ReportPageActions from "@/components/ReportPageActions";
-import { groupChecklistItems } from "@/lib/checklists";
+import { getInspectionType, groupChecklistItems, visibleChecklistItems } from "@/lib/checklists";
 import { readDatabase } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
@@ -47,6 +47,7 @@ export default async function ReportPage({
 
         <div className="mt-6 grid gap-3 border-y border-line py-4 sm:grid-cols-2">
           <ReportField label="Date" value={formatDateTime(inspection.timestamp)} />
+          <ReportField label="Inspection Type" value={getInspectionType(inspection.checklist)} />
           <ReportField label="Inspector" value={inspection.inspectorName} />
           <ReportField label="Interior Temperature" value={`${inspection.interiorTemperature} F`} />
           <ReportField label="Urgent Issue" value={inspection.urgent} urgent={inspection.urgent === "Yes"} />
@@ -54,7 +55,7 @@ export default async function ReportPage({
 
         <section className="mt-6">
           <h2 className="mb-3 text-sm font-extrabold uppercase">Completed Checks</h2>
-          {inspection.checklist.length ? (
+          {visibleChecklistItems(inspection.checklist).length ? (
             <div className="grid gap-5">
               {groupChecklistItems(inspection.checklist).map((section) =>
                 section.items.length ? (
