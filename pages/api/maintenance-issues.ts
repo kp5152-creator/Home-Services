@@ -23,22 +23,31 @@ export default async function handler(request: NextApiRequest, response: NextApi
   const priority = priorities.includes(request.body.priority) ? request.body.priority : "Medium";
   const status = statuses.includes(request.body.status) ? request.body.status : "Open";
 
-  const issue = await addMaintenanceIssue({
-    propertyId: String(request.body.propertyId ?? ""),
-    title: String(request.body.title ?? ""),
-    description: String(request.body.description ?? ""),
-    priority,
-    status,
-    vendor: String(request.body.vendor ?? ""),
-    nextStep: String(request.body.nextStep ?? ""),
-    photos: Array.isArray(request.body.photos)
-      ? request.body.photos.map((photo: { name?: string; type?: string; data?: string }) => ({
-          name: String(photo.name ?? "maintenance-photo"),
-          type: String(photo.type ?? ""),
-          data: String(photo.data ?? "")
-        }))
-      : []
-  });
+  try {
+    const issue = await addMaintenanceIssue({
+      propertyId: String(request.body.propertyId ?? ""),
+      title: String(request.body.title ?? ""),
+      description: String(request.body.description ?? ""),
+      priority,
+      status,
+      vendor: String(request.body.vendor ?? ""),
+      nextStep: String(request.body.nextStep ?? ""),
+      photos: Array.isArray(request.body.photos)
+        ? request.body.photos.map((photo: { name?: string; type?: string; data?: string }) => ({
+            name: String(photo.name ?? "maintenance-photo"),
+            type: String(photo.type ?? ""),
+            data: String(photo.data ?? "")
+          }))
+        : []
+    });
 
-  response.status(201).json(issue);
+    response.status(201).json(issue);
+  } catch (error) {
+    response.status(500).json({
+      message:
+        error instanceof Error
+          ? error.message
+          : "Maintenance issue could not be saved. Please check the Supabase maintenance photo table."
+    });
+  }
 }

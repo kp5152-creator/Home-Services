@@ -292,11 +292,20 @@ export default function InspectionWorkspace({
     });
 
     if (!response.ok) {
-      window.alert("Maintenance issue could not be saved. Please try again.");
+      const error = (await response.json().catch(() => null)) as { message?: string } | null;
+      window.alert(error?.message || "Maintenance issue could not be saved. Please try again.");
       return;
     }
 
     const issue = (await response.json()) as MaintenanceIssue;
+    const savedPhotoCount = issue.photos?.length ?? 0;
+
+    if (maintenanceIssueForm.photoFiles.length && savedPhotoCount === 0) {
+      window.alert(
+        "The maintenance issue was saved, but the photo did not attach. Please confirm the Supabase maintenance photo table was created and try a smaller photo."
+      );
+    }
+
     setMaintenanceIssues((current) => [issue, ...current]);
     setMaintenanceIssueForm(emptyMaintenanceIssueForm);
     setActiveExperience("Maintenance");
@@ -1258,9 +1267,14 @@ function MaintenanceIssueCard({ issue }: { issue: MaintenanceIssue }) {
           <span className="text-xs font-extrabold uppercase tracking-[0.08em] opacity-75">{issue.priority}</span>
           <h4 className="mt-1 text-lg font-extrabold">{issue.title}</h4>
         </div>
-        <span className="rounded-full border border-current/20 px-3 py-1 text-xs font-extrabold">
-          {issue.status}
-        </span>
+        <div className="flex flex-wrap justify-end gap-2">
+          <span className="rounded-full border border-current/20 px-3 py-1 text-xs font-extrabold">
+            {issue.status}
+          </span>
+          <span className="rounded-full border border-current/20 px-3 py-1 text-xs font-extrabold">
+            {issuePhotos.length} photo{issuePhotos.length === 1 ? "" : "s"}
+          </span>
+        </div>
       </div>
       {issue.description ? <p className="mt-3 text-sm leading-6 opacity-80">{issue.description}</p> : null}
       {issuePhotos.length ? (
@@ -1276,7 +1290,11 @@ function MaintenanceIssueCard({ issue }: { issue: MaintenanceIssue }) {
             </a>
           ))}
         </div>
-      ) : null}
+      ) : (
+        <div className="mt-4 rounded-lg border border-line bg-white/70 p-3 text-sm opacity-75">
+          No damage photos are attached to this issue.
+        </div>
+      )}
       <div className="mt-4 grid gap-2 text-sm sm:grid-cols-2">
         <DetailStrip label="Vendor" value={issue.vendor || "Not assigned"} />
         <DetailStrip label="Next Step" value={issue.nextStep || "Review needed"} />
