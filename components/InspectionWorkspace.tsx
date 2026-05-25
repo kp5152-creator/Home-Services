@@ -353,6 +353,27 @@ export default function InspectionWorkspace({
     inspectionForm.checklist.length > 0;
   const allInspectionChecklistItems = activeInspectionTemplate.sections.flatMap((section) => section.items);
 
+  function draftOwnerUpdateFromReport(inspection: Inspection) {
+    const status = reportConditionStatus(inspection);
+    const summary =
+      inspection.executiveSummary ||
+      status.description ||
+      "The latest inspection report is ready for homeowner review.";
+
+    setOwnerUpdateForm((current) => ({
+      ...current,
+      category: "Inspection",
+      status: "Draft",
+      title: `${selectedProperty?.name || "Property"} inspection report ready`,
+      message: `${summary} The homeowner packet is available for review and includes ${visibleChecklistItems(
+        inspection.checklist
+      ).length} completed checklist items and ${inspection.photos.length} photo${
+        inspection.photos.length === 1 ? "" : "s"
+      }.`
+    }));
+    setActiveExperience("Owner Portal");
+  }
+
   async function saveInspection(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!selectedProperty) return;
@@ -871,6 +892,98 @@ export default function InspectionWorkspace({
     );
   }
 
+  if (!properties.length) {
+    return (
+      <main className={`mx-auto min-h-screen w-full max-w-[980px] p-3 sm:p-6 ${darkMode ? "luxury-dark" : ""}`}>
+        <section className="mb-5 overflow-hidden rounded-lg bg-ink text-white shadow-estate">
+          <div className="bg-[linear-gradient(135deg,rgba(217,154,92,0.22),transparent_42%),linear-gradient(315deg,rgba(95,120,108,0.45),transparent_48%)] p-6">
+            <img
+              src="/estateiq-logo.png"
+              alt="EstateIQ"
+              className="mb-5 h-24 w-24 rounded-lg border border-white/20 object-cover shadow-lift"
+            />
+            <p className="mb-2 text-xs font-extrabold uppercase tracking-[0.16em] text-[#f1c27d]">
+              Property Intelligence. Peace of Mind.
+            </p>
+            <h1 className="text-4xl font-extrabold leading-none tracking-normal">EstateIQ</h1>
+            <p className="mt-3 max-w-2xl text-sm leading-6 text-white/72">
+              Start by creating the first homeowner profile. Once a property is saved, inspections, maintenance,
+              schedules, reports, and the owner portal will unlock around that property.
+            </p>
+          </div>
+        </section>
+
+        <section className="estate-panel rounded-lg p-5">
+          <div className="mb-5">
+            <p className="mb-2 text-xs font-extrabold uppercase tracking-[0.1em] text-clay">
+              First property
+            </p>
+            <h2 className="text-2xl font-extrabold text-ink">Create the homeowner profile</h2>
+            {propertySaveMessage ? (
+              <p className="mt-3 rounded-lg border border-line bg-[#fbfcfb] p-3 text-sm font-semibold text-slate-600">
+                {propertySaveMessage}
+              </p>
+            ) : null}
+          </div>
+          <form className="grid gap-4" onSubmit={saveProperty}>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <PropertyInput
+                label="Property name"
+                value={propertyForm.name}
+                onChange={(value) => setPropertyForm((current) => ({ ...current, name: value }))}
+                required
+              />
+              <PropertyInput
+                label="Homeowner"
+                value={propertyForm.owner}
+                onChange={(value) => setPropertyForm((current) => ({ ...current, owner: value }))}
+                required
+              />
+            </div>
+            <PropertyInput
+              label="Address"
+              value={propertyForm.address}
+              onChange={(value) => setPropertyForm((current) => ({ ...current, address: value }))}
+              required
+            />
+            <div className="grid gap-4 sm:grid-cols-2">
+              <PropertyInput
+                label="Phone"
+                value={propertyForm.phone}
+                onChange={(value) => setPropertyForm((current) => ({ ...current, phone: value }))}
+              />
+              <PropertyInput
+                label="Email"
+                type="email"
+                value={propertyForm.email}
+                onChange={(value) => setPropertyForm((current) => ({ ...current, email: value }))}
+              />
+            </div>
+            <label className="grid gap-2 text-sm font-extrabold">
+              Access notes
+              <textarea
+                rows={4}
+                value={propertyForm.accessNotes}
+                onChange={(event) =>
+                  setPropertyForm((current) => ({ ...current, accessNotes: event.target.value }))
+                }
+                className="field-shell rounded-lg p-3"
+                placeholder="Gate code, alarm notes, preferred entry, parking, vendor access..."
+              />
+            </label>
+            <button
+              type="submit"
+              disabled={isSavingProperty}
+              className="button-primary min-h-12 rounded-lg px-5 font-extrabold disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {isSavingProperty ? "Saving..." : "Create Property"}
+            </button>
+          </form>
+        </section>
+      </main>
+    );
+  }
+
   return (
     <main
       className={`mx-auto min-h-screen w-full max-w-[1480px] p-3 ${
@@ -990,6 +1103,7 @@ export default function InspectionWorkspace({
           setActiveReportId("");
         }}
         setActiveExperience={setActiveExperience}
+        setInspectionForm={setInspectionForm}
         setMaintenanceIssueForm={setMaintenanceIssueForm}
         setOwnerUpdateForm={setOwnerUpdateForm}
         setScheduleTaskForm={setScheduleTaskForm}
@@ -1624,6 +1738,13 @@ export default function InspectionWorkspace({
                   >
                     Download PDF
                   </a>
+                  <button
+                    type="button"
+                    onClick={() => draftOwnerUpdateFromReport(activeReport)}
+                    className="button-soft min-h-11 rounded-lg px-4 text-sm font-extrabold sm:col-span-2"
+                  >
+                    Draft Owner Share Note
+                  </button>
                 </>
               ) : null}
               <button
@@ -1721,6 +1842,13 @@ export default function InspectionWorkspace({
                       >
                         Download PDF
                       </a>
+                      <button
+                        type="button"
+                        onClick={() => draftOwnerUpdateFromReport(inspection)}
+                        className="button-primary min-h-10 rounded-lg px-3 text-sm font-extrabold sm:col-span-2"
+                      >
+                        Draft Owner Share Note
+                      </button>
                     </div>
                   </div>
                 ))
@@ -2107,6 +2235,7 @@ function LuxuryExperiencePanel({
   selectedProperty,
   selectedVendors,
   setActiveExperience,
+  setInspectionForm,
   setMaintenanceIssueForm,
   setOwnerUpdateForm,
   setScheduleTaskForm,
@@ -2151,6 +2280,7 @@ function LuxuryExperiencePanel({
   selectedProperty: Property | undefined;
   selectedVendors: VendorContact[];
   setActiveExperience: (screen: ExperienceScreen) => void;
+  setInspectionForm: Dispatch<SetStateAction<InspectionForm>>;
   setMaintenanceIssueForm: Dispatch<SetStateAction<MaintenanceIssueForm>>;
   setOwnerUpdateForm: Dispatch<SetStateAction<OwnerUpdateForm>>;
   setScheduleTaskForm: Dispatch<SetStateAction<ScheduleTaskForm>>;
@@ -2171,6 +2301,8 @@ function LuxuryExperiencePanel({
     (issue) => issue.priority === "Urgent" && issue.status !== "Resolved"
   ).length;
   const openMaintenanceCount = maintenanceIssues.filter((issue) => issue.status !== "Resolved").length;
+  const resolvedMaintenanceCount = maintenanceIssues.filter((issue) => issue.status === "Resolved").length;
+  const assignedMaintenanceCount = maintenanceIssues.filter((issue) => issue.vendor && issue.status !== "Resolved").length;
   const recentReport = selectedInspections[0];
   const sharedOwnerUpdates = ownerUpdates.filter((update) => update.status === "Shared");
   const internalOwnerUpdates = ownerUpdates.filter((update) => update.status !== "Shared");
@@ -2224,6 +2356,42 @@ function LuxuryExperiencePanel({
         : recentReport
           ? "The property is stable with no urgent homeowner action flagged."
           : "Select a property and complete the first inspection to establish the service record.";
+  const dashboardActivity = [
+    ...selectedInspections.map((inspection) => ({
+      id: `inspection-${inspection.id}`,
+      date: inspection.timestamp,
+      label: "Inspection",
+      title: getInspectionType(inspection.checklist),
+      detail: `${inspection.inspectorName || "Inspector"} / ${inspection.urgent === "Yes" ? "Attention recommended" : "Property stable"}`,
+      screen: "Reports" as ExperienceScreen
+    })),
+    ...maintenanceIssues.map((issue) => ({
+      id: `maintenance-${issue.id}`,
+      date: issue.createdAt,
+      label: "Maintenance",
+      title: issue.title,
+      detail: `${issue.priority} / ${issue.status}`,
+      screen: "Maintenance" as ExperienceScreen
+    })),
+    ...scheduleTasks.map((task) => ({
+      id: `schedule-${task.id}`,
+      date: task.scheduledFor,
+      label: "Schedule",
+      title: task.title,
+      detail: `${task.type} / ${task.status}`,
+      screen: "Schedule" as ExperienceScreen
+    })),
+    ...ownerUpdates.map((update) => ({
+      id: `owner-${update.id}`,
+      date: update.createdAt,
+      label: "Owner Update",
+      title: update.title,
+      detail: `${update.category} / ${update.status}`,
+      screen: "Owner Portal" as ExperienceScreen
+    }))
+  ]
+    .sort((first, second) => new Date(second.date).getTime() - new Date(first.date).getTime())
+    .slice(0, 6);
   const occupancyTasks = scheduleTasks.filter((task) =>
     ["Pre-Guest Arrival", "Post-Checkout", "Cleaner"].includes(task.type)
   );
@@ -2314,6 +2482,74 @@ function LuxuryExperiencePanel({
             featuredIssue.nextStep || featuredIssue.description || "The item is being monitored and will be updated as work progresses."
           }`
         : "No open maintenance items are currently visible for this property."
+    }));
+  }
+
+  function draftOwnerUpdateFromMaintenance(issue: MaintenanceIssue) {
+    setOwnerUpdateForm((current) => ({
+      ...current,
+      category: "Maintenance",
+      status: "Draft",
+      title: `Maintenance update: ${issue.title}`,
+      message: `${issue.title} is currently marked ${issue.status.toLowerCase()} with ${issue.priority.toLowerCase()} priority. ${
+        issue.vendor ? `${issue.vendor} is assigned for follow-up. ` : ""
+      }${issue.nextStep || issue.description || "The item is being monitored and will be updated as work progresses."}`
+    }));
+    setActiveExperience("Owner Portal");
+  }
+
+  function planVendorVisitFromMaintenance(issue: MaintenanceIssue) {
+    setScheduleTaskForm((current) => ({
+      ...current,
+      type: "Vendor",
+      title: `Vendor follow-up: ${issue.title}`,
+      scheduledFor: current.scheduledFor || localDateTimeValue(1, 9),
+      status: "Scheduled",
+      assignedTo: issue.vendor || current.assignedTo,
+      notes: `${issue.priority} priority maintenance item. ${issue.description || "Review issue details on site."} ${
+        issue.nextStep ? `Next step: ${issue.nextStep}` : ""
+      }`
+    }));
+    setActiveExperience("Schedule");
+  }
+
+  function inspectionTypeForScheduleTask(type: ScheduleTaskType): InspectionType {
+    if (type === "Pre-Guest Arrival") return "Pre-Guest Arrival Inspection";
+    if (type === "Post-Checkout") return "Post-Checkout Inspection";
+    if (type === "Cleaner") return "Cleaner Completion Report";
+    if (type === "Maintenance" || type === "Vendor") return "Damage / Maintenance Report";
+
+    return "Home Watch Inspection";
+  }
+
+  function startInspectionFromSchedule(task: ScheduleTask) {
+    setInspectionForm((current) => ({
+      ...current,
+      inspectionType: inspectionTypeForScheduleTask(task.type),
+      inspectorName: task.assignedTo || current.inspectorName,
+      notes: task.notes ? `Scheduled work: ${task.title}\n${task.notes}` : `Scheduled work: ${task.title}`,
+      checklist: []
+    }));
+    setActiveExperience("Inspection");
+  }
+
+  function prepareMaintenanceTemplate(
+    title: string,
+    priority: MaintenancePriority,
+    vendorType: VendorType,
+    description: string,
+    nextStep: string
+  ) {
+    const matchingVendor = selectedVendors.find((vendor) => vendor.type === vendorType);
+
+    setMaintenanceIssueForm((current) => ({
+      ...current,
+      title,
+      priority,
+      status: "Open",
+      vendor: matchingVendor?.name ?? "",
+      description,
+      nextStep
     }));
   }
 
@@ -2627,12 +2863,40 @@ function LuxuryExperiencePanel({
                       task={task}
                       propertyName={property?.name}
                       updateScheduleTaskStatus={updateScheduleTaskStatus}
+                      onStartInspection={startInspectionFromSchedule}
                     />
                   );
                 })
               ) : (
                 <div className="rounded-lg border border-line bg-white p-4 text-sm text-slate-600">
                   No upcoming work has been scheduled yet.
+                </div>
+              )}
+            </div>
+          </ConceptCard>
+          <ConceptCard eyebrow="Activity feed" title="Recent property activity">
+            <div className="grid gap-3">
+              {dashboardActivity.length ? (
+                dashboardActivity.map((item) => (
+                  <button
+                    key={item.id}
+                    type="button"
+                    onClick={() => setActiveExperience(item.screen)}
+                    className="grid gap-3 rounded-lg border border-line bg-white p-4 text-left transition hover:border-sage hover:shadow-lift sm:grid-cols-[130px_minmax(0,1fr)_auto] sm:items-center"
+                  >
+                    <span className="text-xs font-extrabold uppercase tracking-[0.08em] text-clay">
+                      {item.label}
+                    </span>
+                    <span className="min-w-0">
+                      <strong className="block truncate text-ink">{item.title}</strong>
+                      <span className="mt-1 block truncate text-sm text-slate-600">{item.detail}</span>
+                    </span>
+                    <span className="text-xs font-semibold text-slate-500">{formatDateTime(item.date)}</span>
+                  </button>
+                ))
+              ) : (
+                <div className="rounded-lg border border-line bg-white p-4 text-sm text-slate-600">
+                  No activity has been recorded for this property yet.
                 </div>
               )}
             </div>
@@ -2789,11 +3053,38 @@ function LuxuryExperiencePanel({
                     key={task.id}
                     task={task}
                     updateScheduleTaskStatus={updateScheduleTaskStatus}
+                    onStartInspection={startInspectionFromSchedule}
                   />
                 ))
               ) : (
-                <div className="rounded-lg border border-line bg-white p-4 text-sm text-slate-600">
-                  No work has been scheduled for this property yet.
+                <div className="rounded-lg border border-line bg-white p-4">
+                  <p className="text-sm leading-6 text-slate-600">
+                    No work has been scheduled for this property yet. Start with a common visit type, confirm the date,
+                    then save it to the property calendar.
+                  </p>
+                  <div className="mt-4 grid gap-2 sm:grid-cols-3">
+                    <button
+                      type="button"
+                      onClick={() => prepareScheduleTemplate("Home Watch")}
+                      className="button-soft min-h-10 rounded-lg px-4 text-sm font-extrabold"
+                    >
+                      Plan Home Watch
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => prepareScheduleTemplate("Pre-Guest Arrival")}
+                      className="button-soft min-h-10 rounded-lg px-4 text-sm font-extrabold"
+                    >
+                      Plan Arrival
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => prepareScheduleTemplate("Cleaner")}
+                      className="button-soft min-h-10 rounded-lg px-4 text-sm font-extrabold"
+                    >
+                      Plan Cleaner
+                    </button>
+                  </div>
                 </div>
               )}
             </div>
@@ -2804,6 +3095,92 @@ function LuxuryExperiencePanel({
       {activeExperience === "Maintenance" ? (
         <div className="grid gap-5 lg:grid-cols-[0.95fr_1.05fr]">
           <ConceptCard eyebrow="Maintenance issue" title="Create and assign repair work">
+            <div className="mb-4 grid gap-3 sm:grid-cols-4">
+              <MetricCard
+                label="Open"
+                value={`${openMaintenanceCount}`}
+                detail="Active repair items"
+                urgent={openMaintenanceCount > 0}
+              />
+              <MetricCard
+                label="Urgent"
+                value={`${urgentMaintenanceCount}`}
+                detail="Needs attention"
+                urgent={urgentMaintenanceCount > 0}
+              />
+              <MetricCard
+                label="Assigned"
+                value={`${assignedMaintenanceCount}`}
+                detail="Vendor linked"
+              />
+              <MetricCard
+                label="Resolved"
+                value={`${resolvedMaintenanceCount}`}
+                detail="Closed repairs"
+              />
+            </div>
+            <div className="mb-4 grid gap-2 sm:grid-cols-2">
+              <button
+                type="button"
+                onClick={() =>
+                  prepareMaintenanceTemplate(
+                    "HVAC performance concern",
+                    "High",
+                    "HVAC",
+                    "HVAC performance requires review. Document thermostat reading, airflow, and any abnormal noise or lack of cooling.",
+                    "Contact HVAC vendor for availability and update homeowner once service timing is confirmed."
+                  )
+                }
+                className="min-h-11 rounded-lg border border-line bg-white px-4 text-left text-sm font-extrabold transition hover:border-sage hover:shadow-lift"
+              >
+                HVAC Concern
+              </button>
+              <button
+                type="button"
+                onClick={() =>
+                  prepareMaintenanceTemplate(
+                    "Pool or spa service item",
+                    "Medium",
+                    "Pool",
+                    "Pool/spa condition requires service review. Document water clarity, equipment status, visible leaks, and exterior condition.",
+                    "Request pool vendor review and continue monitoring until service is complete."
+                  )
+                }
+                className="min-h-11 rounded-lg border border-line bg-white px-4 text-left text-sm font-extrabold transition hover:border-sage hover:shadow-lift"
+              >
+                Pool / Spa
+              </button>
+              <button
+                type="button"
+                onClick={() =>
+                  prepareMaintenanceTemplate(
+                    "Landscape or irrigation issue",
+                    "Medium",
+                    "Landscape",
+                    "Landscape or irrigation condition requires attention. Document affected area, visible leaks, flooding, dry spots, or plant stress.",
+                    "Coordinate with landscape vendor and verify condition at the next property visit."
+                  )
+                }
+                className="min-h-11 rounded-lg border border-line bg-white px-4 text-left text-sm font-extrabold transition hover:border-sage hover:shadow-lift"
+              >
+                Landscape / Irrigation
+              </button>
+              <button
+                type="button"
+                onClick={() =>
+                  prepareMaintenanceTemplate(
+                    "Security or access concern",
+                    "Urgent",
+                    "Handyman",
+                    "Security or access condition requires prompt review. Document doors, gates, locks, panels, and visible signs of concern.",
+                    "Review immediately, document with photos, and notify homeowner with recommended next steps."
+                  )
+                }
+                className="min-h-11 rounded-lg border border-[#e7cbc4] bg-[#fff8f6] px-4 text-left text-sm font-extrabold text-[#9f352e] transition hover:bg-[#ffecea]"
+              >
+                Security Concern
+              </button>
+            </div>
             <form id="maintenance-form" className="grid gap-3" onSubmit={saveMaintenanceIssue}>
               <label className="grid gap-2 text-sm font-extrabold">
                 Issue title
@@ -3017,11 +3394,48 @@ function LuxuryExperiencePanel({
                     selectedVendors={selectedVendors}
                     updateMaintenanceStatus={updateMaintenanceStatus}
                     updateMaintenanceIssue={updateMaintenanceIssue}
+                    onDraftOwnerUpdate={draftOwnerUpdateFromMaintenance}
+                    onPlanVendorVisit={planVendorVisitFromMaintenance}
                   />
                 ))
               ) : (
-                <div className="rounded-lg border border-line bg-white p-4 text-sm text-slate-600">
-                  No maintenance issues have been saved for this property yet.
+                <div className="rounded-lg border border-line bg-white p-4">
+                  <p className="text-sm leading-6 text-slate-600">
+                    No maintenance issues have been saved for this property yet. Start with a common repair workflow,
+                    then add photos and save the item.
+                  </p>
+                  <div className="mt-4 grid gap-2 sm:grid-cols-2">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        prepareMaintenanceTemplate(
+                          "HVAC performance concern",
+                          "High",
+                          "HVAC",
+                          "HVAC performance requires review. Document thermostat reading, airflow, and any abnormal noise or lack of cooling.",
+                          "Contact HVAC vendor for availability and update homeowner once service timing is confirmed."
+                        )
+                      }
+                      className="button-soft min-h-10 rounded-lg px-4 text-sm font-extrabold"
+                    >
+                      Start HVAC Item
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        prepareMaintenanceTemplate(
+                          "Landscape or irrigation issue",
+                          "Medium",
+                          "Landscape",
+                          "Landscape or irrigation condition requires attention. Document affected area, visible leaks, flooding, dry spots, or plant stress.",
+                          "Coordinate with landscape vendor and verify condition at the next property visit."
+                        )
+                      }
+                      className="button-soft min-h-10 rounded-lg px-4 text-sm font-extrabold"
+                    >
+                      Start Irrigation Item
+                    </button>
+                  </div>
                 </div>
               )}
             </div>
@@ -3210,8 +3624,27 @@ function LuxuryExperiencePanel({
                 {sharedOwnerUpdates.length ? (
                   sharedOwnerUpdates.map((update) => <OwnerUpdateCard key={update.id} update={update} />)
                 ) : (
-                  <div className="rounded-lg border border-line bg-white p-4 text-sm text-slate-600">
-                    No updates have been shared with the homeowner yet.
+                  <div className="rounded-lg border border-line bg-white p-4">
+                    <p className="text-sm leading-6 text-slate-600">
+                      No updates have been shared with the homeowner yet. Draft a polished first update, review the
+                      wording, then change visibility to Shared when it is ready.
+                    </p>
+                    <div className="mt-4 grid gap-2 sm:grid-cols-2">
+                      <button
+                        type="button"
+                        onClick={draftLatestInspectionOwnerUpdate}
+                        className="button-soft min-h-10 rounded-lg px-4 text-sm font-extrabold"
+                      >
+                        Draft Inspection Update
+                      </button>
+                      <button
+                        type="button"
+                        onClick={draftMaintenanceOwnerUpdate}
+                        className="button-soft min-h-10 rounded-lg px-4 text-sm font-extrabold"
+                      >
+                        Draft Maintenance Update
+                      </button>
+                    </div>
                   </div>
                 )}
               </div>
@@ -3383,10 +3816,12 @@ function OwnerUpdateCard({ update }: { update: OwnerUpdate }) {
 }
 
 function ScheduleTaskCard({
+  onStartInspection,
   propertyName,
   task,
   updateScheduleTaskStatus
 }: {
+  onStartInspection: (task: ScheduleTask) => void;
   propertyName?: string;
   task: ScheduleTask;
   updateScheduleTaskStatus: (taskId: string, status: ScheduleTaskStatus) => void;
@@ -3417,6 +3852,13 @@ function ScheduleTaskCard({
         <DetailStrip label="Assigned To" value={task.assignedTo || "Not assigned"} />
       </div>
       {task.notes ? <p className="mt-3 text-sm leading-6 opacity-80">{task.notes}</p> : null}
+      <button
+        type="button"
+        onClick={() => onStartInspection(task)}
+        className="button-primary mt-4 min-h-11 w-full rounded-lg px-4 text-sm font-extrabold"
+      >
+        Start Related Inspection
+      </button>
       <label className="mt-4 grid gap-2 text-sm font-extrabold">
         Update status
         <select
@@ -3459,11 +3901,15 @@ function VendorCard({ vendor }: { vendor: VendorContact }) {
 
 function MaintenanceIssueCard({
   issue,
+  onDraftOwnerUpdate,
+  onPlanVendorVisit,
   selectedVendors,
   updateMaintenanceStatus,
   updateMaintenanceIssue
 }: {
   issue: MaintenanceIssue;
+  onDraftOwnerUpdate: (issue: MaintenanceIssue) => void;
+  onPlanVendorVisit: (issue: MaintenanceIssue) => void;
   selectedVendors: VendorContact[];
   updateMaintenanceStatus: (issueId: string, status: MaintenanceStatus) => void;
   updateMaintenanceIssue: (issueId: string, updates: Partial<MaintenanceIssueForm>) => Promise<MaintenanceIssue>;
@@ -3626,6 +4072,22 @@ function MaintenanceIssueCard({
           className="button-soft min-h-11 rounded-lg px-4 font-extrabold"
         >
           {isEditing ? "Close Edit" : "Edit Details"}
+        </button>
+      </div>
+      <div className="mt-3 grid gap-2 sm:grid-cols-2">
+        <button
+          type="button"
+          onClick={() => onPlanVendorVisit(issue)}
+          className="button-soft min-h-11 rounded-lg px-4 text-sm font-extrabold"
+        >
+          Plan Vendor Visit
+        </button>
+        <button
+          type="button"
+          onClick={() => onDraftOwnerUpdate(issue)}
+          className="button-primary min-h-11 rounded-lg px-4 text-sm font-extrabold"
+        >
+          Draft Owner Update
         </button>
       </div>
       {isEditing ? (
