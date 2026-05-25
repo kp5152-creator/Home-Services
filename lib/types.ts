@@ -40,6 +40,7 @@ export type Inspection = {
   inspectorName: string;
   interiorTemperature: string;
   checklist: string[];
+  executiveSummary?: string;
   notes: string;
   urgent: UrgentStatus;
   photos: InspectionPhoto[];

@@ -26,6 +26,7 @@ export default async function handler(request: NextApiRequest, response: NextApi
       Array.isArray(request.body.checklist) ? request.body.checklist.map(String) : [],
       String(request.body.inspectionType ?? defaultInspectionType)
     ),
+    executiveSummary: String(request.body.executiveSummary ?? ""),
     notes: String(request.body.notes ?? ""),
     urgent: request.body.urgent === "Yes" ? "Yes" : ("No" as UrgentStatus),
     photos: Array.isArray(request.body.photos)

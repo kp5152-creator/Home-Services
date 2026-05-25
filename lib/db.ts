@@ -43,6 +43,7 @@ export async function readDatabase(): Promise<Database> {
     properties: database.properties,
     inspections: (database.inspections ?? []).map((inspection) => ({
       ...inspection,
+      executiveSummary: inspection.executiveSummary ?? "",
       photos: (inspection.photos ?? []).map((photo) => ({
         ...photo,
         url: normalizeInspectionPhotoUrl(photo.url)
@@ -447,6 +448,7 @@ async function readSupabaseDatabase(): Promise<Database> {
       inspectorName: inspection.inspector_name,
       interiorTemperature: inspection.interior_temperature,
       checklist: inspection.checklist ?? [],
+      executiveSummary: inspection.executive_summary ?? "",
       notes: inspection.notes ?? "",
       urgent: inspection.urgent,
       photos: (inspection.inspection_photos ?? []).map((photo: SupabasePhotoRow) => ({
@@ -556,6 +558,7 @@ async function addSupabaseInspection(
     inspector_name: newInspection.inspectorName,
     interior_temperature: newInspection.interiorTemperature,
     checklist: newInspection.checklist,
+    executive_summary: newInspection.executiveSummary ?? "",
     notes: newInspection.notes,
     urgent: newInspection.urgent
   });

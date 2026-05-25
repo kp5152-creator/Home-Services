@@ -1,7 +1,7 @@
 {
-  "name": "Desert Estate Watch",
-  "short_name": "Estate Watch",
-  "description": "Home watch inspections for luxury Coachella Valley properties.",
+  "name": "EstateIQ",
+  "short_name": "EstateIQ",
+  "description": "Property intelligence, inspections, reports, and protection for luxury homes.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",

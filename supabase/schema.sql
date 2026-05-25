@@ -18,9 +18,13 @@ create table if not exists public.inspections (
   inspector_name text not null,
   interior_temperature text not null,
   checklist text[] not null default '{}',
+  executive_summary text not null default '',
   notes text not null default '',
   urgent text not null default 'No'
 );
+
+alter table public.inspections
+add column if not exists executive_summary text not null default '';
 
 create table if not exists public.inspection_photos (
   id text primary key,

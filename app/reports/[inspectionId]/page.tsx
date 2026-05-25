@@ -29,6 +29,8 @@ export default async function ReportPage({
     notFound();
   }
 
+  const status = reportConditionStatus(inspection);
+
   return (
     <main className="mx-auto min-h-screen max-w-4xl bg-white px-5 py-6 text-ink sm:px-8 print:p-0">
       <section className="no-print mb-6 rounded-lg border border-line bg-paper p-4">
@@ -37,13 +39,25 @@ export default async function ReportPage({
 
       <article className="rounded-lg border border-line p-6 print:border-0 print:p-0">
         <p className="mb-2 text-xs font-extrabold uppercase tracking-[0.1em] text-clay">
-          Coachella Valley Home Watch
+          EstateIQ
         </p>
-        <h1 className="text-3xl font-extrabold">Homeowner Inspection Report</h1>
+        <h1 className="text-3xl font-extrabold">EstateIQ Homeowner Packet</h1>
         <p className="mt-2 text-slate-600">
           {property.name} / {property.owner}
         </p>
         <p className="text-slate-600">{property.address}</p>
+
+        <section
+          className={`mt-6 rounded-lg border p-4 ${
+            status.tone === "urgent"
+              ? "border-[#e7cbc4] bg-[#fff8f6] text-[#9f352e]"
+              : "border-[#c9ddd1] bg-[#f3f8f4] text-sage-dark"
+          }`}
+        >
+          <span className="block text-xs font-extrabold uppercase tracking-[0.1em]">Property Status</span>
+          <strong className="mt-2 block text-xl">{status.label}</strong>
+          <p className="mt-2 text-sm leading-6">{status.description}</p>
+        </section>
 
         <div className="mt-6 grid gap-3 border-y border-line py-4 sm:grid-cols-2">
           <ReportField label="Date" value={formatDateTime(inspection.timestamp)} />
@@ -52,6 +66,13 @@ export default async function ReportPage({
           <ReportField label="Interior Temperature" value={`${inspection.interiorTemperature} F`} />
           <ReportField label="Urgent Issue" value={inspection.urgent} urgent={inspection.urgent === "Yes"} />
         </div>
+
+        {inspection.executiveSummary ? (
+          <section className="mt-6 rounded-lg border border-line bg-[#fbfcfb] p-4">
+            <h2 className="mb-3 text-sm font-extrabold uppercase">Executive Summary</h2>
+            <p className="leading-7">{inspection.executiveSummary}</p>
+          </section>
+        ) : null}
 
         <section className="mt-6">
           <h2 className="mb-3 text-sm font-extrabold uppercase">Completed Checks</h2>
@@ -115,4 +136,29 @@ function ReportField({
       <strong className={urgent ? "text-[#b93f35]" : ""}>{value}</strong>
     </div>
   );
+}
+
+function reportConditionStatus(inspection: { urgent: string; checklist: string[] }) {
+  if (inspection.urgent === "Yes") {
+    return {
+      label: "Attention Recommended",
+      tone: "urgent" as const,
+      description:
+        "This report includes an urgent item that should be reviewed promptly by the homeowner or property manager."
+    };
+  }
+
+  if (!visibleChecklistItems(inspection.checklist).length) {
+    return {
+      label: "Report Pending",
+      tone: "normal" as const,
+      description: "This report has been created, but no completed checklist items were recorded."
+    };
+  }
+
+  return {
+    label: "Property Stable",
+    tone: "normal" as const,
+    description: "This inspection indicates the property is stable with no urgent homeowner action flagged at this time."
+  };
 }

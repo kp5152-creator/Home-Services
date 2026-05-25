@@ -37,6 +37,7 @@ export default async function handler(request: NextApiRequest, response: NextApi
     return;
   }
 
+  const status = reportConditionStatus(inspection);
   const filename = `${property.name.replace(/[^a-z0-9]+/gi, "-").toLowerCase()}-${inspection.id}.pdf`;
   response.setHeader("Content-Type", "application/pdf");
   response.setHeader("Content-Disposition", `inline; filename="${filename}"`);
@@ -49,11 +50,16 @@ export default async function handler(request: NextApiRequest, response: NextApi
     .fillColor("#b76e46")
     .text("COACHELLA VALLEY HOME WATCH", { characterSpacing: 1.2 })
     .moveDown(0.5);
-  doc.fontSize(24).fillColor("#17211f").text("Homeowner Inspection Report");
+  doc.fontSize(24).fillColor("#17211f").text("EstateIQ Homeowner Packet");
   doc.moveDown(0.4);
   doc.fontSize(12).fillColor("#65706c").text(`${property.name} / ${property.owner}`);
   doc.text(property.address);
   doc.moveDown(1.1);
+
+  doc.fontSize(10).fillColor("#65706c").text("Property Status");
+  doc.fontSize(16).fillColor(status.tone === "urgent" ? "#9f352e" : "#40584d").text(status.label);
+  doc.moveDown(0.2).fontSize(10).fillColor("#17211f").text(status.description);
+  doc.moveDown(0.8);
 
   writeRow(doc, "Date", formatDateTime(inspection.timestamp));
   writeRow(doc, "Inspection Type", getInspectionType(inspection.checklist));
@@ -61,6 +67,11 @@ export default async function handler(request: NextApiRequest, response: NextApi
   writeRow(doc, "Interior Temperature", `${inspection.interiorTemperature} F`);
   writeRow(doc, "Urgent Issue", inspection.urgent);
   writeRow(doc, "Photos", `${inspection.photos.length} uploaded`);
+
+  if (inspection.executiveSummary) {
+    doc.moveDown(0.8).fontSize(13).fillColor("#17211f").text("Executive Summary", { underline: true });
+    doc.moveDown(0.4).fontSize(11).text(inspection.executiveSummary);
+  }
 
   doc.moveDown(0.8).fontSize(13).fillColor("#17211f").text("Completed Checks", { underline: true });
   doc.moveDown(0.4).fontSize(11).fillColor("#17211f");
@@ -117,4 +128,29 @@ function writeRow(doc: PDFKit.PDFDocument, label: string, value: string) {
   doc.fontSize(10).fillColor("#65706c").text(label, 54, y, { width: 140 });
   doc.fontSize(11).fillColor("#17211f").text(value, 190, y, { width: 330 });
   doc.moveDown(0.7);
+}
+
+function reportConditionStatus(inspection: { urgent: string; checklist: string[] }) {
+  if (inspection.urgent === "Yes") {
+    return {
+      label: "Attention Recommended",
+      tone: "urgent" as const,
+      description:
+        "This report includes an urgent item that should be reviewed promptly by the homeowner or property manager."
+    };
+  }
+
+  if (!visibleChecklistItems(inspection.checklist).length) {
+    return {
+      label: "Report Pending",
+      tone: "normal" as const,
+      description: "This report has been created, but no completed checklist items were recorded."
+    };
+  }
+
+  return {
+    label: "Property Stable",
+    tone: "normal" as const,
+    description: "This inspection indicates the property is stable with no urgent homeowner action flagged at this time."
+  };
 }

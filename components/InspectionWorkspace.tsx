@@ -1,6 +1,6 @@
 "use client";
 
-import { Dispatch, FormEvent, SetStateAction, useMemo, useState } from "react";
+import { Dispatch, FormEvent, SetStateAction, useEffect, useMemo, useState } from "react";
 import {
   defaultInspectionType,
   getInspectionTemplate,
@@ -47,6 +47,13 @@ type MaintenanceIssueForm = {
   photoFiles: File[];
 };
 
+type MaintenanceRecommendation = {
+  priority: MaintenancePriority;
+  vendorType: VendorType;
+  nextStep: string;
+  ownerExplanation: string;
+};
+
 type VendorForm = {
   name: string;
   type: VendorType;
@@ -77,6 +84,7 @@ type InspectionForm = {
   inspectorName: string;
   interiorTemperature: string;
   checklist: string[];
+  executiveSummary: string;
   notes: string;
   urgent: UrgentStatus;
   photoFiles: File[];
@@ -97,6 +105,7 @@ const emptyInspectionForm: InspectionForm = {
   inspectorName: "",
   interiorTemperature: "",
   checklist: [],
+  executiveSummary: "",
   notes: "",
   urgent: "No",
   photoFiles: []
@@ -162,22 +171,22 @@ const scheduleTaskStatuses: ScheduleTaskStatus[] = ["Scheduled", "In Progress", 
 
 const experienceScreens: ExperienceScreen[] = [
   "Login",
-  "Dashboard",
   "Property",
   "Inspection",
+  "Maintenance",
   "Schedule",
   "Reports",
-  "Maintenance",
+  "Dashboard",
   "Owner Portal"
 ];
 
 const mobileExperienceScreens: ExperienceScreen[] = [
-  "Dashboard",
   "Property",
   "Inspection",
-  "Schedule",
   "Maintenance",
+  "Schedule",
   "Reports",
+  "Dashboard",
   "Owner Portal"
 ];
 
@@ -265,12 +274,16 @@ export default function InspectionWorkspace({
   const [isSavingScheduleTask, setIsSavingScheduleTask] = useState(false);
   const [ownerUpdateSaveMessage, setOwnerUpdateSaveMessage] = useState("");
   const [isSavingOwnerUpdate, setIsSavingOwnerUpdate] = useState(false);
+  const [suggestedSummary, setSuggestedSummary] = useState("");
+  const [suggestedSummaryMessage, setSuggestedSummaryMessage] = useState("");
   const [propertySaveMessage, setPropertySaveMessage] = useState("");
   const [isSavingProperty, setIsSavingProperty] = useState(false);
+  const [maintenanceRecommendation, setMaintenanceRecommendation] = useState<MaintenanceRecommendation | null>(null);
+  const [maintenanceRecommendationMessage, setMaintenanceRecommendationMessage] = useState("");
   const [maintenanceSaveMessage, setMaintenanceSaveMessage] = useState("");
   const [isSavingMaintenanceIssue, setIsSavingMaintenanceIssue] = useState(false);
   const [showPropertyForm, setShowPropertyForm] = useState(false);
-  const [activeExperience, setActiveExperience] = useState<ExperienceScreen>("Dashboard");
+  const [activeExperience, setActiveExperience] = useState<ExperienceScreen>("Login");
   const [darkMode, setDarkMode] = useState(false);
   const [now] = useState(() => new Date());
 
@@ -324,10 +337,21 @@ export default function InspectionWorkspace({
 
   const activeReport =
     selectedInspections.find((inspection) => inspection.id === activeReportId) ?? selectedInspections[0];
+  const selectedNextScheduleTask = selectedScheduleTasks.find((task) => !["Complete", "Skipped"].includes(task.status));
   const activeInspectionTemplate = useMemo(
     () => getInspectionTemplate(inspectionForm.inspectionType),
     [inspectionForm.inspectionType]
   );
+  const inspectionTotalChecks = activeInspectionTemplate.sections.flatMap((section) => section.items).length;
+  const inspectionCompletionPercent = Math.min(
+    100,
+    Math.round((inspectionForm.checklist.length / Math.max(1, inspectionTotalChecks)) * 100)
+  );
+  const inspectionReady =
+    Boolean(inspectionForm.inspectorName.trim()) &&
+    Boolean(inspectionForm.interiorTemperature.trim()) &&
+    inspectionForm.checklist.length > 0;
+  const allInspectionChecklistItems = activeInspectionTemplate.sections.flatMap((section) => section.items);
 
   async function saveInspection(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -599,6 +623,130 @@ export default function InspectionWorkspace({
     }));
   }
 
+  function setChecklistSection(items: readonly string[], selected: boolean) {
+    setInspectionForm((current) => {
+      const sectionItems = new Set(items);
+      const withoutSection = current.checklist.filter((item) => !sectionItems.has(item));
+
+      return {
+        ...current,
+        checklist: selected ? [...withoutSection, ...items] : withoutSection
+      };
+    });
+  }
+
+  function generateSuggestedSummary() {
+    if (!selectedProperty) {
+      setSuggestedSummaryMessage("Select a property before creating a suggested summary.");
+      return;
+    }
+
+    const completedCount = inspectionForm.checklist.length;
+    const totalCount = activeInspectionTemplate.sections.flatMap((section) => section.items).length;
+    const completionPhrase =
+      completedCount === totalCount
+        ? "All planned inspection items were completed"
+        : `${completedCount} of ${totalCount} planned inspection items were completed`;
+    const temperaturePhrase = inspectionForm.interiorTemperature
+      ? `Interior temperature was recorded at ${inspectionForm.interiorTemperature} F`
+      : "Interior temperature was not recorded";
+    const photoPhrase = inspectionForm.photoFiles.length
+      ? `${inspectionForm.photoFiles.length} supporting photo${inspectionForm.photoFiles.length === 1 ? " was" : "s were"} documented`
+      : "No photos were attached at the time of this draft";
+    const issuePhrase =
+      inspectionForm.urgent === "Yes"
+        ? "Immediate homeowner attention is recommended based on the urgent issue flag"
+        : "No urgent homeowner action is indicated from this inspection";
+    const notesPhrase = inspectionForm.notes.trim()
+      ? `Inspector notes: ${inspectionForm.notes.trim()}`
+      : "No additional issues were noted by the inspector";
+
+    const summary = `${selectedProperty.name} received a ${inspectionForm.inspectionType.toLowerCase()} by ${
+      inspectionForm.inspectorName || "the inspection team"
+    }. ${completionPhrase}. ${temperaturePhrase}, and ${photoPhrase}. ${issuePhrase}. ${notesPhrase}.`;
+
+    setSuggestedSummary(summary);
+    setSuggestedSummaryMessage("Suggested Summary drafted. Review before using in the report.");
+  }
+
+  function useSuggestedSummary() {
+    if (!suggestedSummary) return;
+
+    setInspectionForm((current) => ({
+      ...current,
+      executiveSummary: suggestedSummary
+    }));
+    setSuggestedSummaryMessage("Suggested Summary approved. You can edit it before generating the report.");
+  }
+
+  function suggestMaintenanceRecommendation() {
+    const issueText = `${maintenanceIssueForm.title} ${maintenanceIssueForm.description}`.toLowerCase();
+
+    if (!issueText.trim()) {
+      setMaintenanceRecommendationMessage("Add an issue title or description before requesting a recommendation.");
+      return;
+    }
+
+    const vendorType: VendorType =
+      /pool|spa|heater|water feature/.test(issueText)
+        ? "Pool"
+        : /irrigation|landscape|sprinkler|plant|tree|lawn|drip/.test(issueText)
+          ? "Landscape"
+          : /hvac|air|thermostat|temperature|ac|a\/c|cooling|heating/.test(issueText)
+            ? "HVAC"
+            : /clean|trash|linen|laundry|stain/.test(issueText)
+              ? "Cleaning"
+              : /plumb|leak|toilet|sink|shower|faucet|water/.test(issueText)
+                ? "Plumbing"
+                : /electric|breaker|outlet|light|lighting|power/.test(issueText)
+                  ? "Electrical"
+                  : "Handyman";
+
+    const priority: MaintenancePriority =
+      /active leak|flood|no air|no ac|no a\/c|electrical smell|sparking|security|forced entry|urgent/.test(issueText)
+        ? "Urgent"
+        : /leak|not working|broken|damage|alarm|hvac|pool equipment/.test(issueText)
+          ? "High"
+          : /wear|loose|slow|minor|monitor/.test(issueText)
+            ? "Medium"
+            : "Medium";
+
+    const matchingVendor = selectedVendors.find((vendor) => vendor.type === vendorType);
+    const vendorLabel = matchingVendor ? matchingVendor.name : `${vendorType} vendor`;
+    const nextStep =
+      priority === "Urgent"
+        ? `Contact ${vendorLabel} immediately and notify the homeowner with photo documentation.`
+        : priority === "High"
+          ? `Request availability from ${vendorLabel} and monitor until the repair is scheduled.`
+          : `Add to the next service visit for ${vendorLabel} and continue monitoring.`;
+    const ownerExplanation = `A ${vendorType.toLowerCase()} item was identified and is recommended for ${priority.toLowerCase()} follow-up. EstateIQ recommends documenting the condition, coordinating with ${vendorLabel}, and keeping the homeowner updated once timing is confirmed.`;
+
+    setMaintenanceRecommendation({
+      priority,
+      vendorType,
+      nextStep,
+      ownerExplanation
+    });
+    setMaintenanceRecommendationMessage("Recommendation drafted. Review before applying.");
+  }
+
+  function applyMaintenanceRecommendation() {
+    if (!maintenanceRecommendation) return;
+
+    const matchingVendor = selectedVendors.find((vendor) => vendor.type === maintenanceRecommendation.vendorType);
+
+    setMaintenanceIssueForm((current) => ({
+      ...current,
+      priority: maintenanceRecommendation.priority,
+      vendor: matchingVendor?.name ?? current.vendor,
+      nextStep: maintenanceRecommendation.nextStep,
+      description: current.description.trim()
+        ? `${current.description.trim()}\n\nOwner-facing note: ${maintenanceRecommendation.ownerExplanation}`
+        : maintenanceRecommendation.ownerExplanation
+    }));
+    setMaintenanceRecommendationMessage("Recommendation applied. You can edit before saving.");
+  }
+
   function addPhotoFiles(files: FileList | null) {
     setInspectionForm((current) => ({
       ...current,
@@ -675,6 +823,53 @@ export default function InspectionWorkspace({
     "Reports",
     "Property"
   ].includes(activeExperience);
+  const currentFlowIndex = experienceScreens.indexOf(activeExperience);
+  const nextFlowScreen =
+    currentFlowIndex >= 0 && currentFlowIndex < experienceScreens.length - 1
+      ? experienceScreens[currentFlowIndex + 1]
+      : undefined;
+
+  if (activeExperience === "Login") {
+    return (
+      <main className={`grid min-h-screen place-items-center px-4 py-8 ${darkMode ? "luxury-dark" : ""}`}>
+        <section className="estate-panel w-full max-w-[440px] rounded-lg p-6 shadow-estate sm:p-8">
+          <div className="mb-8 text-center">
+            <img
+              src="/estateiq-logo.png"
+              alt="EstateIQ"
+              className="mx-auto mb-5 w-full max-w-[300px] rounded-lg shadow-lift"
+            />
+            <p className="mb-2 text-xs font-extrabold uppercase tracking-[0.16em] text-clay">
+              Property Intelligence. Peace of Mind.
+            </p>
+            <h1 className="text-3xl font-extrabold text-ink">EstateIQ Sign In</h1>
+          </div>
+
+          <form className="grid gap-4">
+            <label className="grid gap-2 text-sm font-extrabold text-ink">
+              Email
+              <input className="field-shell min-h-12 rounded-lg p-3" placeholder="name@example.com" type="email" />
+            </label>
+            <label className="grid gap-2 text-sm font-extrabold text-ink">
+              Password
+              <input className="field-shell min-h-12 rounded-lg p-3" placeholder="Password" type="password" />
+            </label>
+            <button
+              type="button"
+              onClick={() => setActiveExperience("Property")}
+              className="button-primary mt-2 min-h-12 rounded-lg px-5 font-extrabold"
+            >
+              Sign In
+            </button>
+          </form>
+
+          <p className="mt-5 text-center text-sm leading-6 text-slate-600">
+            Secure access for homeowners and property operations teams.
+          </p>
+        </section>
+      </main>
+    );
+  }
 
   return (
     <main
@@ -686,17 +881,20 @@ export default function InspectionWorkspace({
         <div className="flex min-h-28 flex-col justify-between gap-5 bg-[linear-gradient(135deg,rgba(217,154,92,0.22),transparent_42%),linear-gradient(315deg,rgba(95,120,108,0.45),transparent_48%)] p-5 md:flex-row md:items-center md:p-7 xl:min-h-36">
           <div className="flex items-center gap-4">
             <img
-              src="/apple-touch-icon.png"
-              alt=""
-              className="h-12 w-12 shrink-0 rounded-[14px] border border-white/20 shadow-lift xl:h-16 xl:w-16 xl:rounded-[18px]"
+              src="/estateiq-logo.png"
+              alt="EstateIQ"
+              className="h-20 w-20 shrink-0 rounded-lg border border-white/20 object-cover shadow-lift xl:h-24 xl:w-24"
             />
             <div>
               <p className="mb-2 text-xs font-extrabold uppercase tracking-[0.16em] text-[#f1c27d]">
-                Coachella Valley Home Watch
+                Property Intelligence. Peace of Mind.
               </p>
               <h1 className="text-3xl font-extrabold leading-none tracking-normal sm:text-5xl xl:text-6xl">
-                Desert Estate Watch
+                EstateIQ
               </h1>
+              <p className="mt-2 text-xs font-extrabold uppercase tracking-[0.16em] text-white/68">
+                Inspect | Report | Protect
+              </p>
             </div>
           </div>
           <div className="hidden rounded-lg border border-white/15 bg-white/10 px-5 py-4 text-left text-white/78 md:min-w-48 md:text-right xl:block">
@@ -736,12 +934,44 @@ export default function InspectionWorkspace({
         </div>
       </section>
 
+      <section className="estate-panel no-print mb-5 rounded-lg p-4">
+        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+          <div>
+            <p className="mb-1 text-xs font-extrabold uppercase tracking-[0.12em] text-clay">
+              Workflow
+            </p>
+            <h2 className="text-lg font-extrabold text-ink">
+              {currentFlowIndex + 1} of {experienceScreens.length}: {activeExperience}
+            </h2>
+          </div>
+          {nextFlowScreen ? (
+            <button
+              type="button"
+              onClick={() => setActiveExperience(nextFlowScreen)}
+              className="button-primary min-h-11 rounded-lg px-5 text-sm font-extrabold"
+            >
+              Continue to {nextFlowScreen}
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setActiveExperience("Property")}
+              className="button-soft min-h-11 rounded-lg px-5 text-sm font-extrabold"
+            >
+              Start New Property Flow
+            </button>
+          )}
+        </div>
+      </section>
+
       <LuxuryExperiencePanel
         activeExperience={activeExperience}
         activeReport={activeReport}
         now={now}
         properties={properties}
         maintenanceIssueForm={maintenanceIssueForm}
+        maintenanceRecommendation={maintenanceRecommendation}
+        maintenanceRecommendationMessage={maintenanceRecommendationMessage}
         maintenanceIssues={selectedMaintenanceIssues}
         ownerUpdateForm={ownerUpdateForm}
         ownerUpdateSaveMessage={ownerUpdateSaveMessage}
@@ -774,14 +1004,16 @@ export default function InspectionWorkspace({
         upcomingScheduleTasks={upcomingScheduleTasks}
         updateMaintenanceStatus={updateMaintenanceStatus}
         updateMaintenanceIssue={updateMaintenanceIssue}
+        suggestMaintenanceRecommendation={suggestMaintenanceRecommendation}
+        applyMaintenanceRecommendation={applyMaintenanceRecommendation}
         updateScheduleTaskStatus={updateScheduleTaskStatus}
         setVendorForm={setVendorForm}
         saveVendor={saveVendor}
         isSavingVendor={isSavingVendor}
       />
 
-      <section className="grid gap-5 xl:grid-cols-[300px_minmax(0,1fr)_400px]">
-        <aside className={`estate-panel no-print rounded-lg p-5 ${activeExperience === "Property" ? "" : "hidden"} xl:block`}>
+      <section className="grid gap-5">
+        <aside className={`estate-panel no-print rounded-lg p-5 ${activeExperience === "Property" ? "" : "hidden"}`}>
           <div className="mb-5 flex items-start justify-between gap-3">
             <div>
               <p className="mb-2 text-xs font-extrabold uppercase tracking-[0.1em] text-clay">
@@ -844,7 +1076,7 @@ export default function InspectionWorkspace({
         </aside>
 
         <section className="grid gap-5">
-          <section className={`estate-panel rounded-lg p-5 ${activeExperience === "Property" ? "" : "hidden"} xl:block`}>
+          <section className={`estate-panel rounded-lg p-5 ${activeExperience === "Property" ? "" : "hidden"}`}>
             <div className="mb-5 flex items-start justify-between gap-3">
               <div>
                 <p className="mb-2 text-xs font-extrabold uppercase tracking-[0.1em] text-clay">
@@ -858,17 +1090,150 @@ export default function InspectionWorkspace({
             </div>
 
             {selectedProperty ? (
-              <div className="grid gap-3 md:grid-cols-2">
-                <ProfileItem label="Homeowner" value={selectedProperty.owner} />
-                <ProfileItem label="Address" value={selectedProperty.address} />
-                <ProfileItem label="Phone" value={selectedProperty.phone || "Not provided"} />
-                <ProfileItem label="Email" value={selectedProperty.email || "Not provided"} />
-                <ProfileItem label="Access Notes" value={selectedProperty.accessNotes || "No special access notes."} />
+              <div className="grid gap-4">
+                <QuickContactButtons property={selectedProperty} />
+                <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                  <MetricCard
+                    label="Inspections"
+                    value={`${selectedInspections.length}`}
+                    detail="Saved visit reports"
+                  />
+                  <MetricCard
+                    label="Open items"
+                    value={`${selectedMaintenanceIssues.filter((issue) => issue.status !== "Resolved").length}`}
+                    detail="Maintenance tracking"
+                    urgent={selectedMaintenanceIssues.some((issue) => issue.status !== "Resolved")}
+                  />
+                  <MetricCard
+                    label="Vendors"
+                    value={`${selectedVendors.length}`}
+                    detail="Property contacts"
+                  />
+                  <MetricCard
+                    label="Next visit"
+                    value={selectedNextScheduleTask?.type || "None"}
+                    detail={selectedNextScheduleTask ? formatDateTime(selectedNextScheduleTask.scheduledFor) : "No work scheduled"}
+                  />
+                </div>
+                <div className="grid gap-3 md:grid-cols-2">
+                  <ProfileItem label="Homeowner" value={selectedProperty.owner} />
+                  <ProfileItem label="Address" value={selectedProperty.address} />
+                  <ProfileItem label="Phone" value={selectedProperty.phone || "Not provided"} />
+                  <ProfileItem label="Email" value={selectedProperty.email || "Not provided"} />
+                  <ProfileItem label="Access Notes" value={selectedProperty.accessNotes || "No special access notes."} />
+                </div>
               </div>
             ) : null}
           </section>
 
-          <section className={`estate-panel no-print rounded-lg p-5 ${activeExperience === "Inspection" ? "" : "hidden"} xl:block`}>
+          <section className={`estate-panel rounded-lg p-5 ${activeExperience === "Property" ? "" : "hidden"}`}>
+            <p className="mb-2 text-xs font-extrabold uppercase tracking-[0.1em] text-clay">
+              Vendor Directory
+            </p>
+            <h2 className="mb-4 text-xl font-extrabold text-ink">Property Vendor Contacts</h2>
+            <div className="mb-4 grid gap-2 sm:grid-cols-4">
+              {(["Pool", "Landscape", "HVAC", "Cleaning"] as VendorType[]).map((type) => (
+                <button
+                  key={type}
+                  type="button"
+                  onClick={() => setVendorForm((current) => ({ ...current, type }))}
+                  className={`min-h-10 rounded-lg border px-3 text-left text-sm font-extrabold transition hover:border-sage hover:shadow-lift ${
+                    vendorForm.type === type ? "border-sage bg-[#f3f8f4] text-sage-dark" : "border-line bg-white text-ink"
+                  }`}
+                >
+                  {type}
+                </button>
+              ))}
+            </div>
+            <form id="vendor-form" className="grid gap-3" onSubmit={saveVendor}>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <label className="grid gap-2 text-sm font-extrabold">
+                  Vendor name
+                  <input
+                    required
+                    value={vendorForm.name}
+                    onChange={(event) => setVendorForm((current) => ({ ...current, name: event.target.value }))}
+                    className="field-shell rounded-lg p-3"
+                    placeholder="Desert Pool Care"
+                  />
+                </label>
+                <label className="grid gap-2 text-sm font-extrabold">
+                  Vendor type
+                  <select
+                    value={vendorForm.type}
+                    onChange={(event) =>
+                      setVendorForm((current) => ({ ...current, type: event.target.value as VendorType }))
+                    }
+                    className="field-shell rounded-lg p-3"
+                  >
+                    {vendorTypes.map((type) => (
+                      <option key={type}>{type}</option>
+                    ))}
+                  </select>
+                </label>
+              </div>
+              <div className="grid gap-3 sm:grid-cols-3">
+                <label className="grid gap-2 text-sm font-extrabold">
+                  Contact
+                  <input
+                    value={vendorForm.contactName}
+                    onChange={(event) => setVendorForm((current) => ({ ...current, contactName: event.target.value }))}
+                    className="field-shell rounded-lg p-3"
+                  />
+                </label>
+                <label className="grid gap-2 text-sm font-extrabold">
+                  Phone
+                  <input
+                    value={vendorForm.phone}
+                    onChange={(event) => setVendorForm((current) => ({ ...current, phone: event.target.value }))}
+                    className="field-shell rounded-lg p-3"
+                  />
+                </label>
+                <label className="grid gap-2 text-sm font-extrabold">
+                  Email
+                  <input
+                    type="email"
+                    value={vendorForm.email}
+                    onChange={(event) => setVendorForm((current) => ({ ...current, email: event.target.value }))}
+                    className="field-shell rounded-lg p-3"
+                  />
+                </label>
+              </div>
+              <label className="grid gap-2 text-sm font-extrabold">
+                Notes
+                <textarea
+                  rows={3}
+                  value={vendorForm.notes}
+                  onChange={(event) => setVendorForm((current) => ({ ...current, notes: event.target.value }))}
+                  className="field-shell rounded-lg p-3"
+                  placeholder="Preferred schedule, account number, gate instructions, emergency notes..."
+                />
+              </label>
+              {vendorSaveMessage ? (
+                <div className="rounded-lg border border-line bg-white p-3 text-sm font-semibold text-slate-600">
+                  {vendorSaveMessage}
+                </div>
+              ) : null}
+              <button
+                type="submit"
+                disabled={isSavingVendor}
+                className="button-primary min-h-11 rounded-lg px-4 font-extrabold disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {isSavingVendor ? "Saving..." : "Save Vendor"}
+              </button>
+            </form>
+            <div className="mt-4 grid gap-3">
+              {selectedVendors.length ? (
+                selectedVendors.map((vendor) => <VendorCard key={vendor.id} vendor={vendor} />)
+              ) : (
+                <div className="rounded-lg border border-line bg-white p-4 text-sm text-slate-600">
+                  No vendor contacts have been saved for this property yet.
+                </div>
+              )}
+            </div>
+          </section>
+
+          <section className={`estate-panel no-print rounded-lg p-5 ${activeExperience === "Inspection" ? "" : "hidden"}`}>
             <div className="mb-5 flex items-start justify-between gap-3">
               <div>
                 <p className="mb-2 text-xs font-extrabold uppercase tracking-[0.1em] text-clay">
@@ -895,8 +1260,65 @@ export default function InspectionWorkspace({
                 <div
                   className="h-full rounded-full bg-sage transition-all"
                   style={{
-                    width: `${Math.min(100, Math.round((inspectionForm.checklist.length / Math.max(1, activeInspectionTemplate.sections.flatMap((section) => section.items).length)) * 100))}%`
+                    width: `${inspectionCompletionPercent}%`
                   }}
+                />
+              </div>
+            </div>
+
+            <div className="mb-5 rounded-lg border border-line bg-[#fbfcfb] p-4">
+              <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                <div>
+                  <p className="mb-1 text-xs font-extrabold uppercase tracking-[0.1em] text-clay">
+                    Visit readiness
+                  </p>
+                  <h3 className="text-xl font-extrabold text-ink">
+                    {inspectionReady ? "Ready to generate homeowner report" : "Complete the essentials"}
+                  </h3>
+                  <p className="mt-2 text-sm leading-6 text-slate-600">
+                    {inspectionReady
+                      ? "Inspector, temperature, and checklist details are in place."
+                      : "Add inspector name, interior temperature, and at least one completed checklist item."}
+                  </p>
+                </div>
+                <div className="grid gap-2 sm:grid-cols-2">
+                  <button
+                    type="button"
+                    onClick={() => setInspectionForm((current) => ({ ...current, checklist: allInspectionChecklistItems }))}
+                    className="button-soft min-h-10 rounded-lg px-4 text-sm font-extrabold"
+                  >
+                    Select All Checks
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setInspectionForm((current) => ({ ...current, checklist: [] }))}
+                    className="min-h-10 rounded-lg border border-line bg-white px-4 text-sm font-extrabold text-ink transition hover:border-sage"
+                  >
+                    Clear Checks
+                  </button>
+                </div>
+              </div>
+              <div className="mt-4 grid gap-3 sm:grid-cols-4">
+                <MetricCard
+                  label="Checklist"
+                  value={`${inspectionCompletionPercent}%`}
+                  detail={`${inspectionForm.checklist.length}/${inspectionTotalChecks} completed`}
+                />
+                <MetricCard
+                  label="Photos"
+                  value={`${inspectionForm.photoFiles.length}`}
+                  detail="Attached to visit"
+                />
+                <MetricCard
+                  label="Urgent"
+                  value={inspectionForm.urgent}
+                  detail={inspectionForm.urgent === "Yes" ? "Owner review needed" : "No urgent flag"}
+                  urgent={inspectionForm.urgent === "Yes"}
+                />
+                <MetricCard
+                  label="Summary"
+                  value={inspectionForm.executiveSummary.trim() ? "Ready" : "Draft"}
+                  detail={inspectionForm.executiveSummary.trim() ? "Owner-ready" : "Optional before report"}
                 />
               </div>
             </div>
@@ -976,9 +1398,32 @@ export default function InspectionWorkspace({
 
               <fieldset className="grid gap-4 rounded-lg border border-line bg-white/70 p-4">
                 <legend className="px-2 font-extrabold">Inspection checklist</legend>
-                {activeInspectionTemplate.sections.map((section) => (
-                  <div key={section.title} className="grid gap-3 rounded-lg border border-line bg-white p-3">
-                    <h3 className="text-sm font-black uppercase tracking-[0.08em] text-clay">{section.title}</h3>
+                {activeInspectionTemplate.sections.map((section) => {
+                  const completedInSection = section.items.filter((item) => inspectionForm.checklist.includes(item)).length;
+                  const sectionComplete = completedInSection === section.items.length;
+
+                  return (
+                  <div
+                    key={section.title}
+                    className={`grid gap-3 rounded-lg border p-3 ${
+                      sectionComplete ? "border-[#c9ddd1] bg-[#f3f8f4]" : "border-line bg-white"
+                    }`}
+                  >
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                      <h3 className="text-sm font-black uppercase tracking-[0.08em] text-clay">{section.title}</h3>
+                      <div className="flex shrink-0 items-center gap-2">
+                        <span className="rounded-full border border-line bg-white px-3 py-1 text-xs font-extrabold text-slate-600">
+                          {completedInSection}/{section.items.length}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => setChecklistSection(section.items, !sectionComplete)}
+                          className="rounded-full border border-line bg-white px-3 py-1 text-xs font-extrabold text-ink transition hover:border-sage"
+                        >
+                          {sectionComplete ? "Clear" : "Select all"}
+                        </button>
+                      </div>
+                    </div>
                     <div className="grid gap-2 md:grid-cols-2">
                       {section.items.map((item) => (
                         <label
@@ -996,7 +1441,8 @@ export default function InspectionWorkspace({
                       ))}
                     </div>
                   </div>
-                ))}
+                  );
+                })}
               </fieldset>
 
               <div className="grid gap-4 md:grid-cols-3">
@@ -1018,15 +1464,28 @@ export default function InspectionWorkspace({
               </div>
               {inspectionForm.photoFiles.length ? (
                 <div className="rounded-lg border border-line bg-[#fbfcfb] p-3 text-sm text-slate-600">
-                  <strong className="text-ink">{inspectionForm.photoFiles.length} photo selected</strong>
-                  {inspectionForm.photoFiles.length === 1 ? "" : "s"}
-                  <button
-                    type="button"
-                    onClick={() => setInspectionForm((current) => ({ ...current, photoFiles: [] }))}
-                    className="ml-3 font-extrabold text-[#9f352e]"
-                  >
-                    Clear photos
-                  </button>
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <strong className="text-ink">
+                      {inspectionForm.photoFiles.length} photo selected
+                      {inspectionForm.photoFiles.length === 1 ? "" : "s"}
+                    </strong>
+                    <button
+                      type="button"
+                      onClick={() => setInspectionForm((current) => ({ ...current, photoFiles: [] }))}
+                      className="font-extrabold text-[#9f352e]"
+                    >
+                      Clear photos
+                    </button>
+                  </div>
+                  <SelectedPhotoPreviewGrid
+                    files={inspectionForm.photoFiles}
+                    onRemove={(removeIndex) =>
+                      setInspectionForm((current) => ({
+                        ...current,
+                        photoFiles: current.photoFiles.filter((_, index) => index !== removeIndex)
+                      }))
+                    }
+                  />
                 </div>
               ) : null}
 
@@ -1040,6 +1499,55 @@ export default function InspectionWorkspace({
                   className="field-shell rounded-lg p-3"
                 />
               </label>
+
+              <label className="grid gap-2 text-sm font-extrabold text-ink">
+                Executive summary
+                <textarea
+                  rows={4}
+                  value={inspectionForm.executiveSummary}
+                  onChange={(event) =>
+                    setInspectionForm((current) => ({ ...current, executiveSummary: event.target.value }))
+                  }
+                  placeholder="Approved owner-ready summary for the final report."
+                  className="field-shell rounded-lg p-3"
+                />
+              </label>
+
+              <div className="rounded-lg border border-line bg-[#fbfcfb] p-4">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                  <div>
+                    <p className="mb-1 text-xs font-extrabold uppercase tracking-[0.1em] text-clay">
+                      Suggested Summary
+                    </p>
+                    <h3 className="text-lg font-extrabold text-ink">Owner-ready draft</h3>
+                    <p className="mt-1 text-sm leading-6 text-slate-600">
+                      Creates a private concierge-style summary from the inspection details on this screen.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={generateSuggestedSummary}
+                    className="button-soft min-h-11 rounded-lg px-4 text-sm font-extrabold"
+                  >
+                    Draft Summary
+                  </button>
+                </div>
+                {suggestedSummary ? (
+                  <div className="mt-4 rounded-lg border border-line bg-white p-4">
+                    <p className="text-sm leading-6 text-slate-700">{suggestedSummary}</p>
+                    <button
+                      type="button"
+                      onClick={useSuggestedSummary}
+                      className="button-primary mt-4 min-h-10 rounded-lg px-4 text-sm font-extrabold"
+                    >
+                      Use As Executive Summary
+                    </button>
+                  </div>
+                ) : null}
+                {suggestedSummaryMessage ? (
+                  <p className="mt-3 text-sm font-semibold text-slate-600">{suggestedSummaryMessage}</p>
+                ) : null}
+              </div>
 
               <div className="grid gap-4 rounded-lg border border-line bg-[#fbfcfb] p-4 md:grid-cols-[minmax(0,1fr)_160px] md:items-center">
                 <div>
@@ -1086,32 +1594,73 @@ export default function InspectionWorkspace({
           </section>
         </section>
 
-        <aside className={`estate-panel rounded-lg p-5 ${activeExperience === "Reports" ? "" : "hidden"} xl:block`}>
-          <div className="mb-5 flex items-start justify-between gap-3">
+        <aside className={`estate-panel rounded-lg p-5 ${activeExperience === "Reports" ? "" : "hidden"}`}>
+          <div className="mb-5 flex flex-col gap-4 border-b border-line pb-5 lg:flex-row lg:items-start lg:justify-between">
             <div>
               <p className="mb-2 text-xs font-extrabold uppercase tracking-[0.1em] text-clay">
-                Homeowner Report
+                Report center
               </p>
-              <h2 className="text-xl font-extrabold text-ink">Clean Summary</h2>
+              <h2 className="text-2xl font-extrabold text-ink">
+                Homeowner Packet Hub
+              </h2>
+              <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">
+                Review the latest visit, open the clean homeowner report, or download a PDF packet for sharing.
+              </p>
             </div>
-            <div className="no-print flex flex-wrap justify-end gap-2">
+            <div className="no-print grid gap-2 sm:grid-cols-2 lg:min-w-[320px]">
               {activeReport ? (
-                <a
-                  href={`/reports/${activeReport.id}`}
-                  className="button-primary grid min-h-10 place-items-center rounded-lg px-4 font-extrabold"
-                >
-                  Export Report
-                </a>
+                <>
+                  <a
+                    href={`/reports/${activeReport.id}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="button-primary grid min-h-11 place-items-center rounded-lg px-4 text-sm font-extrabold"
+                  >
+                    View Web Report
+                  </a>
+                  <a
+                    href={`/api/reports/${activeReport.id}`}
+                    className="button-soft grid min-h-11 place-items-center rounded-lg px-4 text-sm font-extrabold"
+                  >
+                    Download PDF
+                  </a>
+                </>
               ) : null}
               <button
                 type="button"
                 onClick={() => window.print()}
-                className="button-soft min-h-10 rounded-lg px-4 font-extrabold"
+                className="button-soft min-h-11 rounded-lg px-4 text-sm font-extrabold sm:col-span-2"
               >
-                Print
+                Print Current View
               </button>
             </div>
           </div>
+
+          {activeReport ? (
+            <div className="no-print mb-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+              <MetricCard
+                label="Packet status"
+                value={activeReport.urgent === "Yes" ? "Attention" : "Ready"}
+                detail={activeReport.urgent === "Yes" ? "Review recommended" : "Ready for homeowner"}
+                urgent={activeReport.urgent === "Yes"}
+              />
+              <MetricCard
+                label="Inspection date"
+                value={formatDateTime(activeReport.timestamp)}
+                detail={getInspectionType(activeReport.checklist)}
+              />
+              <MetricCard
+                label="Photos"
+                value={`${activeReport.photos.length}`}
+                detail="Included in report"
+              />
+              <MetricCard
+                label="Completed checks"
+                value={`${visibleChecklistItems(activeReport.checklist).length}`}
+                detail="Documented items"
+              />
+            </div>
+          ) : null}
 
           <ReportCard property={selectedProperty} inspection={activeReport} />
 
@@ -1119,22 +1668,61 @@ export default function InspectionWorkspace({
             <p className="mb-2 text-xs font-extrabold uppercase tracking-[0.1em] text-clay">
               Inspection History
             </p>
-            <h2 className="mb-4 text-xl font-extrabold text-ink">Saved Visits</h2>
+            <h2 className="mb-4 text-xl font-extrabold text-ink">
+              {selectedInspections.length} Saved Visit{selectedInspections.length === 1 ? "" : "s"}
+            </h2>
             <div className="grid gap-3">
               {selectedInspections.length ? (
                 selectedInspections.map((inspection) => (
-                  <button
+                  <div
                     key={inspection.id}
-                    type="button"
-                    onClick={() => setActiveReportId(inspection.id)}
-                    className="rounded-lg border border-line bg-white p-4 text-left transition hover:border-sage hover:shadow-lift"
+                    className={`rounded-lg border p-4 transition ${
+                      activeReport?.id === inspection.id
+                        ? "border-sage bg-[#f3f8f4] shadow-[inset_4px_0_0_#5f786c]"
+                        : "border-line bg-white hover:border-sage hover:shadow-lift"
+                    }`}
                   >
-                    <strong className="block text-ink">{formatDateTime(inspection.timestamp)}</strong>
-                    <span className="mt-1 block text-sm text-slate-600">
-                      {getInspectionType(inspection.checklist)} / {inspection.inspectorName} /{" "}
-                      {inspection.interiorTemperature} F / Urgent: {inspection.urgent}
-                    </span>
-                  </button>
+                    <button
+                      type="button"
+                      onClick={() => setActiveReportId(inspection.id)}
+                      className="block w-full text-left"
+                    >
+                      <div className="flex flex-wrap items-start justify-between gap-3">
+                        <div>
+                          <strong className="block text-ink">{formatDateTime(inspection.timestamp)}</strong>
+                          <span className="mt-1 block text-sm text-slate-600">
+                            {getInspectionType(inspection.checklist)} / {inspection.inspectorName || "Inspector"} /{" "}
+                            {inspection.interiorTemperature ? `${inspection.interiorTemperature} F` : "No temp recorded"}
+                          </span>
+                        </div>
+                        <span
+                          className={`rounded-full border px-3 py-1 text-xs font-extrabold ${
+                            inspection.urgent === "Yes"
+                              ? "border-[#e7cbc4] bg-[#fff8f6] text-[#9f352e]"
+                              : "border-[#c9ddd1] bg-[#f3f8f4] text-sage-dark"
+                          }`}
+                        >
+                          {reportConditionStatus(inspection).label}
+                        </span>
+                      </div>
+                    </button>
+                    <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                      <a
+                        href={`/reports/${inspection.id}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="button-soft grid min-h-10 place-items-center rounded-lg px-3 text-sm font-extrabold"
+                      >
+                        Open Report
+                      </a>
+                      <a
+                        href={`/api/reports/${inspection.id}`}
+                        className="button-soft grid min-h-10 place-items-center rounded-lg px-3 text-sm font-extrabold"
+                      >
+                        Download PDF
+                      </a>
+                    </div>
+                  </div>
                 ))
               ) : (
                 <p className="text-sm text-slate-600">No saved inspections yet.</p>
@@ -1382,11 +1970,123 @@ function ProfileItem({ label, value }: { label: string; value: string }) {
   );
 }
 
+function QuickContactButtons({ property }: { property: Property }) {
+  async function copyAccessNotes() {
+    const notes = property.accessNotes || "No access notes saved.";
+
+    try {
+      await navigator.clipboard.writeText(notes);
+      window.alert("Access notes copied.");
+    } catch {
+      window.alert(notes);
+    }
+  }
+
+  return (
+    <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+      {property.phone ? (
+        <a
+          href={`tel:${property.phone}`}
+          className="button-primary grid min-h-12 place-items-center rounded-lg px-4 text-sm font-extrabold"
+        >
+          Call Homeowner
+        </a>
+      ) : (
+        <span className="grid min-h-12 place-items-center rounded-lg border border-line bg-[#fbfcfb] px-4 text-sm font-extrabold text-slate-500">
+          No Phone Saved
+        </span>
+      )}
+      {property.email ? (
+        <a
+          href={`mailto:${property.email}`}
+          className="button-soft grid min-h-12 place-items-center rounded-lg px-4 text-sm font-extrabold"
+        >
+          Email Homeowner
+        </a>
+      ) : (
+        <span className="grid min-h-12 place-items-center rounded-lg border border-line bg-[#fbfcfb] px-4 text-sm font-extrabold text-slate-500">
+          No Email Saved
+        </span>
+      )}
+      <a
+        href={`https://maps.apple.com/?q=${encodeURIComponent(property.address)}`}
+        target="_blank"
+        className="button-soft grid min-h-12 place-items-center rounded-lg px-4 text-sm font-extrabold"
+      >
+        Directions
+      </a>
+      <button
+        type="button"
+        onClick={copyAccessNotes}
+        className="grid min-h-12 place-items-center rounded-lg border border-line bg-[#fbfcfb] px-4 text-sm font-extrabold text-ink"
+      >
+        Copy Access Notes
+      </button>
+    </div>
+  );
+}
+
+function SelectedPhotoPreviewGrid({
+  files,
+  onRemove
+}: {
+  files: File[];
+  onRemove: (index: number) => void;
+}) {
+  const [previews, setPreviews] = useState<{ index: number; name: string; url: string }[]>([]);
+
+  useEffect(() => {
+    const nextPreviews = files.slice(0, 6).map((file, index) => ({
+      index,
+      name: file.name,
+      url: URL.createObjectURL(file)
+    }));
+
+    setPreviews(nextPreviews);
+    return () => {
+      nextPreviews.forEach((preview) => URL.revokeObjectURL(preview.url));
+    };
+  }, [files]);
+
+  if (!previews.length) {
+    return null;
+  }
+
+  return (
+    <div className="mt-3 grid grid-cols-3 gap-2">
+      {previews.map((preview) => (
+        <figure key={preview.url} className="overflow-hidden rounded-lg border border-line bg-white">
+          <img src={preview.url} alt={preview.name} className="h-20 w-full object-cover" />
+          <figcaption className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-1 px-2 py-1">
+            <span className="truncate text-[0.68rem] font-semibold text-slate-600">{preview.name}</span>
+            <button
+              type="button"
+              onClick={() => onRemove(preview.index)}
+              className="rounded px-1 text-[0.68rem] font-extrabold text-[#9f352e]"
+              aria-label={`Remove ${preview.name}`}
+            >
+              X
+            </button>
+          </figcaption>
+        </figure>
+      ))}
+      {files.length > previews.length ? (
+        <div className="grid min-h-20 place-items-center rounded-lg border border-line bg-white p-2 text-center text-xs font-extrabold text-slate-600">
+          +{files.length - previews.length} more
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 function LuxuryExperiencePanel({
   activeExperience,
   activeReport,
   addMaintenanceIssuePhotoFiles,
+  applyMaintenanceRecommendation,
   maintenanceIssueForm,
+  maintenanceRecommendation,
+  maintenanceRecommendationMessage,
   maintenanceIssues,
   maintenanceSaveMessage,
   now,
@@ -1411,6 +2111,7 @@ function LuxuryExperiencePanel({
   setOwnerUpdateForm,
   setScheduleTaskForm,
   setVendorForm,
+  suggestMaintenanceRecommendation,
   isSavingOwnerUpdate,
   isSavingScheduleTask,
   isSavingMaintenanceIssue,
@@ -1425,8 +2126,11 @@ function LuxuryExperiencePanel({
   activeExperience: ExperienceScreen;
   activeReport: Inspection | undefined;
   addMaintenanceIssuePhotoFiles: (files: FileList | null) => void;
+  applyMaintenanceRecommendation: () => void;
   isSavingMaintenanceIssue: boolean;
   maintenanceIssueForm: MaintenanceIssueForm;
+  maintenanceRecommendation: MaintenanceRecommendation | null;
+  maintenanceRecommendationMessage: string;
   maintenanceIssues: MaintenanceIssue[];
   maintenanceSaveMessage: string;
   now: Date;
@@ -1451,6 +2155,7 @@ function LuxuryExperiencePanel({
   setOwnerUpdateForm: Dispatch<SetStateAction<OwnerUpdateForm>>;
   setScheduleTaskForm: Dispatch<SetStateAction<ScheduleTaskForm>>;
   setVendorForm: Dispatch<SetStateAction<VendorForm>>;
+  suggestMaintenanceRecommendation: () => void;
   isSavingOwnerUpdate: boolean;
   isSavingScheduleTask: boolean;
   updateMaintenanceStatus: (issueId: string, status: MaintenanceStatus) => void;
@@ -1467,7 +2172,150 @@ function LuxuryExperiencePanel({
   ).length;
   const openMaintenanceCount = maintenanceIssues.filter((issue) => issue.status !== "Resolved").length;
   const recentReport = selectedInspections[0];
-  const completedItems = activeReport ? visibleChecklistItems(activeReport.checklist).length : 0;
+  const sharedOwnerUpdates = ownerUpdates.filter((update) => update.status === "Shared");
+  const internalOwnerUpdates = ownerUpdates.filter((update) => update.status !== "Shared");
+  const ownerAttentionCount = urgentCount + urgentMaintenanceCount;
+  const ownerPortalStatus = ownerAttentionCount > 0 ? "Attention Recommended" : "Property Stable";
+  const ownerPortalDetail =
+    ownerAttentionCount > 0
+      ? "A recent inspection or repair item should be reviewed."
+      : "No urgent homeowner action is flagged at this time.";
+  const latestExecutiveSummary =
+    recentReport?.executiveSummary ||
+    (recentReport
+      ? "The latest inspection has been completed and is ready for homeowner review."
+      : "Complete an inspection to create the first homeowner summary.");
+  const activeMaintenanceIssues = maintenanceIssues.filter((issue) => issue.status !== "Resolved").slice(0, 3);
+  const nextDashboardAction =
+    ownerAttentionCount > 0
+      ? {
+          label: "Review Priority Items",
+          detail: `${ownerAttentionCount} item${ownerAttentionCount === 1 ? "" : "s"} may need homeowner attention.`,
+          screen: "Maintenance" as ExperienceScreen
+        }
+      : !recentReport
+        ? {
+            label: "Start First Inspection",
+            detail: "Create the first clean homeowner report for this property.",
+            screen: "Inspection" as ExperienceScreen
+          }
+        : openMaintenanceCount > 0
+          ? {
+              label: "Review Open Maintenance",
+              detail: `${openMaintenanceCount} repair item${openMaintenanceCount === 1 ? "" : "s"} still open.`,
+              screen: "Maintenance" as ExperienceScreen
+            }
+          : upcomingScheduleTasks[0]
+            ? {
+                label: "Prepare Next Visit",
+                detail: `${upcomingScheduleTasks[0].type} is scheduled for ${formatDateTime(upcomingScheduleTasks[0].scheduledFor)}.`,
+                screen: "Schedule" as ExperienceScreen
+              }
+            : {
+                label: "Start Next Inspection",
+                detail: "Begin the next home watch workflow when you arrive on site.",
+                screen: "Inspection" as ExperienceScreen
+              };
+  const dashboardBriefing =
+    ownerAttentionCount > 0
+      ? "A priority item is active. Review the repair record, confirm vendor action, and share a concise homeowner update."
+      : openMaintenanceCount > 0
+        ? "The property is stable, with open maintenance still being tracked."
+        : recentReport
+          ? "The property is stable with no urgent homeowner action flagged."
+          : "Select a property and complete the first inspection to establish the service record.";
+  const occupancyTasks = scheduleTasks.filter((task) =>
+    ["Pre-Guest Arrival", "Post-Checkout", "Cleaner"].includes(task.type)
+  );
+  const activeScheduleTasks = scheduleTasks
+    .filter((task) => !["Complete", "Skipped"].includes(task.status))
+    .sort((first, second) => new Date(first.scheduledFor).getTime() - new Date(second.scheduledFor).getTime());
+  const completedScheduleTasks = scheduleTasks.filter((task) => task.status === "Complete");
+  const nextArrivalTask = occupancyTasks.find((task) => task.type === "Pre-Guest Arrival");
+  const nextCheckoutTask = occupancyTasks.find((task) => task.type === "Post-Checkout");
+  const nextCleanerTask = occupancyTasks.find((task) => task.type === "Cleaner");
+
+  function localDateTimeValue(daysFromNow: number, hour: number, minute = 0) {
+    const date = new Date();
+    date.setDate(date.getDate() + daysFromNow);
+    date.setHours(hour, minute, 0, 0);
+    const offset = date.getTimezoneOffset();
+    const localDate = new Date(date.getTime() - offset * 60 * 1000);
+
+    return localDate.toISOString().slice(0, 16);
+  }
+
+  function prepareScheduleTemplate(type: ScheduleTaskType) {
+    const template =
+      type === "Pre-Guest Arrival"
+        ? {
+            title: "Pre-guest arrival inspection",
+            scheduledFor: localDateTimeValue(1, 10),
+            notes: "Confirm access, climate, lighting, pool/spa readiness, supplies, and visible arrival details."
+          }
+        : type === "Post-Checkout"
+          ? {
+              title: "Post-checkout inspection",
+              scheduledFor: localDateTimeValue(1, 12),
+              notes: "Document property condition, visible damage, left items, trash, thermostat, and vendor needs."
+            }
+          : type === "Cleaner"
+            ? {
+                title: "Cleaner completion report",
+                scheduledFor: localDateTimeValue(1, 15),
+                notes: "Verify cleaner completion, photo-ready condition, linens, supplies, trash, and final presentation."
+              }
+            : type === "Vendor"
+              ? {
+                  title: "Vendor site visit",
+                  scheduledFor: localDateTimeValue(2, 9),
+                  notes: "Confirm vendor access, scope, arrival window, contact details, and owner-facing follow-up."
+                }
+              : {
+                  title: "Weekly home watch inspection",
+                  scheduledFor: localDateTimeValue(7, 9),
+                  notes: "Complete exterior, interior, photo documentation, issue review, and homeowner report."
+                };
+
+    setScheduleTaskForm((current) => ({
+      ...current,
+      type,
+      status: "Scheduled",
+      assignedTo: current.assignedTo,
+      ...template
+    }));
+  }
+
+  function startOccupancyTask(type: ScheduleTaskType) {
+    prepareScheduleTemplate(type);
+    setActiveExperience("Schedule");
+  }
+
+  function draftLatestInspectionOwnerUpdate() {
+    setOwnerUpdateForm((current) => ({
+      ...current,
+      category: "Inspection",
+      status: "Draft",
+      title: recentReport ? "Latest inspection completed" : "Inspection update",
+      message: latestExecutiveSummary
+    }));
+  }
+
+  function draftMaintenanceOwnerUpdate() {
+    const featuredIssue = activeMaintenanceIssues[0];
+
+    setOwnerUpdateForm((current) => ({
+      ...current,
+      category: "Maintenance",
+      status: "Draft",
+      title: featuredIssue ? `Maintenance update: ${featuredIssue.title}` : "Maintenance update",
+      message: featuredIssue
+        ? `${featuredIssue.title} is currently marked ${featuredIssue.status.toLowerCase()}. ${
+            featuredIssue.nextStep || featuredIssue.description || "The item is being monitored and will be updated as work progresses."
+          }`
+        : "No open maintenance items are currently visible for this property."
+    }));
+  }
 
   return (
     <section className="no-print mb-5">
@@ -1494,39 +2342,37 @@ function LuxuryExperiencePanel({
       ) : null}
 
       {activeExperience === "Login" ? (
-        <div className="overflow-hidden rounded-lg bg-ink text-white shadow-estate">
-          <div className="grid gap-0 lg:grid-cols-[1.05fr_0.95fr]">
-            <div className="min-h-[420px] bg-[linear-gradient(135deg,rgba(217,154,92,0.2),transparent_45%),linear-gradient(315deg,rgba(95,120,108,0.42),transparent_48%),url('/icon-512.png')] bg-[length:auto,auto,260px] bg-[position:center,center,right_2rem_bottom_2rem] bg-no-repeat p-6 sm:p-8">
-              <p className="mb-4 text-xs font-extrabold uppercase tracking-[0.16em] text-[#f1c27d]">
-                White-glove property operations
+        <div className="estate-panel grid min-h-[620px] place-items-center rounded-lg p-5 sm:p-8">
+          <div className="w-full max-w-[420px]">
+            <div className="mb-8 text-center">
+              <img
+                src="/estateiq-logo.png"
+                alt="EstateIQ"
+                className="mx-auto mb-5 w-full max-w-[300px] rounded-lg shadow-lift"
+              />
+              <p className="mb-2 text-xs font-extrabold uppercase tracking-[0.16em] text-clay">
+                Property Intelligence. Peace of Mind.
               </p>
-              <h2 className="max-w-xl text-4xl font-extrabold leading-[0.95] sm:text-6xl">
-                Calm control for extraordinary homes.
-              </h2>
-              <p className="mt-5 max-w-lg text-lg leading-8 text-white/72">
-                A premium operations layer for inspections, reports, maintenance, arrivals, and owner confidence.
-              </p>
+              <h2 className="text-3xl font-extrabold text-ink">EstateIQ Sign In</h2>
             </div>
-            <div className="grid content-center gap-4 bg-white p-6 text-ink sm:p-8">
-              <div>
-                <p className="mb-2 text-xs font-extrabold uppercase tracking-[0.12em] text-clay">Secure access</p>
-                <h3 className="text-2xl font-extrabold">Welcome back</h3>
-              </div>
-              <label className="grid gap-2 text-sm font-extrabold">
+
+            <form className="grid gap-4">
+              <label className="grid gap-2 text-sm font-extrabold text-ink">
                 Email
-                <input className="field-shell rounded-lg p-3" placeholder="concierge@example.com" />
+                <input className="field-shell min-h-12 rounded-lg p-3" placeholder="name@example.com" type="email" />
               </label>
-              <label className="grid gap-2 text-sm font-extrabold">
+              <label className="grid gap-2 text-sm font-extrabold text-ink">
                 Password
-                <input className="field-shell rounded-lg p-3" placeholder="••••••••" type="password" />
+                <input className="field-shell min-h-12 rounded-lg p-3" placeholder="Password" type="password" />
               </label>
-              <button type="button" className="button-primary min-h-12 rounded-lg px-5 font-extrabold">
+              <button type="button" className="button-primary mt-2 min-h-12 rounded-lg px-5 font-extrabold">
                 Sign In
               </button>
-              <p className="text-sm leading-6 text-slate-600">
-                This is the premium login concept. Your live app is still protected by the Vercel password setup.
-              </p>
-            </div>
+            </form>
+
+            <p className="mt-5 text-center text-sm leading-6 text-slate-600">
+              Secure access for homeowners and property operations teams.
+            </p>
           </div>
         </div>
       ) : null}
@@ -1575,8 +2421,52 @@ function LuxuryExperiencePanel({
               />
               <MobileStatusTile
                 label="Owner Updates"
-                value={`${ownerUpdates.length}`}
+                value={`${sharedOwnerUpdates.length}`}
               />
+            </div>
+            <div className="mb-4 rounded-lg border border-line bg-white p-4">
+              <span className="text-xs font-extrabold uppercase tracking-[0.1em] text-clay">
+                Recommended next
+              </span>
+              <h3 className="mt-2 text-xl font-extrabold text-ink">{nextDashboardAction.label}</h3>
+              <p className="mt-2 text-sm leading-6 text-slate-600">{nextDashboardAction.detail}</p>
+              <button
+                type="button"
+                onClick={() => setActiveExperience(nextDashboardAction.screen)}
+                className="button-primary mt-4 min-h-11 w-full rounded-lg px-4 text-sm font-extrabold"
+              >
+                Continue
+              </button>
+            </div>
+            <div className="mb-4 rounded-lg border border-line bg-white p-3">
+              <div className="mb-3 flex items-start justify-between gap-3">
+                <div>
+                  <span className="text-xs font-extrabold uppercase tracking-[0.08em] text-clay">
+                    Occupancy
+                  </span>
+                  <h3 className="mt-1 text-lg font-extrabold text-ink">Guest readiness</h3>
+                </div>
+                <span className="rounded-full border border-line bg-[#fbfcfb] px-3 py-1 text-xs font-extrabold text-slate-600">
+                  {occupancyTasks.length} task{occupancyTasks.length === 1 ? "" : "s"}
+                </span>
+              </div>
+              <div className="grid gap-2 text-sm">
+                <DetailStrip
+                  label="Arrival"
+                  value={nextArrivalTask ? formatDateTime(nextArrivalTask.scheduledFor) : "Not scheduled"}
+                />
+                <DetailStrip
+                  label="Checkout"
+                  value={nextCheckoutTask ? formatDateTime(nextCheckoutTask.scheduledFor) : "Not scheduled"}
+                />
+              </div>
+              <button
+                type="button"
+                onClick={() => startOccupancyTask("Pre-Guest Arrival")}
+                className="button-soft mt-3 min-h-10 w-full rounded-lg px-4 text-sm font-extrabold"
+              >
+                Schedule Arrival Prep
+              </button>
             </div>
             <div className="grid gap-3">
               <MobileActionButton
@@ -1616,10 +2506,24 @@ function LuxuryExperiencePanel({
                   Executive dashboard
                 </p>
                 <h2 className="text-3xl font-extrabold text-ink">Today’s property command center</h2>
+                <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">{dashboardBriefing}</p>
               </div>
-              <span className="rounded-full bg-[#fff4d9] px-3 py-2 text-xs font-extrabold text-[#7b5426]">
-                {formatDateTime(now)}
-              </span>
+              <div className="grid min-w-[280px] gap-2">
+                <label className="text-xs font-extrabold uppercase tracking-[0.1em] text-clay">
+                  Active property
+                </label>
+                <select
+                  value={selectedPropertyId}
+                  onChange={(event) => onSelectProperty(event.target.value)}
+                  className="field-shell rounded-lg p-3 text-sm font-extrabold"
+                >
+                  {properties.map((property) => (
+                    <option key={property.id} value={property.id}>
+                      {property.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
             </div>
             <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
               <MetricCard label="Portfolio" value={`${properties.length}`} detail="Active residences" />
@@ -1630,41 +2534,84 @@ function LuxuryExperiencePanel({
                 detail="Needs attention"
                 urgent={urgentCount + urgentMaintenanceCount > 0}
               />
-              <MetricCard label="Readiness" value="96%" detail="Operational score" />
+              <MetricCard
+                label="Last Report"
+                value={recentReport ? formatDateTime(recentReport.timestamp) : "Pending"}
+                detail="Latest inspection"
+              />
             </div>
           </div>
-          <div className="hidden gap-5 xl:grid lg:grid-cols-[1.2fr_0.8fr]">
-            <ConceptCard eyebrow="Occupancy overview" title="Next 7 days">
-              <div className="grid grid-cols-7 gap-2">
-                {["M", "T", "W", "T", "F", "S", "S"].map((day, index) => (
-                  <div
-                    key={`${day}-${index}`}
-                    className={`min-h-20 rounded-lg border p-2 text-center text-sm font-extrabold ${
-                      index === 3 || index === 4
-                        ? "border-clay bg-[#fff4e6] text-[#7b5426]"
-                        : "border-line bg-white text-slate-600"
-                    }`}
-                  >
-                    {day}
-                    <span className="mt-2 block text-xs font-semibold">
-                      {index === 3 ? "Arrival" : index === 4 ? "Guest" : "Open"}
-                    </span>
-                  </div>
-                ))}
+          <div className="hidden gap-5 xl:grid lg:grid-cols-[0.8fr_1.2fr]">
+            <ConceptCard eyebrow="Recommended next" title={nextDashboardAction.label}>
+              <p className="text-sm leading-6 text-slate-600">{nextDashboardAction.detail}</p>
+              <button
+                type="button"
+                onClick={() => setActiveExperience(nextDashboardAction.screen)}
+                className="button-primary mt-4 min-h-11 rounded-lg px-5 text-sm font-extrabold"
+              >
+                Continue
+              </button>
+              <div className="mt-5 grid gap-2">
+                <button
+                  type="button"
+                  onClick={() => setActiveExperience("Inspection")}
+                  className="min-h-11 rounded-lg border border-line bg-white px-4 text-left text-sm font-extrabold transition hover:border-sage hover:shadow-lift"
+                >
+                  Start Inspection
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveExperience("Owner Portal")}
+                  className="min-h-11 rounded-lg border border-line bg-white px-4 text-left text-sm font-extrabold transition hover:border-sage hover:shadow-lift"
+                >
+                  Share Owner Update
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveExperience("Reports")}
+                  className="min-h-11 rounded-lg border border-line bg-white px-4 text-left text-sm font-extrabold transition hover:border-sage hover:shadow-lift"
+                >
+                  View Reports
+                </button>
               </div>
             </ConceptCard>
-            <ConceptCard eyebrow="Quick actions" title="Move work forward">
-              <div className="grid gap-2">
-                {(["Inspection", "Schedule", "Maintenance", "Reports", "Owner Portal"] as ExperienceScreen[]).map((screen) => (
-                  <button
-                    key={screen}
-                    type="button"
-                    onClick={() => setActiveExperience(screen)}
-                    className="min-h-12 rounded-lg border border-line bg-white px-4 text-left font-extrabold transition hover:border-sage hover:shadow-lift"
-                  >
-                    {screen}
-                  </button>
-                ))}
+            <ConceptCard eyebrow="Occupancy" title="Guest readiness">
+              <div className="grid gap-3 md:grid-cols-3">
+                <DetailStrip
+                  label="Arrival Prep"
+                  value={nextArrivalTask ? formatDateTime(nextArrivalTask.scheduledFor) : "Not scheduled"}
+                />
+                <DetailStrip
+                  label="Post-Checkout"
+                  value={nextCheckoutTask ? formatDateTime(nextCheckoutTask.scheduledFor) : "Not scheduled"}
+                />
+                <DetailStrip
+                  label="Cleaner"
+                  value={nextCleanerTask ? formatDateTime(nextCleanerTask.scheduledFor) : "Not scheduled"}
+                />
+              </div>
+              <div className="mt-4 grid gap-2 sm:grid-cols-3">
+                <button
+                  type="button"
+                  onClick={() => startOccupancyTask("Pre-Guest Arrival")}
+                  className="button-soft min-h-11 rounded-lg px-4 text-sm font-extrabold"
+                >
+                  Plan Arrival
+                </button>
+                <button
+                  type="button"
+                  onClick={() => startOccupancyTask("Post-Checkout")}
+                  className="button-soft min-h-11 rounded-lg px-4 text-sm font-extrabold"
+                >
+                  Plan Checkout
+                </button>
+                <button
+                  type="button"
+                  onClick={() => startOccupancyTask("Cleaner")}
+                  className="button-soft min-h-11 rounded-lg px-4 text-sm font-extrabold"
+                >
+                  Plan Cleaner
+                </button>
               </div>
             </ConceptCard>
           </div>
@@ -1693,155 +2640,25 @@ function LuxuryExperiencePanel({
         </div>
       ) : null}
 
-      {activeExperience === "Property" ? (
-        <div className="grid gap-5 lg:grid-cols-[1.1fr_0.9fr]">
-          <div className="overflow-hidden rounded-lg bg-ink text-white shadow-estate">
-            <div className="min-h-[360px] bg-[linear-gradient(180deg,rgba(23,33,31,0.08),rgba(23,33,31,0.72)),radial-gradient(circle_at_70%_20%,rgba(217,154,92,0.35),transparent_18rem),linear-gradient(135deg,#8ca090,#344b43)] p-6 sm:p-8">
-              <p className="mb-3 text-xs font-extrabold uppercase tracking-[0.14em] text-[#f1c27d]">
-                Property profile
-              </p>
-              <h2 className="max-w-lg text-4xl font-extrabold leading-none">{selectedProperty?.name}</h2>
-              <p className="mt-4 max-w-lg text-white/72">{selectedProperty?.address}</p>
-            </div>
-          </div>
-          <ConceptCard eyebrow="Owner and operations" title={selectedProperty?.owner || "Selected homeowner"}>
-            <div className="grid gap-3">
-              <DetailStrip label="Access" value={selectedProperty?.accessNotes || "Gate, lockbox, alarm notes"} />
-              <DetailStrip label="Smart home" value="Thermostat, alarm, WiFi, lighting scenes" />
-              <DetailStrip label="Vehicle / cart" value="Golf cart charged, vehicle tender connected" />
-              <DetailStrip
-                label="Vendors"
-                value={
-                  selectedVendors.length
-                    ? selectedVendors.map((vendor) => `${vendor.type}: ${vendor.name}`).join(", ")
-                    : "No vendors saved yet"
-                }
-              />
-            </div>
-          </ConceptCard>
-          <ConceptCard eyebrow="Vendor directory" title="Property vendor contacts">
-            <form id="vendor-form" className="grid gap-3" onSubmit={saveVendor}>
-              <div className="grid gap-3 sm:grid-cols-2">
-                <label className="grid gap-2 text-sm font-extrabold">
-                  Vendor name
-                  <input
-                    required
-                    value={vendorForm.name}
-                    onChange={(event) => setVendorForm((current) => ({ ...current, name: event.target.value }))}
-                    className="field-shell rounded-lg p-3"
-                    placeholder="Desert Pool Care"
-                  />
-                </label>
-                <label className="grid gap-2 text-sm font-extrabold">
-                  Vendor type
-                  <select
-                    value={vendorForm.type}
-                    onChange={(event) =>
-                      setVendorForm((current) => ({ ...current, type: event.target.value as VendorType }))
-                    }
-                    className="field-shell rounded-lg p-3"
-                  >
-                    {vendorTypes.map((type) => (
-                      <option key={type}>{type}</option>
-                    ))}
-                  </select>
-                </label>
-              </div>
-              <div className="grid gap-3 sm:grid-cols-3">
-                <label className="grid gap-2 text-sm font-extrabold">
-                  Contact
-                  <input
-                    value={vendorForm.contactName}
-                    onChange={(event) => setVendorForm((current) => ({ ...current, contactName: event.target.value }))}
-                    className="field-shell rounded-lg p-3"
-                  />
-                </label>
-                <label className="grid gap-2 text-sm font-extrabold">
-                  Phone
-                  <input
-                    value={vendorForm.phone}
-                    onChange={(event) => setVendorForm((current) => ({ ...current, phone: event.target.value }))}
-                    className="field-shell rounded-lg p-3"
-                  />
-                </label>
-                <label className="grid gap-2 text-sm font-extrabold">
-                  Email
-                  <input
-                    type="email"
-                    value={vendorForm.email}
-                    onChange={(event) => setVendorForm((current) => ({ ...current, email: event.target.value }))}
-                    className="field-shell rounded-lg p-3"
-                  />
-                </label>
-              </div>
-              <label className="grid gap-2 text-sm font-extrabold">
-                Notes
-                <textarea
-                  rows={3}
-                  value={vendorForm.notes}
-                  onChange={(event) => setVendorForm((current) => ({ ...current, notes: event.target.value }))}
-                  className="field-shell rounded-lg p-3"
-                  placeholder="Preferred schedule, account number, gate instructions, emergency notes..."
-                />
-              </label>
-              {vendorSaveMessage ? (
-                <div className="rounded-lg border border-line bg-white p-3 text-sm font-semibold text-slate-600">
-                  {vendorSaveMessage}
-                </div>
-              ) : null}
-              <button
-                type="submit"
-                disabled={isSavingVendor}
-                className="button-primary min-h-11 rounded-lg px-4 font-extrabold disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                {isSavingVendor ? "Saving..." : "Save Vendor"}
-              </button>
-            </form>
-            <div className="mt-4 grid gap-3">
-              {selectedVendors.length ? (
-                selectedVendors.map((vendor) => <VendorCard key={vendor.id} vendor={vendor} />)
-              ) : (
-                <div className="rounded-lg border border-line bg-white p-4 text-sm text-slate-600">
-                  No vendor contacts have been saved for this property yet.
-                </div>
-              )}
-            </div>
-          </ConceptCard>
-        </div>
-      ) : null}
-
-      {activeExperience === "Inspection" ? (
-        <div className="hidden gap-5 xl:grid lg:grid-cols-[0.9fr_1.1fr]">
-          <ConceptCard eyebrow="Mobile workflow" title="Fast field completion">
-            <div className="grid gap-3">
-              {["Choose inspection type", "Complete checklist", "Upload required photos", "Flag issues", "Generate report"].map(
-                (step, index) => (
-                  <div key={step} className="flex items-center gap-3 rounded-lg border border-line bg-white p-3">
-                    <span className="grid h-8 w-8 place-items-center rounded-full bg-ink text-sm font-extrabold text-white">
-                      {index + 1}
-                    </span>
-                    <strong>{step}</strong>
-                  </div>
-                )
-              )}
-            </div>
-          </ConceptCard>
-          <ConceptCard eyebrow="Template system" title="Inspection types">
-            <div className="grid gap-2 sm:grid-cols-2">
-              {inspectionTemplates.map((template) => (
-                <div key={template.title} className="rounded-lg border border-line bg-white p-3">
-                  <strong className="block text-ink">{template.title}</strong>
-                  <span className="mt-1 block text-sm leading-5 text-slate-600">{template.description}</span>
-                </div>
-              ))}
-            </div>
-          </ConceptCard>
-        </div>
-      ) : null}
-
       {activeExperience === "Schedule" ? (
         <div className="grid gap-5 lg:grid-cols-[0.95fr_1.05fr]">
           <ConceptCard eyebrow="Schedule work" title="Plan the next visit">
+            <div className="mb-4 grid gap-2 sm:grid-cols-2">
+              {(["Home Watch", "Pre-Guest Arrival", "Post-Checkout", "Cleaner", "Vendor"] as ScheduleTaskType[]).map(
+                (type) => (
+                  <button
+                    key={type}
+                    type="button"
+                    onClick={() => prepareScheduleTemplate(type)}
+                    className={`min-h-11 rounded-lg border px-4 text-left text-sm font-extrabold transition hover:border-sage hover:shadow-lift ${
+                      scheduleTaskForm.type === type ? "border-sage bg-[#f3f8f4] text-sage-dark" : "border-line bg-white text-ink"
+                    }`}
+                  >
+                    {type}
+                  </button>
+                )
+              )}
+            </div>
             <form id="schedule-form" className="grid gap-3" onSubmit={saveScheduleTask}>
               <label className="grid gap-2 text-sm font-extrabold">
                 Task title
@@ -1947,6 +2764,24 @@ function LuxuryExperiencePanel({
             eyebrow={`${scheduleTasks.length} scheduled item${scheduleTasks.length === 1 ? "" : "s"}`}
             title="Property calendar"
           >
+            <div className="mb-4 grid gap-3 sm:grid-cols-3">
+              <MetricCard
+                label="Active"
+                value={`${activeScheduleTasks.length}`}
+                detail="Scheduled or in progress"
+                urgent={activeScheduleTasks.length > 0}
+              />
+              <MetricCard
+                label="Complete"
+                value={`${completedScheduleTasks.length}`}
+                detail="Finished work"
+              />
+              <MetricCard
+                label="Next"
+                value={activeScheduleTasks[0] ? activeScheduleTasks[0].type : "None"}
+                detail={activeScheduleTasks[0] ? formatDateTime(activeScheduleTasks[0].scheduledFor) : "No upcoming work"}
+              />
+            </div>
             <div className="grid gap-3">
               {scheduleTasks.length ? (
                 scheduleTasks.map((task) => (
@@ -1961,36 +2796,6 @@ function LuxuryExperiencePanel({
                   No work has been scheduled for this property yet.
                 </div>
               )}
-            </div>
-          </ConceptCard>
-        </div>
-      ) : null}
-
-      {activeExperience === "Reports" ? (
-        <div className="hidden gap-5 xl:grid lg:grid-cols-[0.8fr_1.2fr]">
-          <ConceptCard eyebrow="Report summary" title="Owner-ready presentation">
-            <MetricCard label="Inspection Score" value={completedItems ? "A" : "Pending"} detail="Clean report status" />
-            <div className="mt-4 grid gap-2">
-              <DetailStrip label="Latest type" value={activeReport ? getInspectionType(activeReport.checklist) : "No report yet"} />
-              <DetailStrip label="Photos" value={`${activeReport?.photos.length ?? 0} attached`} />
-              <DetailStrip label="Timestamp" value={activeReport ? formatDateTime(activeReport.timestamp) : "Awaiting inspection"} />
-            </div>
-          </ConceptCard>
-          <ConceptCard eyebrow="Homeowner report" title="Clean, visual, exportable">
-            <div className="grid gap-3 sm:grid-cols-3">
-              {[1, 2, 3].map((item) => (
-                <div key={item} className="min-h-32 rounded-lg bg-[linear-gradient(135deg,#f6f1e8,#d9e1dc)]" />
-              ))}
-            </div>
-            <div className="mt-4 flex flex-wrap gap-2">
-              {activeReport ? (
-                <a href={`/reports/${activeReport.id}`} className="button-primary rounded-lg px-4 py-3 font-extrabold">
-                  Open Report
-                </a>
-              ) : null}
-              <button type="button" className="button-soft rounded-lg px-4 py-3 font-extrabold">
-                PDF Export
-              </button>
             </div>
           </ConceptCard>
         </div>
@@ -2093,6 +2898,53 @@ function LuxuryExperiencePanel({
                   </button>
                 </div>
               ) : null}
+              <div className="rounded-lg border border-line bg-[#fbfcfb] p-4">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                  <div>
+                    <p className="mb-1 text-xs font-extrabold uppercase tracking-[0.1em] text-clay">
+                      Recommended Next Step
+                    </p>
+                    <h3 className="text-lg font-extrabold text-ink">Maintenance guidance</h3>
+                    <p className="mt-1 text-sm leading-6 text-slate-600">
+                      Suggests priority, vendor type, and owner-facing wording for review.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={suggestMaintenanceRecommendation}
+                    className="button-soft min-h-11 rounded-lg px-4 text-sm font-extrabold"
+                  >
+                    Suggest Next Step
+                  </button>
+                </div>
+                {maintenanceRecommendation ? (
+                  <div className="mt-4 grid gap-3 rounded-lg border border-line bg-white p-4">
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <DetailStrip label="Priority" value={maintenanceRecommendation.priority} />
+                      <DetailStrip label="Vendor Type" value={maintenanceRecommendation.vendorType} />
+                    </div>
+                    <DetailStrip label="Next Step" value={maintenanceRecommendation.nextStep} />
+                    <div className="rounded-lg border border-line bg-[#fbfcfb] p-3">
+                      <span className="block text-xs font-extrabold uppercase tracking-[0.08em] text-slate-500">
+                        Owner-facing note
+                      </span>
+                      <p className="mt-2 text-sm leading-6 text-slate-700">
+                        {maintenanceRecommendation.ownerExplanation}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={applyMaintenanceRecommendation}
+                      className="button-primary min-h-10 rounded-lg px-4 text-sm font-extrabold"
+                    >
+                      Apply Recommendation
+                    </button>
+                  </div>
+                ) : null}
+                {maintenanceRecommendationMessage ? (
+                  <p className="mt-3 text-sm font-semibold text-slate-600">{maintenanceRecommendationMessage}</p>
+                ) : null}
+              </div>
               <label className="grid gap-2 text-sm font-extrabold">
                 Next step
                 <input
@@ -2129,13 +2981,15 @@ function LuxuryExperiencePanel({
                       Clear photos
                     </button>
                   </div>
-                  <div className="mt-2 grid gap-1">
-                    {maintenanceIssueForm.photoFiles.slice(0, 4).map((file) => (
-                      <span key={`${file.name}-${file.lastModified}`} className="truncate text-xs">
-                        {file.name}
-                      </span>
-                    ))}
-                  </div>
+                  <SelectedPhotoPreviewGrid
+                    files={maintenanceIssueForm.photoFiles}
+                    onRemove={(removeIndex) =>
+                      setMaintenanceIssueForm((current) => ({
+                        ...current,
+                        photoFiles: current.photoFiles.filter((_, index) => index !== removeIndex)
+                      }))
+                    }
+                  />
                 </div>
               ) : null}
               {maintenanceSaveMessage ? (
@@ -2176,103 +3030,213 @@ function LuxuryExperiencePanel({
       ) : null}
 
       {activeExperience === "Owner Portal" ? (
-        <div className="grid gap-5 lg:grid-cols-[0.95fr_1.05fr]">
-          <ConceptCard eyebrow="Owner portal" title="Peace of mind at a glance">
-            <div className="grid gap-3">
-              <MetricCard label="Property condition" value="Excellent" detail="No urgent action required" />
-              <MetricCard label="Last visit" value={recentReport ? formatDateTime(recentReport.timestamp) : "Pending"} detail="Inspection history" />
-              <MetricCard
-                label="Owner updates"
-                value={`${ownerUpdates.filter((update) => update.status === "Shared").length}`}
-                detail="Shared with homeowner"
-              />
-            </div>
-          </ConceptCard>
-
-          <ConceptCard eyebrow="Owner update" title="Create homeowner-facing note">
-            <form id="owner-update-form" className="grid gap-3" onSubmit={saveOwnerUpdate}>
-              <div className="grid gap-3 sm:grid-cols-2">
-                <label className="grid gap-2 text-sm font-extrabold">
-                  Category
-                  <select
-                    value={ownerUpdateForm.category}
-                    onChange={(event) =>
-                      setOwnerUpdateForm((current) => ({
-                        ...current,
-                        category: event.target.value as OwnerUpdateCategory
-                      }))
-                    }
-                    className="field-shell rounded-lg p-3"
-                  >
-                    {ownerUpdateCategories.map((category) => (
-                      <option key={category}>{category}</option>
-                    ))}
-                  </select>
-                </label>
-                <label className="grid gap-2 text-sm font-extrabold">
-                  Visibility
-                  <select
-                    value={ownerUpdateForm.status}
-                    onChange={(event) =>
-                      setOwnerUpdateForm((current) => ({
-                        ...current,
-                        status: event.target.value as OwnerUpdateStatus
-                      }))
-                    }
-                    className="field-shell rounded-lg p-3"
-                  >
-                    {ownerUpdateStatuses.map((status) => (
-                      <option key={status}>{status}</option>
-                    ))}
-                  </select>
-                </label>
+        <div className="grid gap-5">
+          <div className="grid gap-5 lg:grid-cols-[1.1fr_0.9fr]">
+            <ConceptCard eyebrow="Owner portal" title="Peace of mind at a glance">
+              <div
+                className={`rounded-lg border p-4 ${
+                  ownerAttentionCount > 0
+                    ? "border-[#e7cbc4] bg-[#fff8f6]"
+                    : "border-[#c9ddd1] bg-[#f3f8f4]"
+                }`}
+              >
+                <span className="text-xs font-extrabold uppercase tracking-[0.1em] text-slate-500">
+                  Current property status
+                </span>
+                <div className="mt-2 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+                  <div>
+                    <strong
+                      className={`block text-3xl font-black ${
+                        ownerAttentionCount > 0 ? "text-[#9f352e]" : "text-sage-dark"
+                      }`}
+                    >
+                      {ownerPortalStatus}
+                    </strong>
+                    <p className="mt-2 text-sm leading-6 text-slate-700">{ownerPortalDetail}</p>
+                  </div>
+                  {recentReport ? (
+                    <a
+                      href={`/reports/${recentReport.id}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="button-primary min-h-11 rounded-lg px-4 py-3 text-center text-sm font-extrabold"
+                    >
+                      Open Latest Report
+                    </a>
+                  ) : null}
+                </div>
               </div>
-              <label className="grid gap-2 text-sm font-extrabold">
-                Update title
-                <input
-                  required
-                  value={ownerUpdateForm.title}
-                  onChange={(event) => setOwnerUpdateForm((current) => ({ ...current, title: event.target.value }))}
-                  className="field-shell rounded-lg p-3"
-                  placeholder="Weekly inspection completed"
+
+              <div className="mt-4 grid gap-3 sm:grid-cols-3">
+                <MetricCard
+                  label="Last visit"
+                  value={recentReport ? formatDateTime(recentReport.timestamp) : "Pending"}
+                  detail="Inspection record"
                 />
-              </label>
-              <label className="grid gap-2 text-sm font-extrabold">
-                Homeowner message
-                <textarea
-                  rows={5}
-                  value={ownerUpdateForm.message}
-                  onChange={(event) => setOwnerUpdateForm((current) => ({ ...current, message: event.target.value }))}
-                  className="field-shell rounded-lg p-3"
-                  placeholder="Write the concise, professional update the homeowner should see."
+                <MetricCard
+                  label="Open items"
+                  value={`${openMaintenanceCount}`}
+                  detail="Maintenance visibility"
+                  urgent={openMaintenanceCount > 0}
                 />
-              </label>
-              {ownerUpdateSaveMessage ? (
-                <div className="rounded-lg border border-line bg-white p-3 text-sm font-semibold text-slate-600">
-                  {ownerUpdateSaveMessage}
+                <MetricCard
+                  label="Owner updates"
+                  value={`${sharedOwnerUpdates.length}`}
+                  detail="Shared with homeowner"
+                />
+              </div>
+            </ConceptCard>
+
+            <ConceptCard eyebrow="Latest summary" title="Homeowner briefing">
+              <div className="rounded-lg border border-line bg-white p-4">
+                <p className="text-base leading-7 text-slate-700">{latestExecutiveSummary}</p>
+              </div>
+              <div className="mt-4 grid gap-3">
+                {activeMaintenanceIssues.length ? (
+                  activeMaintenanceIssues.map((issue) => (
+                    <div key={issue.id} className="rounded-lg border border-line bg-[#fbfcfb] p-3">
+                      <div className="flex flex-wrap items-start justify-between gap-2">
+                        <strong className="text-ink">{issue.title}</strong>
+                        <span className="rounded-full border border-line bg-white px-3 py-1 text-xs font-extrabold text-slate-600">
+                          {issue.priority}
+                        </span>
+                      </div>
+                      <p className="mt-2 text-sm leading-6 text-slate-600">
+                        {issue.nextStep || issue.description || "Repair tracking is active for this item."}
+                      </p>
+                    </div>
+                  ))
+                ) : (
+                  <div className="rounded-lg border border-line bg-[#fbfcfb] p-4 text-sm text-slate-600">
+                    No open maintenance items are currently visible for this property.
+                  </div>
+                )}
+              </div>
+            </ConceptCard>
+          </div>
+
+          <div className="grid gap-5 lg:grid-cols-[0.9fr_1.1fr]">
+            <ConceptCard eyebrow="Owner update" title="Create homeowner-facing note">
+              <div className="mb-4 grid gap-3 sm:grid-cols-2">
+                <button
+                  type="button"
+                  onClick={draftLatestInspectionOwnerUpdate}
+                  className="button-soft min-h-11 rounded-lg px-4 text-sm font-extrabold"
+                >
+                  Draft Inspection Update
+                </button>
+                <button
+                  type="button"
+                  onClick={draftMaintenanceOwnerUpdate}
+                  className="button-soft min-h-11 rounded-lg px-4 text-sm font-extrabold"
+                >
+                  Draft Maintenance Update
+                </button>
+              </div>
+              <form id="owner-update-form" className="grid gap-3" onSubmit={saveOwnerUpdate}>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <label className="grid gap-2 text-sm font-extrabold">
+                    Category
+                    <select
+                      value={ownerUpdateForm.category}
+                      onChange={(event) =>
+                        setOwnerUpdateForm((current) => ({
+                          ...current,
+                          category: event.target.value as OwnerUpdateCategory
+                        }))
+                      }
+                      className="field-shell rounded-lg p-3"
+                    >
+                      {ownerUpdateCategories.map((category) => (
+                        <option key={category}>{category}</option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="grid gap-2 text-sm font-extrabold">
+                    Visibility
+                    <select
+                      value={ownerUpdateForm.status}
+                      onChange={(event) =>
+                        setOwnerUpdateForm((current) => ({
+                          ...current,
+                          status: event.target.value as OwnerUpdateStatus
+                        }))
+                      }
+                      className="field-shell rounded-lg p-3"
+                    >
+                      {ownerUpdateStatuses.map((status) => (
+                        <option key={status}>{status}</option>
+                      ))}
+                    </select>
+                  </label>
+                </div>
+                <label className="grid gap-2 text-sm font-extrabold">
+                  Update title
+                  <input
+                    required
+                    value={ownerUpdateForm.title}
+                    onChange={(event) => setOwnerUpdateForm((current) => ({ ...current, title: event.target.value }))}
+                    className="field-shell rounded-lg p-3"
+                    placeholder="Weekly inspection completed"
+                  />
+                </label>
+                <label className="grid gap-2 text-sm font-extrabold">
+                  Homeowner message
+                  <textarea
+                    rows={5}
+                    value={ownerUpdateForm.message}
+                    onChange={(event) => setOwnerUpdateForm((current) => ({ ...current, message: event.target.value }))}
+                    className="field-shell rounded-lg p-3"
+                    placeholder="Write the concise, professional update the homeowner should see."
+                  />
+                </label>
+                {ownerUpdateSaveMessage ? (
+                  <div className="rounded-lg border border-line bg-white p-3 text-sm font-semibold text-slate-600">
+                    {ownerUpdateSaveMessage}
+                  </div>
+                ) : null}
+                <button
+                  type="submit"
+                  disabled={isSavingOwnerUpdate}
+                  className="button-primary min-h-12 rounded-lg px-5 font-extrabold disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {isSavingOwnerUpdate ? "Saving..." : "Save Owner Update"}
+                </button>
+              </form>
+            </ConceptCard>
+
+            <ConceptCard eyebrow="Homeowner view" title="Shared service record">
+              <div className="grid gap-3">
+                {sharedOwnerUpdates.length ? (
+                  sharedOwnerUpdates.map((update) => <OwnerUpdateCard key={update.id} update={update} />)
+                ) : (
+                  <div className="rounded-lg border border-line bg-white p-4 text-sm text-slate-600">
+                    No updates have been shared with the homeowner yet.
+                  </div>
+                )}
+              </div>
+              {internalOwnerUpdates.length ? (
+                <div className="mt-5 rounded-lg border border-line bg-[#fbfcfb] p-4">
+                  <span className="block text-xs font-extrabold uppercase tracking-[0.1em] text-clay">
+                    Internal queue
+                  </span>
+                  <div className="mt-3 grid gap-2">
+                    {internalOwnerUpdates.slice(0, 3).map((update) => (
+                      <div key={update.id} className="flex items-start justify-between gap-3 rounded-lg border border-line bg-white p-3">
+                        <div>
+                          <strong className="block text-sm text-ink">{update.title}</strong>
+                          <span className="text-xs font-semibold text-slate-500">{update.category}</span>
+                        </div>
+                        <span className="rounded-full border border-line bg-[#fbfcfb] px-3 py-1 text-xs font-extrabold text-slate-600">
+                          {update.status}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               ) : null}
-              <button
-                type="submit"
-                disabled={isSavingOwnerUpdate}
-                className="button-primary min-h-12 rounded-lg px-5 font-extrabold disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                {isSavingOwnerUpdate ? "Saving..." : "Save Owner Update"}
-              </button>
-            </form>
-          </ConceptCard>
-
-          <ConceptCard eyebrow="Activity timeline" title="Transparent service record">
-            <div className="grid gap-3">
-              {ownerUpdates.length ? (
-                ownerUpdates.map((update) => <OwnerUpdateCard key={update.id} update={update} />)
-              ) : (
-                <div className="rounded-lg border border-line bg-white p-4 text-sm text-slate-600">
-                  No owner updates have been saved for this property yet.
-                </div>
-              )}
-            </div>
-          </ConceptCard>
+            </ConceptCard>
+          </div>
         </div>
       ) : null}
     </section>
@@ -2572,6 +3536,14 @@ function MaintenanceIssueCard({
         </div>
       </div>
       {issue.description ? <p className="mt-3 text-sm leading-6 opacity-80">{issue.description}</p> : null}
+      {assignedVendor?.phone ? (
+        <a
+          href={`tel:${assignedVendor.phone}`}
+          className="button-primary mt-4 grid min-h-11 place-items-center rounded-lg px-4 text-sm font-extrabold xl:hidden"
+        >
+          Call {assignedVendor.name}
+        </a>
+      ) : null}
       {issuePhotos.length ? (
         <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3">
           {issuePhotos.map((photo) => (
@@ -2775,11 +3747,32 @@ function ReportCard({
     );
   }
 
+  const status = reportConditionStatus(inspection);
+
   return (
     <article className="min-h-[420px] rounded-lg border border-line bg-gradient-to-b from-white to-[#fbfcfb] p-5 shadow-[0_12px_28px_rgba(35,45,41,0.05)]">
-      <h3 className="text-2xl font-extrabold text-ink">{property.name}</h3>
-      <p className="mt-2 text-sm text-slate-600">
-        {property.owner} / {property.address}
+      <div className="mb-5 flex flex-col gap-4 border-b border-line pb-5 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <p className="mb-2 text-xs font-extrabold uppercase tracking-[0.1em] text-clay">
+            Homeowner Packet
+          </p>
+          <h3 className="text-2xl font-extrabold text-ink">{property.name}</h3>
+          <p className="mt-2 text-sm text-slate-600">
+            {property.owner} / {property.address}
+          </p>
+        </div>
+        <div
+          className={`rounded-lg border px-4 py-3 text-sm font-extrabold ${
+            status.tone === "urgent"
+              ? "border-[#e7cbc4] bg-[#fff8f6] text-[#9f352e]"
+              : "border-[#c9ddd1] bg-[#f3f8f4] text-sage-dark"
+          }`}
+        >
+          {status.label}
+        </div>
+      </div>
+      <p className="mb-5 rounded-lg border border-line bg-white p-4 text-sm leading-6 text-slate-700">
+        {status.description}
       </p>
       <ReportRow label="Date" value={formatDateTime(inspection.timestamp)} />
       <ReportRow label="Inspection Type" value={getInspectionType(inspection.checklist)} />
@@ -2791,6 +3784,13 @@ function ReportCard({
         valueClassName={inspection.urgent === "Yes" ? "text-[#b93f35] font-black" : ""}
       />
       <ReportRow label="Photos" value={`${inspection.photos.length} uploaded`} />
+
+      {inspection.executiveSummary ? (
+        <>
+          <h4 className="mb-2 mt-5 text-sm font-extrabold uppercase">Executive Summary</h4>
+          <p className="leading-7">{inspection.executiveSummary}</p>
+        </>
+      ) : null}
 
       <h4 className="mb-2 mt-5 text-sm font-extrabold uppercase">Completed Checks</h4>
       {visibleChecklistItems(inspection.checklist).length ? (
@@ -2852,6 +3852,33 @@ function ReportRow({
       <strong className={`break-words ${valueClassName}`}>{value}</strong>
     </div>
   );
+}
+
+function reportConditionStatus(inspection: Inspection) {
+  if (inspection.urgent === "Yes") {
+    return {
+      label: "Attention Recommended",
+      tone: "urgent" as const,
+      description:
+        "This report includes an urgent item that should be reviewed promptly by the homeowner or property manager."
+    };
+  }
+
+  if (visibleChecklistItems(inspection.checklist).length === 0) {
+    return {
+      label: "Report Pending",
+      tone: "normal" as const,
+      description:
+        "This report has been created, but no completed checklist items were recorded."
+    };
+  }
+
+  return {
+    label: "Property Stable",
+    tone: "normal" as const,
+    description:
+      "This inspection indicates the property is stable with no urgent homeowner action flagged at this time."
+  };
 }
 
 function PropertyInput({

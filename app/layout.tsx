@@ -3,19 +3,19 @@ import { PwaRegister } from "./pwa-register";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Desert Estate Watch",
-  description: "A mobile-friendly home watch inspection app for Coachella Valley properties.",
+  title: "EstateIQ",
+  description: "Property intelligence, inspections, reports, and protection for luxury homes.",
   manifest: "/manifest.webmanifest",
   icons: {
     icon: [
-      { url: "/icon.svg", type: "image/svg+xml" },
+      { url: "/favicon.png", type: "image/png" },
       { url: "/icon-192.png", sizes: "192x192", type: "image/png" }
     ],
     apple: [{ url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" }]
   },
   appleWebApp: {
     capable: true,
-    title: "Estate Watch",
+    title: "EstateIQ",
     statusBarStyle: "default"
   }
 };
