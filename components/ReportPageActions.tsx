@@ -28,7 +28,7 @@ export default function ReportPageActions({ pdfUrl }: { pdfUrl: string }) {
       <ButtonLink href={pdfUrl} onClick={() => trackReportAction("download_pdf")} size="lg">
         Download PDF File
       </ButtonLink>
-      <ButtonLink href="/" onClick={() => trackReportAction("back_to_app")} size="lg">
+      <ButtonLink href="/demo" onClick={() => trackReportAction("back_to_app")} size="lg">
         Back
       </ButtonLink>
     </div>

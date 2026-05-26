@@ -2,5 +2,8 @@
 node_modules
 .env*.local
 *.log
+*.tsbuildinfo
 public/uploads
 data/db.local-backup.json
+data/analytics.local.json
+data/feedback.local.json

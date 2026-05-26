@@ -2,7 +2,8 @@ import { promises as fs } from "fs";
 import path from "path";
 import type { AnalyticsEvent, AnalyticsEventName } from "@/utils/types";
 
-const analyticsPath = path.join(process.cwd(), "data", "analytics.json");
+const analyticsSeedPath = path.join(process.cwd(), "data", "analytics.json");
+const analyticsLocalPath = path.join(process.cwd(), "data", "analytics.local.json");
 const allowedEventNames = new Set<AnalyticsEventName>([
   "screen_view",
   "click",
@@ -17,8 +18,17 @@ type AnalyticsInput = Omit<AnalyticsEvent, "id" | "timestamp"> & {
 };
 
 export async function readAnalyticsEvents() {
+  const [localEvents, seedEvents] = await Promise.all([
+    readAnalyticsFile(analyticsLocalPath),
+    readAnalyticsFile(analyticsSeedPath)
+  ]);
+
+  return [...localEvents, ...seedEvents];
+}
+
+async function readAnalyticsFile(filePath: string) {
   try {
-    const raw = await fs.readFile(analyticsPath, "utf8");
+    const raw = await fs.readFile(filePath, "utf8");
     const parsed = JSON.parse(raw) as unknown;
     return Array.isArray(parsed) ? (parsed as AnalyticsEvent[]) : [];
   } catch {
@@ -42,9 +52,9 @@ export async function addAnalyticsEvent(input: AnalyticsInput) {
   };
 
   try {
-    await fs.mkdir(path.dirname(analyticsPath), { recursive: true });
-    const events = await readAnalyticsEvents();
-    await fs.writeFile(analyticsPath, JSON.stringify([event, ...events].slice(0, 2000), null, 2));
+    await fs.mkdir(path.dirname(analyticsLocalPath), { recursive: true });
+    const events = await readAnalyticsFile(analyticsLocalPath);
+    await fs.writeFile(analyticsLocalPath, JSON.stringify([event, ...events].slice(0, 2000), null, 2));
   } catch {
     // Analytics should never block inspections, reports, or customer-facing workflows.
   }

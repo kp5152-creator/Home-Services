@@ -2,7 +2,8 @@ import { promises as fs } from "fs";
 import path from "path";
 import type { FeedbackRecord, FeedbackSentiment, FeedbackType } from "@/utils/types";
 
-const feedbackPath = path.join(process.cwd(), "data", "feedback.json");
+const feedbackSeedPath = path.join(process.cwd(), "data", "feedback.json");
+const feedbackLocalPath = path.join(process.cwd(), "data", "feedback.local.json");
 const feedbackTypes = new Set<FeedbackType>([
   "Thumbs Up",
   "Thumbs Down",
@@ -14,8 +15,17 @@ const feedbackTypes = new Set<FeedbackType>([
 const sentiments = new Set<FeedbackSentiment>(["Positive", "Neutral", "Negative"]);
 
 export async function readFeedback() {
+  const [localFeedback, seedFeedback] = await Promise.all([
+    readFeedbackFile(feedbackLocalPath),
+    readFeedbackFile(feedbackSeedPath)
+  ]);
+
+  return [...localFeedback, ...seedFeedback];
+}
+
+async function readFeedbackFile(filePath: string) {
   try {
-    const raw = await fs.readFile(feedbackPath, "utf8");
+    const raw = await fs.readFile(filePath, "utf8");
     const parsed = JSON.parse(raw) as unknown;
     return Array.isArray(parsed) ? (parsed as FeedbackRecord[]) : [];
   } catch {
@@ -37,9 +47,9 @@ export async function addFeedback(input: Partial<FeedbackRecord>) {
     rating: normalizeRating(input.rating)
   };
 
-  await fs.mkdir(path.dirname(feedbackPath), { recursive: true });
-  const existing = await readFeedback();
-  await fs.writeFile(feedbackPath, JSON.stringify([feedback, ...existing].slice(0, 1000), null, 2));
+  await fs.mkdir(path.dirname(feedbackLocalPath), { recursive: true });
+  const existing = await readFeedbackFile(feedbackLocalPath);
+  await fs.writeFile(feedbackLocalPath, JSON.stringify([feedback, ...existing].slice(0, 1000), null, 2));
   return feedback;
 }
 
