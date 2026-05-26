@@ -1,6 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from "next";
-import { addScheduleTask, updateScheduleTaskStatus } from "@/lib/db";
-import type { ScheduleTaskStatus, ScheduleTaskType } from "@/lib/types";
+import { addScheduleTask, updateScheduleTaskStatus } from "@/services/database";
+import type { ScheduleTaskStatus, ScheduleTaskType } from "@/utils/types";
 
 const taskTypes: ScheduleTaskType[] = [
   "Home Watch",

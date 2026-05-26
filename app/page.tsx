@@ -1,5 +1,5 @@
 import InspectionWorkspace from "@/components/InspectionWorkspace";
-import { readDatabase } from "@/lib/db";
+import { readDatabase } from "@/services/database";
 
 export const dynamic = "force-dynamic";
 

@@ -1,89 +1,21 @@
 {
   "properties": [
     {
-      "id": "property-1779660309268",
+      "id": "property-1779716193963",
       "status": "Active",
-      "name": "Estacio - Pert",
-      "owner": "Kirby Pert Jr",
-      "address": "48570 Vienna Ct",
+      "name": "Esatacio - Pert 2",
+      "owner": "Kirby Pert",
+      "address": "48570 Vienna Ct, Indio CA 92201-0507",
       "phone": "7602182032",
-      "email": "kp5152@gmail.com",
+      "email": "test@gmail.com",
       "accessNotes": ""
     }
   ],
   "inspections": [
     {
-      "id": "inspection-1779675172259",
-      "timestamp": "2026-05-25T02:12:52.264Z",
-      "propertyId": "property-1779660309268",
-      "inspectorName": "Kirby ",
-      "interiorTemperature": "78",
-      "checklist": [
-        "__inspection_type__:Home Watch Inspection",
-        "Walk perimeter of property",
-        "Check gates/fencing",
-        "Look for signs of forced entry",
-        "Inspect windows and doors",
-        "Inspect roofline visually from ground",
-        "Check irrigation leaks or flooding",
-        "Verify landscape condition",
-        "Check for package deliveries/flyers",
-        "Inspect pool/spa area",
-        "Verify outdoor lighting functionality",
-        "Look for pest activity",
-        "Check thermostat and HVAC operation",
-        "Run water at sinks/showers",
-        "Flush toilets",
-        "Check for plumbing leaks",
-        "Inspect ceilings/walls for water intrusion",
-        "Verify refrigerator/freezer operation",
-        "Check electrical breakers if needed",
-        "Inspect smoke/CO detectors",
-        "Look for mold/mildew odors",
-        "Check internet/WiFi system",
-        "Inspect alarm panel status",
-        "Open/close blinds occasionally",
-        "Run garbage disposal",
-        "Check for insect activity"
-      ],
-      "executiveSummary": "Estacio - Pert received a home watch inspection by the inspection team. All planned inspection items were completed. Interior temperature was not recorded, and 4 supporting photos were documented. No urgent homeowner action is indicated from this inspection. Inspector notes: No issues.",
-      "notes": "No issues ",
-      "urgent": "No",
-      "photos": [
-        {
-          "id": "photo-inspection-1779675172259-1",
-          "name": "IMG_4413.jpg",
-          "url": "/api/photos/inspection-1779675172259/1-img_4413.jpg",
-          "mimeType": "image/jpeg",
-          "size": 297640
-        },
-        {
-          "id": "photo-inspection-1779675172259-2",
-          "name": "IMG_4404.jpg",
-          "url": "/api/photos/inspection-1779675172259/2-img_4404.jpg",
-          "mimeType": "image/jpeg",
-          "size": 158523
-        },
-        {
-          "id": "photo-inspection-1779675172259-3",
-          "name": "IMG_4407.jpg",
-          "url": "/api/photos/inspection-1779675172259/3-img_4407.jpg",
-          "mimeType": "image/jpeg",
-          "size": 195729
-        },
-        {
-          "id": "photo-inspection-1779675172259-4",
-          "name": "IMG_4406.jpg",
-          "url": "/api/photos/inspection-1779675172259/4-img_4406.jpg",
-          "mimeType": "image/jpeg",
-          "size": 165842
-        }
-      ]
-    },
-    {
-      "id": "inspection-1779673868178",
-      "timestamp": "2026-05-25T01:51:08.178Z",
-      "propertyId": "property-1779660309268",
+      "id": "inspection-1779716338749",
+      "timestamp": "2026-05-25T13:38:58.760Z",
+      "propertyId": "property-1779716193963",
       "inspectorName": "Kirby",
       "interiorTemperature": "78",
       "checklist": [
@@ -114,106 +46,43 @@
         "Run garbage disposal",
         "Check for insect activity"
       ],
-      "notes": "\nSuggested Summary:\nEstacio - Pert received a home watch inspection by Kirby. All planned inspection items were completed. Interior temperature was recorded at 78 F, and No photos were attached at the time of this draft. No urgent homeowner action is indicated from this inspection. Inspector notes: Everything looks good.  No concerns.",
-      "urgent": "No",
-      "photos": [],
-      "executiveSummary": ""
-    },
-    {
-      "id": "inspection-1779660512555",
-      "timestamp": "2026-05-24T22:08:32.558Z",
-      "propertyId": "property-1779660309268",
-      "inspectorName": "KPJ",
-      "interiorTemperature": "78",
-      "checklist": [
-        "__inspection_type__:Home Watch Inspection",
-        "Walk perimeter of property",
-        "Check gates/fencing",
-        "Look for signs of forced entry",
-        "Inspect windows and doors",
-        "Inspect roofline visually from ground",
-        "Check irrigation leaks or flooding",
-        "Verify landscape condition",
-        "Check for package deliveries/flyers",
-        "Inspect pool/spa area",
-        "Verify outdoor lighting functionality",
-        "Look for pest activity",
-        "Check thermostat and HVAC operation",
-        "Run water at sinks/showers",
-        "Flush toilets",
-        "Check for plumbing leaks",
-        "Inspect ceilings/walls for water intrusion",
-        "Verify refrigerator/freezer operation",
-        "Check electrical breakers if needed",
-        "Inspect smoke/CO detectors",
-        "Look for mold/mildew odors",
-        "Check internet/WiFi system",
-        "Inspect alarm panel status",
-        "Open/close blinds occasionally",
-        "Run garbage disposal",
-        "Check for insect activity"
-      ],
-      "notes": "",
+      "executiveSummary": "Esatacio - Pert 2 received a home watch inspection by Kirby. All planned inspection items were completed. Interior temperature was recorded at 78 F, and 4 supporting photos were documented. No urgent homeowner action is indicated from this inspection. Inspector notes: No issues.",
+      "notes": "No issues",
       "urgent": "No",
       "photos": [
         {
-          "id": "photo-inspection-1779660512555-1",
+          "id": "photo-inspection-1779716338749-1",
           "name": "IMG_4413.jpg",
-          "url": "/api/photos/inspection-1779660512555/1-img_4413.jpg",
+          "url": "/api/photos/inspection-1779716338749/1-img_4413.jpg",
           "mimeType": "image/jpeg",
           "size": 297640
         },
         {
-          "id": "photo-inspection-1779660512555-2",
+          "id": "photo-inspection-1779716338749-2",
           "name": "IMG_4404.jpg",
-          "url": "/api/photos/inspection-1779660512555/2-img_4404.jpg",
+          "url": "/api/photos/inspection-1779716338749/2-img_4404.jpg",
           "mimeType": "image/jpeg",
           "size": 158523
         },
         {
-          "id": "photo-inspection-1779660512555-3",
+          "id": "photo-inspection-1779716338749-3",
           "name": "IMG_4407.jpg",
-          "url": "/api/photos/inspection-1779660512555/3-img_4407.jpg",
+          "url": "/api/photos/inspection-1779716338749/3-img_4407.jpg",
           "mimeType": "image/jpeg",
           "size": 195729
         },
         {
-          "id": "photo-inspection-1779660512555-4",
+          "id": "photo-inspection-1779716338749-4",
           "name": "IMG_4406.jpg",
-          "url": "/api/photos/inspection-1779660512555/4-img_4406.jpg",
+          "url": "/api/photos/inspection-1779716338749/4-img_4406.jpg",
           "mimeType": "image/jpeg",
           "size": 165842
         }
-      ],
-      "executiveSummary": ""
+      ]
     }
   ],
   "maintenanceIssues": [],
-  "vendors": [
-    {
-      "id": "vendor-1779660370411",
-      "createdAt": "2026-05-24T22:06:10.411Z",
-      "propertyId": "property-1779660309268",
-      "name": "Desert Pool Care",
-      "type": "Pool",
-      "contactName": "Juan Jose",
-      "phone": "7607772525",
-      "email": "test@gmail.com",
-      "notes": ""
-    }
-  ],
-  "scheduleTasks": [
-    {
-      "id": "schedule-1779660493735",
-      "createdAt": "2026-05-24T22:08:13.735Z",
-      "propertyId": "property-1779660309268",
-      "scheduledFor": "2026-06-08T16:00:00.000Z",
-      "type": "Home Watch",
-      "title": "Home Inspection",
-      "status": "Scheduled",
-      "assignedTo": "KPJ",
-      "notes": ""
-    }
-  ],
+  "vendors": [],
+  "scheduleTasks": [],
   "ownerUpdates": []
 }

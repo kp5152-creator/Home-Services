@@ -1,21 +1,36 @@
 "use client";
 
+import { Button, ButtonLink } from "@/components/ui";
+import { trackAnalyticsEvent } from "@/hooks/useAnalytics";
+
 export default function ReportPageActions({ pdfUrl }: { pdfUrl: string }) {
+  function trackReportAction(target: string) {
+    trackAnalyticsEvent({
+      name: "workflow_step",
+      screen: "Report",
+      workflow: "report",
+      target
+    });
+  }
+
   return (
     <div className="no-print flex flex-wrap gap-3">
-      <button
+      <Button
         type="button"
-        onClick={() => window.print()}
-        className="min-h-11 rounded-lg bg-sage-dark px-5 font-extrabold text-white"
+        onClick={() => {
+          trackReportAction("print_or_save_pdf");
+          window.print();
+        }}
+        size="lg"
       >
         Print / Save PDF
-      </button>
-      <a className="grid min-h-11 place-items-center rounded-lg bg-[#edf1ee] px-5 font-extrabold text-ink" href={pdfUrl}>
+      </Button>
+      <ButtonLink href={pdfUrl} onClick={() => trackReportAction("download_pdf")} size="lg">
         Download PDF File
-      </a>
-      <a className="grid min-h-11 place-items-center rounded-lg bg-[#edf1ee] px-5 font-extrabold text-ink" href="/">
+      </ButtonLink>
+      <ButtonLink href="/" onClick={() => trackReportAction("back_to_app")} size="lg">
         Back
-      </a>
+      </ButtonLink>
     </div>
   );
 }

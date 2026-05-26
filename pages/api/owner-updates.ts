@@ -1,6 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from "next";
-import { addOwnerUpdate } from "@/lib/db";
-import type { OwnerUpdateCategory, OwnerUpdateStatus } from "@/lib/types";
+import { addOwnerUpdate } from "@/services/database";
+import type { OwnerUpdateCategory, OwnerUpdateStatus } from "@/utils/types";
 
 const categories: OwnerUpdateCategory[] = ["Inspection", "Maintenance", "Vendor", "Arrival", "General"];
 const statuses: OwnerUpdateStatus[] = ["Draft", "Shared", "Archived"];

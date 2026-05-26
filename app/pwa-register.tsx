@@ -8,15 +8,28 @@ export function PwaRegister() {
       return;
     }
 
+    let refreshing = false;
+    const reloadOnControllerChange = () => {
+      if (refreshing) return;
+      refreshing = true;
+      window.location.reload();
+    };
+
     const registerServiceWorker = async () => {
       try {
-        await navigator.serviceWorker.register("/sw.js");
+        const registration = await navigator.serviceWorker.register("/sw.js");
+        await registration.update();
+        navigator.serviceWorker.addEventListener("controllerchange", reloadOnControllerChange);
       } catch {
         // The app still works normally if a browser blocks service workers.
       }
     };
 
     registerServiceWorker();
+
+    return () => {
+      navigator.serviceWorker.removeEventListener("controllerchange", reloadOnControllerChange);
+    };
   }, []);
 
   return null;

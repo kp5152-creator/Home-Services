@@ -7,9 +7,12 @@ import {
   getInspectionType,
   groupChecklistItems,
   inspectionTemplates,
-  visibleChecklistItems
-} from "@/lib/checklists";
-import type { InspectionType } from "@/lib/checklists";
+  visibleChecklistItems,
+  withInspectionType
+} from "@/utils/checklists";
+import type { InspectionType } from "@/utils/checklists";
+import { trackAnalyticsEvent, useWorkflowAnalytics } from "@/hooks/useAnalytics";
+import { demoDatabase } from "@/reports/demoData";
 import type {
   Database,
   Inspection,
@@ -19,19 +22,27 @@ import type {
   OwnerUpdate,
   OwnerUpdateCategory,
   OwnerUpdateStatus,
+  PilotDatabase,
+  PilotUsageSummary,
   Property,
   ScheduleTask,
   ScheduleTaskStatus,
   ScheduleTaskType,
+  FeedbackRecord,
+  FeedbackSentiment,
+  FeedbackType,
   UrgentStatus,
   VendorContact,
   VendorType
-} from "@/lib/types";
+} from "@/utils/types";
 
 type NewPropertyForm = {
   name: string;
   owner: string;
   address: string;
+  city: string;
+  state: string;
+  zip: string;
   phone: string;
   email: string;
   accessNotes: string;
@@ -79,6 +90,14 @@ type OwnerUpdateForm = {
   status: OwnerUpdateStatus;
 };
 
+type FeedbackForm = {
+  type: FeedbackType;
+  sentiment: FeedbackSentiment;
+  message: string;
+  email: string;
+  rating: string;
+};
+
 type InspectionForm = {
   inspectionType: InspectionType;
   inspectorName: string;
@@ -93,12 +112,33 @@ type InspectionForm = {
 type ExperienceScreen =
   | "Login"
   | "Dashboard"
+  | "Pilot Admin"
   | "Property"
   | "Inspection"
   | "Schedule"
   | "Reports"
   | "Maintenance"
   | "Owner Portal";
+
+type AppRole = "Admin" | "Inspector" | "Homeowner";
+
+const roleLabels: Record<AppRole, { title: string; description: string; firstScreen: ExperienceScreen }> = {
+  Admin: {
+    title: "Admin Command Center",
+    description: "Full SaaS workspace for portfolio, operations, reports, vendors, scheduling, and owner communication.",
+    firstScreen: "Dashboard"
+  },
+  Inspector: {
+    title: "Inspector Field App",
+    description: "Mobile-first field workflow for inspections, photos, maintenance issues, and scheduled work.",
+    firstScreen: "Inspection"
+  },
+  Homeowner: {
+    title: "Homeowner Portal",
+    description: "Read-only homeowner experience for property condition, shared updates, and report access.",
+    firstScreen: "Owner Portal"
+  }
+};
 
 const emptyInspectionForm: InspectionForm = {
   inspectionType: defaultInspectionType,
@@ -111,10 +151,21 @@ const emptyInspectionForm: InspectionForm = {
   photoFiles: []
 };
 
+const emptyFeedbackForm: FeedbackForm = {
+  type: "Feature Request",
+  sentiment: "Neutral",
+  message: "",
+  email: "",
+  rating: ""
+};
+
 const emptyPropertyForm: NewPropertyForm = {
   name: "",
   owner: "",
   address: "",
+  city: "",
+  state: "CA",
+  zip: "",
   phone: "",
   email: "",
   accessNotes: ""
@@ -170,7 +221,7 @@ const scheduleTaskTypes: ScheduleTaskType[] = [
 const scheduleTaskStatuses: ScheduleTaskStatus[] = ["Scheduled", "In Progress", "Complete", "Skipped"];
 
 const experienceScreens: ExperienceScreen[] = [
-  "Login",
+  "Pilot Admin",
   "Property",
   "Inspection",
   "Maintenance",
@@ -180,15 +231,12 @@ const experienceScreens: ExperienceScreen[] = [
   "Owner Portal"
 ];
 
-const mobileExperienceScreens: ExperienceScreen[] = [
-  "Property",
-  "Inspection",
-  "Maintenance",
-  "Schedule",
-  "Reports",
-  "Dashboard",
-  "Owner Portal"
-];
+function roleExperienceScreens(role: AppRole): ExperienceScreen[] {
+  if (role === "Homeowner") return ["Dashboard", "Owner Portal", "Reports"];
+  if (role === "Inspector") return ["Dashboard", "Property", "Inspection", "Maintenance", "Schedule", "Reports"];
+
+  return experienceScreens;
+}
 
 function formatDateTime(value: string | Date) {
   const date = value instanceof Date ? value : new Date(value);
@@ -237,6 +285,20 @@ async function fileToPhotoUpload(file: File) {
   }
 }
 
+function photoUploadToDemoPhoto(
+  photo: Awaited<ReturnType<typeof fileToPhotoUpload>>,
+  prefix: "inspection" | "maintenance",
+  index: number
+) {
+  return {
+    id: `demo-${prefix}-photo-${Date.now()}-${index}`,
+    name: photo.name,
+    url: photo.data,
+    mimeType: photo.type,
+    size: photo.data.length
+  };
+}
+
 function loadImage(url: string) {
   return new Promise<HTMLImageElement>((resolve, reject) => {
     const image = new Image();
@@ -276,21 +338,50 @@ export default function InspectionWorkspace({
   const [isSavingOwnerUpdate, setIsSavingOwnerUpdate] = useState(false);
   const [suggestedSummary, setSuggestedSummary] = useState("");
   const [suggestedSummaryMessage, setSuggestedSummaryMessage] = useState("");
+  const [inspectionSaveMessage, setInspectionSaveMessage] = useState("");
   const [propertySaveMessage, setPropertySaveMessage] = useState("");
   const [isSavingProperty, setIsSavingProperty] = useState(false);
   const [maintenanceRecommendation, setMaintenanceRecommendation] = useState<MaintenanceRecommendation | null>(null);
   const [maintenanceRecommendationMessage, setMaintenanceRecommendationMessage] = useState("");
   const [maintenanceSaveMessage, setMaintenanceSaveMessage] = useState("");
   const [isSavingMaintenanceIssue, setIsSavingMaintenanceIssue] = useState(false);
+  const [pilotDatabase, setPilotDatabase] = useState<PilotDatabase | null>(null);
+  const [pilotUsageSummary, setPilotUsageSummary] = useState<PilotUsageSummary | null>(null);
+  const [feedbackItems, setFeedbackItems] = useState<FeedbackRecord[]>([]);
+  const [feedbackForm, setFeedbackForm] = useState<FeedbackForm>(emptyFeedbackForm);
+  const [feedbackMessage, setFeedbackMessage] = useState("");
+  const [isSavingFeedback, setIsSavingFeedback] = useState(false);
   const [showPropertyForm, setShowPropertyForm] = useState(false);
   const [activeExperience, setActiveExperience] = useState<ExperienceScreen>("Login");
+  const [activeRole, setActiveRole] = useState<AppRole>("Admin");
+  const [demoMode, setDemoMode] = useState(false);
   const [darkMode, setDarkMode] = useState(false);
   const [now] = useState(() => new Date());
+  const visibleExperienceScreens = roleExperienceScreens(activeRole);
+  const mobileExperienceScreens = visibleExperienceScreens;
 
   const selectedProperty = useMemo(
     () => properties.find((property) => property.id === selectedPropertyId) ?? properties[0],
     [properties, selectedPropertyId]
   );
+  useWorkflowAnalytics({
+    screen: activeExperience,
+    role: activeRole,
+    demoMode,
+    propertyId: selectedProperty?.id
+  });
+
+  useEffect(() => {
+    if (activeExperience !== "Login" && !visibleExperienceScreens.includes(activeExperience)) {
+      setActiveExperience(roleLabels[activeRole].firstScreen);
+    }
+  }, [activeExperience, activeRole, visibleExperienceScreens]);
+
+  useEffect(() => {
+    if (activeRole !== "Admin") return;
+
+    void refreshPilotConsole();
+  }, [activeRole]);
 
   const selectedInspections = useMemo(
     () => inspections.filter((inspection) => inspection.propertyId === selectedProperty?.id),
@@ -374,46 +465,269 @@ export default function InspectionWorkspace({
     setActiveExperience("Owner Portal");
   }
 
+  async function refreshPilotConsole() {
+    try {
+      const [pilotResponse, feedbackResponse] = await Promise.all([fetch("/api/pilot"), fetch("/api/feedback")]);
+
+      if (pilotResponse.ok) {
+        const pilotData = (await pilotResponse.json()) as {
+          pilot: PilotDatabase;
+          usageSummary: PilotUsageSummary;
+        };
+        setPilotDatabase(pilotData.pilot);
+        setPilotUsageSummary(pilotData.usageSummary);
+      }
+
+      if (feedbackResponse.ok) {
+        const feedbackData = (await feedbackResponse.json()) as { feedback: FeedbackRecord[] };
+        setFeedbackItems(feedbackData.feedback);
+      }
+    } catch {
+      setFeedbackMessage("Pilot console data could not be refreshed. Check the local API and try again.");
+    }
+  }
+
+  async function saveFeedback(event?: FormEvent<HTMLFormElement>, quickType?: FeedbackType, quickSentiment?: FeedbackSentiment) {
+    event?.preventDefault();
+    const type = quickType ?? feedbackForm.type;
+    const sentiment = quickSentiment ?? feedbackForm.sentiment;
+    const message =
+      quickType === "Thumbs Up"
+        ? "Quick positive signal from the current workflow."
+        : quickType === "Thumbs Down"
+          ? "Quick negative signal from the current workflow."
+          : feedbackForm.message.trim();
+
+    if (!message) {
+      setFeedbackMessage("Add a short note so the feedback is useful.");
+      return;
+    }
+
+    setIsSavingFeedback(true);
+    setFeedbackMessage("Saving feedback...");
+
+    try {
+      const response = await fetch("/api/feedback", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          type,
+          sentiment,
+          message,
+          role: activeRole,
+          screen: activeExperience,
+          propertyId: selectedProperty?.id,
+          email: feedbackForm.email,
+          rating: feedbackForm.rating
+        })
+      });
+
+      if (!response.ok) {
+        setFeedbackMessage("Feedback could not be saved. Please try again.");
+        return;
+      }
+
+      const data = (await response.json()) as { feedback: FeedbackRecord };
+      setFeedbackItems((current) => [data.feedback, ...current]);
+      setFeedbackForm(emptyFeedbackForm);
+      setFeedbackMessage("Feedback saved. This will help shape the pilot.");
+      trackAnalyticsEvent({
+        name: "workflow_step",
+        role: activeRole,
+        screen: activeExperience,
+        workflow: "feedback",
+        target: type,
+        demoMode,
+        metadata: { sentiment }
+      });
+    } catch {
+      setFeedbackMessage("Feedback could not be saved. Check your connection and try again.");
+    } finally {
+      setIsSavingFeedback(false);
+    }
+  }
+
+  async function toggleFeatureFlag(featureId: string) {
+    await fetch("/api/pilot", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "toggle-feature", featureId })
+    });
+    await refreshPilotConsole();
+  }
+
+  async function resetPilotAccount(organizationId: string) {
+    await fetch("/api/pilot", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "reset-account", organizationId })
+    });
+    await refreshPilotConsole();
+  }
+
   async function saveInspection(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!selectedProperty) return;
+    if (!selectedProperty) {
+      setInspectionSaveMessage("Select or create a property before generating a report.");
+      return;
+    }
+
+    const inspectorName = inspectionForm.inspectorName.trim();
+    const temperature = Number(inspectionForm.interiorTemperature);
+
+    if (!inspectorName) {
+      setInspectionSaveMessage("Add the inspector name before generating the homeowner report.");
+      return;
+    }
+
+    if (!Number.isFinite(temperature) || temperature < 40 || temperature > 120) {
+      setInspectionSaveMessage("Enter a realistic interior temperature before generating the report.");
+      return;
+    }
+
+    if (!inspectionForm.checklist.length) {
+      setInspectionSaveMessage("Complete at least one checklist item before generating the report.");
+      return;
+    }
+
+    setInspectionSaveMessage("Preparing homeowner report...");
+    trackAnalyticsEvent({
+      name: "workflow_step",
+      role: activeRole,
+      screen: activeExperience,
+      workflow: "inspection",
+      target: "report_submit_attempt",
+      demoMode,
+      metadata: {
+        checklistItems: inspectionForm.checklist.length,
+        photoCount: inspectionForm.photoFiles.length,
+        urgent: inspectionForm.urgent === "Yes"
+      }
+    });
 
     let photos: Awaited<ReturnType<typeof fileToPhotoUpload>>[];
 
     try {
       photos = await Promise.all(inspectionForm.photoFiles.map(fileToPhotoUpload));
     } catch {
-      window.alert("One or more photos could not be processed. Please try JPEG or PNG photos.");
+      setInspectionSaveMessage("One or more photos could not be processed. Please try JPEG or PNG photos.");
       return;
     }
 
-    const response = await fetch("/api/inspections", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        ...inspectionForm,
-        photoFiles: undefined,
-        photos,
-        propertyId: selectedProperty.id
-      })
-    });
+    if (demoMode) {
+      const now = new Date().toISOString();
+      const inspection: Inspection = {
+        id: `demo-inspection-${Date.now()}`,
+        propertyId: selectedProperty.id,
+        timestamp: now,
+        inspectorName,
+        interiorTemperature: String(Math.round(temperature)),
+        checklist: withInspectionType(inspectionForm.checklist, inspectionForm.inspectionType),
+        executiveSummary: inspectionForm.executiveSummary,
+        notes: inspectionForm.notes,
+        urgent: inspectionForm.urgent,
+        photos: photos.map((photo, index) => photoUploadToDemoPhoto(photo, "inspection", index))
+      };
 
-    const inspection = (await response.json()) as Inspection;
-    setInspections((current) => [inspection, ...current]);
-    setActiveReportId(inspection.id);
-    setInspectionForm(emptyInspectionForm);
+      setInspections((current) => [inspection, ...current]);
+      setActiveReportId(inspection.id);
+      setInspectionForm(emptyInspectionForm);
+      setInspectionSaveMessage("Demo report created locally. Real customer data was not changed.");
+      trackAnalyticsEvent({
+        name: "workflow_step",
+        role: activeRole,
+        screen: activeExperience,
+        workflow: "inspection",
+        target: "report_created",
+        demoMode: true,
+        metadata: { photoCount: inspection.photos.length, urgent: inspection.urgent === "Yes" }
+      });
+      return;
+    }
+
+    try {
+      const response = await fetch("/api/inspections", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...inspectionForm,
+          inspectorName,
+          interiorTemperature: String(Math.round(temperature)),
+          photoFiles: undefined,
+          photos,
+          propertyId: selectedProperty.id
+        })
+      });
+
+      if (!response.ok) {
+        const error = (await response.json().catch(() => null)) as { message?: string } | null;
+        setInspectionSaveMessage(error?.message || "Inspection report could not be saved. Please try again.");
+        return;
+      }
+
+      const inspection = (await response.json()) as Inspection;
+      setInspections((current) => [inspection, ...current]);
+      setActiveReportId(inspection.id);
+      setInspectionForm(emptyInspectionForm);
+      setInspectionSaveMessage("Homeowner report generated and saved.");
+      trackAnalyticsEvent({
+        name: "workflow_step",
+        role: activeRole,
+        screen: activeExperience,
+        workflow: "inspection",
+        target: "report_created",
+        demoMode,
+        metadata: { photoCount: inspection.photos.length, urgent: inspection.urgent === "Yes" }
+      });
+    } catch {
+      setInspectionSaveMessage("Inspection report could not be saved. Check your connection and try again.");
+    }
   }
 
   async function saveProperty(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setIsSavingProperty(true);
     setPropertySaveMessage("Saving property...");
+    const fullAddress = [
+      propertyForm.address.trim(),
+      [propertyForm.city.trim(), propertyForm.state.trim(), propertyForm.zip.trim()].filter(Boolean).join(" ")
+    ]
+      .filter(Boolean)
+      .join(", ");
+
+    if (demoMode) {
+      const property: Property = {
+        id: `demo-property-${Date.now()}`,
+        name: propertyForm.name || "Demo Property",
+        owner: propertyForm.owner || "Sample Homeowner",
+        address: fullAddress || "Coachella Valley, CA",
+        phone: propertyForm.phone,
+        email: propertyForm.email,
+        accessNotes: propertyForm.accessNotes,
+        status: "Active"
+      };
+
+      setProperties((current) => [property, ...current]);
+      setSelectedPropertyId(property.id);
+      setActiveReportId("");
+      setPropertyForm(emptyPropertyForm);
+      setPropertySaveMessage(`Demo property added locally: ${property.name}`);
+      setTimeout(() => {
+        setShowPropertyForm(false);
+        setPropertySaveMessage("");
+      }, 650);
+      setIsSavingProperty(false);
+      return;
+    }
 
     try {
       const response = await fetch("/api/properties", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(propertyForm)
+        body: JSON.stringify({
+          ...propertyForm,
+          address: fullAddress
+        })
       });
 
       if (!response.ok) {
@@ -450,6 +764,18 @@ export default function InspectionWorkspace({
 
     if (!confirmed) return;
 
+    if (demoMode) {
+      setProperties((current) => current.filter((item) => item.id !== property.id));
+      setInspections((current) => current.filter((inspection) => inspection.propertyId !== property.id));
+      setMaintenanceIssues((current) => current.filter((issue) => issue.propertyId !== property.id));
+      setVendors((current) => current.filter((vendor) => vendor.propertyId !== property.id));
+      setScheduleTasks((current) => current.filter((task) => task.propertyId !== property.id));
+      setOwnerUpdates((current) => current.filter((update) => update.propertyId !== property.id));
+      setSelectedPropertyId((current) => (current === property.id ? properties.find((item) => item.id !== property.id)?.id ?? "" : current));
+      setActiveReportId("");
+      return;
+    }
+
     const response = await fetch(`/api/properties?id=${encodeURIComponent(property.id)}`, {
       method: "DELETE"
     });
@@ -476,6 +802,21 @@ export default function InspectionWorkspace({
 
     setIsSavingVendor(true);
     setVendorSaveMessage("Saving vendor...");
+
+    if (demoMode) {
+      const vendor: VendorContact = {
+        id: `demo-vendor-${Date.now()}`,
+        propertyId: selectedProperty.id,
+        createdAt: new Date().toISOString(),
+        ...vendorForm
+      };
+
+      setVendors((current) => [vendor, ...current]);
+      setVendorForm(emptyVendorForm);
+      setVendorSaveMessage(`Demo vendor added locally: ${vendor.name}`);
+      setIsSavingVendor(false);
+      return;
+    }
 
     try {
       const response = await fetch("/api/vendors", {
@@ -514,6 +855,21 @@ export default function InspectionWorkspace({
     setIsSavingScheduleTask(true);
     setScheduleSaveMessage("Saving schedule item...");
 
+    if (demoMode) {
+      const task: ScheduleTask = {
+        id: `demo-schedule-${Date.now()}`,
+        propertyId: selectedProperty.id,
+        createdAt: new Date().toISOString(),
+        ...scheduleTaskForm
+      };
+
+      setScheduleTasks((current) => [task, ...current]);
+      setScheduleTaskForm(emptyScheduleTaskForm);
+      setScheduleSaveMessage(`Demo schedule item added locally: ${task.title}`);
+      setIsSavingScheduleTask(false);
+      return;
+    }
+
     try {
       const response = await fetch("/api/schedule-tasks", {
         method: "POST",
@@ -551,6 +907,21 @@ export default function InspectionWorkspace({
     setIsSavingOwnerUpdate(true);
     setOwnerUpdateSaveMessage("Saving owner update...");
 
+    if (demoMode) {
+      const update: OwnerUpdate = {
+        id: `demo-owner-update-${Date.now()}`,
+        propertyId: selectedProperty.id,
+        createdAt: new Date().toISOString(),
+        ...ownerUpdateForm
+      };
+
+      setOwnerUpdates((current) => [update, ...current]);
+      setOwnerUpdateForm(emptyOwnerUpdateForm);
+      setOwnerUpdateSaveMessage(`Demo owner update added locally: ${update.title}`);
+      setIsSavingOwnerUpdate(false);
+      return;
+    }
+
     try {
       const response = await fetch("/api/owner-updates", {
         method: "POST",
@@ -587,6 +958,19 @@ export default function InspectionWorkspace({
 
     setIsSavingMaintenanceIssue(true);
     setMaintenanceSaveMessage("Saving maintenance issue...");
+    trackAnalyticsEvent({
+      name: "workflow_step",
+      role: activeRole,
+      screen: activeExperience,
+      workflow: "maintenance",
+      target: "issue_submit_attempt",
+      demoMode,
+      metadata: {
+        priority: maintenanceIssueForm.priority,
+        hasVendor: Boolean(maintenanceIssueForm.vendor),
+        photoCount: maintenanceIssueForm.photoFiles.length
+      }
+    });
 
     let photos: Awaited<ReturnType<typeof fileToPhotoUpload>>[];
 
@@ -595,6 +979,39 @@ export default function InspectionWorkspace({
     } catch {
       setMaintenanceSaveMessage("One or more maintenance photos could not be processed. Please try JPEG or PNG photos.");
       setIsSavingMaintenanceIssue(false);
+      return;
+    }
+
+    if (demoMode) {
+      const issue: MaintenanceIssue = {
+        id: `demo-maintenance-${Date.now()}`,
+        propertyId: selectedProperty.id,
+        createdAt: new Date().toISOString(),
+        title: maintenanceIssueForm.title,
+        description: maintenanceIssueForm.description,
+        priority: maintenanceIssueForm.priority,
+        status: maintenanceIssueForm.status,
+        vendor: maintenanceIssueForm.vendor,
+        nextStep: maintenanceIssueForm.nextStep,
+        photos: photos.map((photo, index) => photoUploadToDemoPhoto(photo, "maintenance", index))
+      };
+
+      setMaintenanceIssues((current) => [issue, ...current]);
+      setMaintenanceIssueForm(emptyMaintenanceIssueForm);
+      setActiveExperience("Maintenance");
+      setMaintenanceSaveMessage(
+        `Demo issue added locally with ${issue.photos.length} photo${issue.photos.length === 1 ? "" : "s"}.`
+      );
+      setIsSavingMaintenanceIssue(false);
+      trackAnalyticsEvent({
+        name: "workflow_step",
+        role: activeRole,
+        screen: activeExperience,
+        workflow: "maintenance",
+        target: "issue_created",
+        demoMode: true,
+        metadata: { priority: issue.priority, photoCount: issue.photos.length }
+      });
       return;
     }
 
@@ -628,6 +1045,15 @@ export default function InspectionWorkspace({
           ? "Issue saved, but no photos attached. Confirm the Supabase maintenance photo table exists."
           : `Issue saved with ${savedPhotoCount} photo${savedPhotoCount === 1 ? "" : "s"}.`
       );
+      trackAnalyticsEvent({
+        name: "workflow_step",
+        role: activeRole,
+        screen: activeExperience,
+        workflow: "maintenance",
+        target: "issue_created",
+        demoMode,
+        metadata: { priority: issue.priority, photoCount: savedPhotoCount }
+      });
     } catch {
       setMaintenanceSaveMessage("Maintenance issue could not be saved. Check your connection and try again.");
     } finally {
@@ -682,12 +1108,30 @@ export default function InspectionWorkspace({
       ? `Inspector notes: ${inspectionForm.notes.trim()}`
       : "No additional issues were noted by the inspector";
 
-    const summary = `${selectedProperty.name} received a ${inspectionForm.inspectionType.toLowerCase()} by ${
-      inspectionForm.inspectorName || "the inspection team"
-    }. ${completionPhrase}. ${temperaturePhrase}, and ${photoPhrase}. ${issuePhrase}. ${notesPhrase}.`;
+    const summary = [
+      `${selectedProperty.name} received a ${inspectionForm.inspectionType.toLowerCase()} by ${
+        inspectionForm.inspectorName || "the inspection team"
+      }.`,
+      `${completionPhrase}. ${temperaturePhrase}, and ${photoPhrase}.`,
+      issuePhrase,
+      notesPhrase
+    ].join(" ");
 
     setSuggestedSummary(summary);
-    setSuggestedSummaryMessage("Suggested Summary drafted. Review before using in the report.");
+    setSuggestedSummaryMessage("Concierge summary drafted. Review and approve before sharing with the homeowner.");
+    trackAnalyticsEvent({
+      name: "workflow_step",
+      role: activeRole,
+      screen: activeExperience,
+      workflow: "ai_assist",
+      target: "concierge_summary_drafted",
+      demoMode,
+      metadata: {
+        checklistItems: completedCount,
+        urgent: inspectionForm.urgent === "Yes",
+        photoCount: inspectionForm.photoFiles.length
+      }
+    });
   }
 
   function useSuggestedSummary() {
@@ -697,7 +1141,7 @@ export default function InspectionWorkspace({
       ...current,
       executiveSummary: suggestedSummary
     }));
-    setSuggestedSummaryMessage("Suggested Summary approved. You can edit it before generating the report.");
+    setSuggestedSummaryMessage("Concierge summary approved. You can edit it before generating the report.");
   }
 
   function suggestMaintenanceRecommendation() {
@@ -843,12 +1287,61 @@ export default function InspectionWorkspace({
     "Owner Portal",
     "Reports",
     "Property"
-  ].includes(activeExperience);
-  const currentFlowIndex = experienceScreens.indexOf(activeExperience);
+  ].includes(activeExperience) && visibleExperienceScreens.includes(activeExperience);
+  const currentFlowIndex = visibleExperienceScreens.indexOf(activeExperience);
   const nextFlowScreen =
-    currentFlowIndex >= 0 && currentFlowIndex < experienceScreens.length - 1
-      ? experienceScreens[currentFlowIndex + 1]
+    currentFlowIndex >= 0 && currentFlowIndex < visibleExperienceScreens.length - 1
+      ? visibleExperienceScreens[currentFlowIndex + 1]
       : undefined;
+
+  function enterRole(role: AppRole) {
+    trackAnalyticsEvent({
+      name: "workflow_step",
+      role,
+      screen: "Login",
+      workflow: "onboarding",
+      target: "role_selected",
+      demoMode
+    });
+    setActiveRole(role);
+    setActiveExperience(roleLabels[role].firstScreen);
+  }
+
+  function loadDemoMode(role: AppRole = "Admin") {
+    trackAnalyticsEvent({
+      name: "workflow_step",
+      role,
+      screen: "Login",
+      workflow: "demo_mode",
+      target: "demo_role_started",
+      demoMode: true,
+      metadata: { sampleProperty: demoDatabase.properties[0]?.name ?? "Demo property" }
+    });
+    setDemoMode(true);
+    setProperties(demoDatabase.properties);
+    setInspections(demoDatabase.inspections);
+    setMaintenanceIssues(demoDatabase.maintenanceIssues);
+    setVendors(demoDatabase.vendors);
+    setScheduleTasks(demoDatabase.scheduleTasks);
+    setOwnerUpdates(demoDatabase.ownerUpdates);
+    setSelectedPropertyId(demoDatabase.properties[0]?.id ?? "");
+    setActiveReportId(demoDatabase.inspections[0]?.id ?? "");
+    setActiveRole(role);
+    setActiveExperience(roleLabels[role].firstScreen);
+  }
+
+  function exitDemoMode() {
+    setDemoMode(false);
+    setProperties(initialDatabase.properties);
+    setInspections(initialDatabase.inspections);
+    setMaintenanceIssues(initialDatabase.maintenanceIssues ?? []);
+    setVendors(initialDatabase.vendors ?? []);
+    setScheduleTasks(initialDatabase.scheduleTasks ?? []);
+    setOwnerUpdates(initialDatabase.ownerUpdates ?? []);
+    setSelectedPropertyId(initialDatabase.properties[0]?.id ?? "");
+    setActiveReportId(initialDatabase.inspections[0]?.id ?? "");
+    setActiveExperience("Login");
+  }
 
   if (activeExperience === "Login") {
     return (
@@ -877,15 +1370,55 @@ export default function InspectionWorkspace({
             </label>
             <button
               type="button"
-              onClick={() => setActiveExperience("Property")}
+              onClick={() => enterRole(activeRole)}
               className="button-primary mt-2 min-h-12 rounded-lg px-5 font-extrabold"
             >
               Sign In
             </button>
           </form>
 
+          <div className="mt-5 grid gap-2">
+            {(Object.keys(roleLabels) as AppRole[]).map((role) => (
+              <button
+                key={role}
+                type="button"
+                onClick={() => setActiveRole(role)}
+                className={`rounded-lg border p-3 text-left transition ${
+                  activeRole === role
+                    ? "border-sage bg-[#f3f8f4] shadow-[inset_4px_0_0_#5f786c]"
+                    : "border-line bg-white hover:border-sage"
+                }`}
+              >
+                <strong className="block text-sm text-ink">{roleLabels[role].title}</strong>
+                <span className="mt-1 block text-xs leading-5 text-slate-600">{roleLabels[role].description}</span>
+              </button>
+            ))}
+          </div>
+
+          <div className="mt-5 rounded-lg border border-[#ead2a8] bg-[#fff8ed] p-4">
+            <span className="block text-xs font-extrabold uppercase tracking-[0.1em] text-[#7b5426]">
+              Customer demo mode
+            </span>
+            <p className="mt-2 text-sm leading-6 text-slate-700">
+              Launch a polished sample estate with demo inspections, photos, maintenance, schedules, reports, and owner
+              updates. No real client data is shown.
+            </p>
+            <div className="mt-3 grid gap-2 sm:grid-cols-3">
+              {(Object.keys(roleLabels) as AppRole[]).map((role) => (
+                <button
+                  key={`demo-${role}`}
+                  type="button"
+                  onClick={() => loadDemoMode(role)}
+                  className="button-primary min-h-10 rounded-lg px-3 text-xs font-extrabold"
+                >
+                  Demo {role}
+                </button>
+              ))}
+            </div>
+          </div>
+
           <p className="mt-5 text-center text-sm leading-6 text-slate-600">
-            Secure access for homeowners and property operations teams.
+            Shared platform access for admins, inspectors, and homeowners.
           </p>
         </section>
       </main>
@@ -941,11 +1474,30 @@ export default function InspectionWorkspace({
               />
             </div>
             <PropertyInput
-              label="Address"
+              label="Street address"
               value={propertyForm.address}
               onChange={(value) => setPropertyForm((current) => ({ ...current, address: value }))}
               required
             />
+            <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_110px_130px]">
+              <PropertyInput
+                label="City"
+                value={propertyForm.city}
+                onChange={(value) => setPropertyForm((current) => ({ ...current, city: value }))}
+                required
+              />
+              <PropertyInput
+                label="State"
+                value={propertyForm.state}
+                onChange={(value) => setPropertyForm((current) => ({ ...current, state: value.toUpperCase() }))}
+                required
+              />
+              <PropertyInput
+                label="ZIP"
+                value={propertyForm.zip}
+                onChange={(value) => setPropertyForm((current) => ({ ...current, zip: value }))}
+              />
+            </div>
             <div className="grid gap-4 sm:grid-cols-2">
               <PropertyInput
                 label="Phone"
@@ -1019,10 +1571,32 @@ export default function InspectionWorkspace({
         </div>
       </section>
 
+      {demoMode ? (
+        <section className="no-print mb-5 rounded-lg border border-[#ead2a8] bg-[#fff8ed] p-4">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="text-xs font-extrabold uppercase tracking-[0.12em] text-[#7b5426]">
+                Demo Mode Active
+              </p>
+              <p className="mt-1 text-sm font-semibold text-slate-700">
+                Showing sample EstateIQ data only. Safe for live customer demos.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={exitDemoMode}
+              className="button-soft min-h-10 rounded-lg px-4 text-sm font-extrabold"
+            >
+              Exit Demo
+            </button>
+          </div>
+        </section>
+      ) : null}
+
       <section className="estate-panel no-print mb-5 hidden rounded-lg p-3 sm:p-4 xl:block">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
           <div className="flex gap-2 overflow-x-auto pb-1">
-            {experienceScreens.map((screen) => (
+            {visibleExperienceScreens.map((screen) => (
               <button
                 key={screen}
                 type="button"
@@ -1053,9 +1627,10 @@ export default function InspectionWorkspace({
             <p className="mb-1 text-xs font-extrabold uppercase tracking-[0.12em] text-clay">
               Workflow
             </p>
-            <h2 className="text-lg font-extrabold text-ink">
-              {currentFlowIndex + 1} of {experienceScreens.length}: {activeExperience}
+              <h2 className="text-lg font-extrabold text-ink">
+              {currentFlowIndex + 1} of {visibleExperienceScreens.length}: {activeExperience}
             </h2>
+            <p className="mt-1 text-sm font-semibold text-slate-600">{roleLabels[activeRole].title}</p>
           </div>
           {nextFlowScreen ? (
             <button
@@ -1079,6 +1654,7 @@ export default function InspectionWorkspace({
 
       <LuxuryExperiencePanel
         activeExperience={activeExperience}
+        activeRole={activeRole}
         activeReport={activeReport}
         now={now}
         properties={properties}
@@ -1124,6 +1700,17 @@ export default function InspectionWorkspace({
         setVendorForm={setVendorForm}
         saveVendor={saveVendor}
         isSavingVendor={isSavingVendor}
+        pilotDatabase={pilotDatabase}
+        pilotUsageSummary={pilotUsageSummary}
+        feedbackItems={feedbackItems}
+        feedbackForm={feedbackForm}
+        feedbackMessage={feedbackMessage}
+        isSavingFeedback={isSavingFeedback}
+        setFeedbackForm={setFeedbackForm}
+        saveFeedback={saveFeedback}
+        refreshPilotConsole={refreshPilotConsole}
+        toggleFeatureFlag={toggleFeatureFlag}
+        resetPilotAccount={resetPilotAccount}
       />
 
       <section className="grid gap-5">
@@ -1394,6 +1981,11 @@ export default function InspectionWorkspace({
                       ? "Inspector, temperature, and checklist details are in place."
                       : "Add inspector name, interior temperature, and at least one completed checklist item."}
                   </p>
+                  {inspectionSaveMessage ? (
+                    <p className="mt-3 rounded-lg border border-line bg-white p-3 text-sm font-semibold text-slate-600">
+                      {inspectionSaveMessage}
+                    </p>
+                  ) : null}
                 </div>
                 <div className="grid gap-2 sm:grid-cols-2">
                   <button
@@ -1631,11 +2223,11 @@ export default function InspectionWorkspace({
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                   <div>
                     <p className="mb-1 text-xs font-extrabold uppercase tracking-[0.1em] text-clay">
-                      Suggested Summary
+                      Concierge Summary
                     </p>
-                    <h3 className="text-lg font-extrabold text-ink">Owner-ready draft</h3>
+                    <h3 className="text-lg font-extrabold text-ink">Human-reviewed owner draft</h3>
                     <p className="mt-1 text-sm leading-6 text-slate-600">
-                      Creates a private concierge-style summary from the inspection details on this screen.
+                      Creates a private concierge-style draft from verified inspection details. Review before sharing.
                     </p>
                   </div>
                   <button
@@ -1643,7 +2235,7 @@ export default function InspectionWorkspace({
                     onClick={generateSuggestedSummary}
                     className="button-soft min-h-11 rounded-lg px-4 text-sm font-extrabold"
                   >
-                    Draft Summary
+                    Draft Concierge Summary
                   </button>
                 </div>
                 {suggestedSummary ? (
@@ -1654,7 +2246,7 @@ export default function InspectionWorkspace({
                       onClick={useSuggestedSummary}
                       className="button-primary mt-4 min-h-10 rounded-lg px-4 text-sm font-extrabold"
                     >
-                      Use As Executive Summary
+                      Approve As Executive Summary
                     </button>
                   </div>
                 ) : null}
@@ -1699,7 +2291,8 @@ export default function InspectionWorkspace({
                 </button>
                 <button
                   type="submit"
-                  className="button-primary min-h-11 flex-1 rounded-lg px-5 font-extrabold sm:flex-none"
+                  disabled={!inspectionReady}
+                  className="button-primary min-h-11 flex-1 rounded-lg px-5 font-extrabold disabled:cursor-not-allowed disabled:opacity-60 sm:flex-none"
                 >
                   Generate Report
                 </button>
@@ -1941,7 +2534,7 @@ export default function InspectionWorkspace({
         </div>
       ) : null}
 
-      {activeExperience === "Owner Portal" ? (
+      {activeExperience === "Owner Portal" && activeRole !== "Homeowner" ? (
         <div className="fixed inset-x-0 bottom-[4.85rem] z-30 px-3 xl:hidden">
           <div className="mx-auto grid max-w-[520px] grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-lg border border-line bg-white/95 p-3 shadow-[0_-8px_28px_rgba(35,45,41,0.12)] backdrop-blur-xl">
             <div className="min-w-0">
@@ -2039,11 +2632,30 @@ export default function InspectionWorkspace({
               required
             />
             <PropertyInput
-              label="Address"
+              label="Street address"
               value={propertyForm.address}
               onChange={(value) => setPropertyForm((current) => ({ ...current, address: value }))}
               required
             />
+            <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_110px_130px]">
+              <PropertyInput
+                label="City"
+                value={propertyForm.city}
+                onChange={(value) => setPropertyForm((current) => ({ ...current, city: value }))}
+                required
+              />
+              <PropertyInput
+                label="State"
+                value={propertyForm.state}
+                onChange={(value) => setPropertyForm((current) => ({ ...current, state: value.toUpperCase() }))}
+                required
+              />
+              <PropertyInput
+                label="ZIP"
+                value={propertyForm.zip}
+                onChange={(value) => setPropertyForm((current) => ({ ...current, zip: value }))}
+              />
+            </div>
             <PropertyInput
               label="Phone"
               value={propertyForm.phone}
@@ -2181,25 +2793,25 @@ function SelectedPhotoPreviewGrid({
   }
 
   return (
-    <div className="mt-3 grid grid-cols-3 gap-2">
+    <div className="mt-3 grid gap-3 sm:grid-cols-2">
       {previews.map((preview) => (
-        <figure key={preview.url} className="overflow-hidden rounded-lg border border-line bg-white">
-          <img src={preview.url} alt={preview.name} className="h-20 w-full object-cover" />
-          <figcaption className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-1 px-2 py-1">
-            <span className="truncate text-[0.68rem] font-semibold text-slate-600">{preview.name}</span>
+        <figure key={preview.url} className="overflow-hidden rounded-lg border border-line bg-white shadow-[0_8px_20px_rgba(35,45,41,0.04)]">
+          <img src={preview.url} alt={preview.name} className="h-56 w-full bg-slate-100 object-contain sm:h-64" />
+          <figcaption className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2 px-3 py-2">
+            <span className="truncate text-xs font-semibold text-slate-600">{preview.name}</span>
             <button
               type="button"
               onClick={() => onRemove(preview.index)}
-              className="rounded px-1 text-[0.68rem] font-extrabold text-[#9f352e]"
+              className="rounded-lg border border-[#e7cbc4] bg-[#fff8f6] px-3 py-1 text-xs font-extrabold text-[#9f352e]"
               aria-label={`Remove ${preview.name}`}
             >
-              X
+              Remove
             </button>
           </figcaption>
         </figure>
       ))}
       {files.length > previews.length ? (
-        <div className="grid min-h-20 place-items-center rounded-lg border border-line bg-white p-2 text-center text-xs font-extrabold text-slate-600">
+        <div className="grid min-h-56 place-items-center rounded-lg border border-line bg-white p-4 text-center text-sm font-extrabold text-slate-600 sm:min-h-64">
           +{files.length - previews.length} more
         </div>
       ) : null}
@@ -2209,6 +2821,7 @@ function SelectedPhotoPreviewGrid({
 
 function LuxuryExperiencePanel({
   activeExperience,
+  activeRole,
   activeReport,
   addMaintenanceIssuePhotoFiles,
   applyMaintenanceRecommendation,
@@ -2250,9 +2863,21 @@ function LuxuryExperiencePanel({
   updateScheduleTaskStatus,
   vendorForm,
   vendorSaveMessage,
-  isSavingVendor
+  isSavingVendor,
+  pilotDatabase,
+  pilotUsageSummary,
+  feedbackItems,
+  feedbackForm,
+  feedbackMessage,
+  isSavingFeedback,
+  setFeedbackForm,
+  saveFeedback,
+  refreshPilotConsole,
+  toggleFeatureFlag,
+  resetPilotAccount
 }: {
   activeExperience: ExperienceScreen;
+  activeRole: AppRole;
   activeReport: Inspection | undefined;
   addMaintenanceIssuePhotoFiles: (files: FileList | null) => void;
   applyMaintenanceRecommendation: () => void;
@@ -2295,6 +2920,17 @@ function LuxuryExperiencePanel({
   vendorForm: VendorForm;
   vendorSaveMessage: string;
   isSavingVendor: boolean;
+  pilotDatabase: PilotDatabase | null;
+  pilotUsageSummary: PilotUsageSummary | null;
+  feedbackItems: FeedbackRecord[];
+  feedbackForm: FeedbackForm;
+  feedbackMessage: string;
+  isSavingFeedback: boolean;
+  setFeedbackForm: Dispatch<SetStateAction<FeedbackForm>>;
+  saveFeedback: (event?: FormEvent<HTMLFormElement>, quickType?: FeedbackType, quickSentiment?: FeedbackSentiment) => void;
+  refreshPilotConsole: () => void;
+  toggleFeatureFlag: (featureId: string) => void;
+  resetPilotAccount: (organizationId: string) => void;
 }) {
   const urgentCount = selectedInspections.filter((inspection) => inspection.urgent === "Yes").length;
   const urgentMaintenanceCount = maintenanceIssues.filter(
@@ -2318,7 +2954,7 @@ function LuxuryExperiencePanel({
       ? "The latest inspection has been completed and is ready for homeowner review."
       : "Complete an inspection to create the first homeowner summary.");
   const activeMaintenanceIssues = maintenanceIssues.filter((issue) => issue.status !== "Resolved").slice(0, 3);
-  const nextDashboardAction =
+  const baseDashboardAction =
     ownerAttentionCount > 0
       ? {
           label: "Review Priority Items",
@@ -2348,6 +2984,14 @@ function LuxuryExperiencePanel({
                 detail: "Begin the next home watch workflow when you arrive on site.",
                 screen: "Inspection" as ExperienceScreen
               };
+  const roleDashboardAction =
+    activeRole === "Homeowner"
+      ? {
+          label: "Review Owner Portal",
+          detail: "See current property condition, shared updates, and homeowner-ready report access.",
+          screen: "Owner Portal" as ExperienceScreen
+        }
+      : baseDashboardAction;
   const dashboardBriefing =
     ownerAttentionCount > 0
       ? "A priority item is active. Review the repair record, confirm vendor action, and share a concise homeowner update."
@@ -2402,6 +3046,19 @@ function LuxuryExperiencePanel({
   const nextArrivalTask = occupancyTasks.find((task) => task.type === "Pre-Guest Arrival");
   const nextCheckoutTask = occupancyTasks.find((task) => task.type === "Post-Checkout");
   const nextCleanerTask = occupancyTasks.find((task) => task.type === "Cleaner");
+  const roleOnboardingSteps = buildOnboardingSteps(activeRole, {
+    hasProperty: Boolean(selectedProperty),
+    hasInspection: selectedInspections.length > 0,
+    hasMaintenance: maintenanceIssues.length > 0,
+    hasSchedule: scheduleTasks.length > 0,
+    hasOwnerUpdate: ownerUpdates.some((update) => update.status === "Shared")
+  });
+  const onboardingComplete = roleOnboardingSteps.every((step) => step.complete);
+  const notifications = buildNotifications({
+    recentReport,
+    maintenanceIssues,
+    upcomingScheduleTasks
+  });
 
   function localDateTimeValue(daysFromNow: number, hour: number, minute = 0) {
     const date = new Date();
@@ -2613,8 +3270,38 @@ function LuxuryExperiencePanel({
         </div>
       ) : null}
 
+      {activeExperience === "Pilot Admin" && activeRole === "Admin" ? (
+        <PilotAdminConsole
+          pilotDatabase={pilotDatabase}
+          pilotUsageSummary={pilotUsageSummary}
+          feedbackItems={feedbackItems}
+          refreshPilotConsole={refreshPilotConsole}
+          toggleFeatureFlag={toggleFeatureFlag}
+          resetPilotAccount={resetPilotAccount}
+        />
+      ) : null}
+
       {activeExperience === "Dashboard" ? (
         <div className="grid gap-5">
+          <div className="grid gap-5 lg:grid-cols-[0.9fr_1.1fr]">
+            <OnboardingCard
+              role={activeRole}
+              steps={roleOnboardingSteps}
+              complete={onboardingComplete}
+              onComplete={() => {
+                trackAnalyticsEvent({
+                  name: "workflow_step",
+                  role: activeRole,
+                  screen: activeExperience,
+                  workflow: "onboarding",
+                  target: "onboarding_completed",
+                  demoMode: false
+                });
+              }}
+            />
+            <NotificationCenter notifications={notifications} />
+          </div>
+
           <div className="estate-panel rounded-lg p-5 xl:hidden">
             <div className="mb-4">
               <p className="mb-2 text-xs font-extrabold uppercase tracking-[0.12em] text-clay">
@@ -2664,11 +3351,11 @@ function LuxuryExperiencePanel({
               <span className="text-xs font-extrabold uppercase tracking-[0.1em] text-clay">
                 Recommended next
               </span>
-              <h3 className="mt-2 text-xl font-extrabold text-ink">{nextDashboardAction.label}</h3>
-              <p className="mt-2 text-sm leading-6 text-slate-600">{nextDashboardAction.detail}</p>
+              <h3 className="mt-2 text-xl font-extrabold text-ink">{roleDashboardAction.label}</h3>
+              <p className="mt-2 text-sm leading-6 text-slate-600">{roleDashboardAction.detail}</p>
               <button
                 type="button"
-                onClick={() => setActiveExperience(nextDashboardAction.screen)}
+                onClick={() => setActiveExperience(roleDashboardAction.screen)}
                 className="button-primary mt-4 min-h-11 w-full rounded-lg px-4 text-sm font-extrabold"
               >
                 Continue
@@ -2778,11 +3465,11 @@ function LuxuryExperiencePanel({
             </div>
           </div>
           <div className="hidden gap-5 xl:grid lg:grid-cols-[0.8fr_1.2fr]">
-            <ConceptCard eyebrow="Recommended next" title={nextDashboardAction.label}>
-              <p className="text-sm leading-6 text-slate-600">{nextDashboardAction.detail}</p>
+            <ConceptCard eyebrow="Recommended next" title={roleDashboardAction.label}>
+              <p className="text-sm leading-6 text-slate-600">{roleDashboardAction.detail}</p>
               <button
                 type="button"
-                onClick={() => setActiveExperience(nextDashboardAction.screen)}
+                onClick={() => setActiveExperience(roleDashboardAction.screen)}
                 className="button-primary mt-4 min-h-11 rounded-lg px-5 text-sm font-extrabold"
               >
                 Continue
@@ -3529,25 +4216,26 @@ function LuxuryExperiencePanel({
             </ConceptCard>
           </div>
 
-          <div className="grid gap-5 lg:grid-cols-[0.9fr_1.1fr]">
-            <ConceptCard eyebrow="Owner update" title="Create homeowner-facing note">
-              <div className="mb-4 grid gap-3 sm:grid-cols-2">
-                <button
-                  type="button"
-                  onClick={draftLatestInspectionOwnerUpdate}
-                  className="button-soft min-h-11 rounded-lg px-4 text-sm font-extrabold"
-                >
-                  Draft Inspection Update
-                </button>
-                <button
-                  type="button"
-                  onClick={draftMaintenanceOwnerUpdate}
-                  className="button-soft min-h-11 rounded-lg px-4 text-sm font-extrabold"
-                >
-                  Draft Maintenance Update
-                </button>
-              </div>
-              <form id="owner-update-form" className="grid gap-3" onSubmit={saveOwnerUpdate}>
+          <div className={`grid gap-5 ${activeRole === "Homeowner" ? "" : "lg:grid-cols-[0.9fr_1.1fr]"}`}>
+            {activeRole !== "Homeowner" ? (
+              <ConceptCard eyebrow="Owner update" title="Create homeowner-facing note">
+                <div className="mb-4 grid gap-3 sm:grid-cols-2">
+                  <button
+                    type="button"
+                    onClick={draftLatestInspectionOwnerUpdate}
+                    className="button-soft min-h-11 rounded-lg px-4 text-sm font-extrabold"
+                  >
+                    Draft Inspection Update
+                  </button>
+                  <button
+                    type="button"
+                    onClick={draftMaintenanceOwnerUpdate}
+                    className="button-soft min-h-11 rounded-lg px-4 text-sm font-extrabold"
+                  >
+                    Draft Maintenance Update
+                  </button>
+                </div>
+                <form id="owner-update-form" className="grid gap-3" onSubmit={saveOwnerUpdate}>
                 <div className="grid gap-3 sm:grid-cols-2">
                   <label className="grid gap-2 text-sm font-extrabold">
                     Category
@@ -3616,8 +4304,9 @@ function LuxuryExperiencePanel({
                 >
                   {isSavingOwnerUpdate ? "Saving..." : "Save Owner Update"}
                 </button>
-              </form>
-            </ConceptCard>
+                </form>
+              </ConceptCard>
+            ) : null}
 
             <ConceptCard eyebrow="Homeowner view" title="Shared service record">
               <div className="grid gap-3">
@@ -3629,26 +4318,28 @@ function LuxuryExperiencePanel({
                       No updates have been shared with the homeowner yet. Draft a polished first update, review the
                       wording, then change visibility to Shared when it is ready.
                     </p>
-                    <div className="mt-4 grid gap-2 sm:grid-cols-2">
-                      <button
-                        type="button"
-                        onClick={draftLatestInspectionOwnerUpdate}
-                        className="button-soft min-h-10 rounded-lg px-4 text-sm font-extrabold"
-                      >
-                        Draft Inspection Update
-                      </button>
-                      <button
-                        type="button"
-                        onClick={draftMaintenanceOwnerUpdate}
-                        className="button-soft min-h-10 rounded-lg px-4 text-sm font-extrabold"
-                      >
-                        Draft Maintenance Update
-                      </button>
-                    </div>
+                    {activeRole !== "Homeowner" ? (
+                      <div className="mt-4 grid gap-2 sm:grid-cols-2">
+                        <button
+                          type="button"
+                          onClick={draftLatestInspectionOwnerUpdate}
+                          className="button-soft min-h-10 rounded-lg px-4 text-sm font-extrabold"
+                        >
+                          Draft Inspection Update
+                        </button>
+                        <button
+                          type="button"
+                          onClick={draftMaintenanceOwnerUpdate}
+                          className="button-soft min-h-10 rounded-lg px-4 text-sm font-extrabold"
+                        >
+                          Draft Maintenance Update
+                        </button>
+                      </div>
+                    ) : null}
                   </div>
                 )}
               </div>
-              {internalOwnerUpdates.length ? (
+              {activeRole !== "Homeowner" && internalOwnerUpdates.length ? (
                 <div className="mt-5 rounded-lg border border-line bg-[#fbfcfb] p-4">
                   <span className="block text-xs font-extrabold uppercase tracking-[0.1em] text-clay">
                     Internal queue
@@ -3672,8 +4363,509 @@ function LuxuryExperiencePanel({
           </div>
         </div>
       ) : null}
+
+      {["Inspection", "Reports", "Maintenance", "Owner Portal", "Dashboard"].includes(activeExperience) ? (
+        <FeedbackPanel
+          form={feedbackForm}
+          message={feedbackMessage}
+          isSaving={isSavingFeedback}
+          setForm={setFeedbackForm}
+          saveFeedback={saveFeedback}
+        />
+      ) : null}
     </section>
   );
+}
+
+function PilotAdminConsole({
+  pilotDatabase,
+  pilotUsageSummary,
+  feedbackItems,
+  refreshPilotConsole,
+  toggleFeatureFlag,
+  resetPilotAccount
+}: {
+  pilotDatabase: PilotDatabase | null;
+  pilotUsageSummary: PilotUsageSummary | null;
+  feedbackItems: FeedbackRecord[];
+  refreshPilotConsole: () => void;
+  toggleFeatureFlag: (featureId: string) => void;
+  resetPilotAccount: (organizationId: string) => void;
+}) {
+  const organizations = pilotDatabase?.organizations ?? [];
+  const users = pilotDatabase?.users ?? [];
+  const flags = pilotDatabase?.featureFlags ?? [];
+
+  return (
+    <div className="grid gap-5">
+      <div className="estate-panel rounded-lg p-5">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <p className="mb-2 text-xs font-extrabold uppercase tracking-[0.12em] text-clay">
+              Internal admin
+            </p>
+            <h2 className="text-3xl font-extrabold text-ink">Pilot customer console</h2>
+            <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
+              Monitor pilot accounts, usage, feedback, feature flags, and system readiness without exposing real
+              homeowner data during demos.
+            </p>
+          </div>
+          <button type="button" onClick={refreshPilotConsole} className="button-soft min-h-11 rounded-lg px-4 text-sm font-extrabold">
+            Refresh
+          </button>
+        </div>
+        <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <MetricCard label="Pilot orgs" value={`${organizations.length}`} detail="Accounts configured" />
+          <MetricCard label="Users" value={`${users.length}`} detail="Pilot seats" />
+          <MetricCard label="Sessions" value={`${pilotUsageSummary?.uniqueSessions ?? 0}`} detail="Tracked browsers" />
+          <MetricCard label="Feedback" value={`${feedbackItems.length}`} detail="Validation notes" urgent={feedbackItems.length > 0} />
+        </div>
+      </div>
+
+      <div className="grid gap-5 xl:grid-cols-[1fr_1fr]">
+        <ConceptCard eyebrow="Product analytics" title="Usage signals">
+          <div className="grid gap-3 sm:grid-cols-2">
+            <MetricCard label="Logins" value={`${pilotUsageSummary?.loginFrequency ?? 0}`} detail="Role sign-ins" />
+            <MetricCard label="Inspections" value={`${pilotUsageSummary?.inspectionsCompleted ?? 0}`} detail="Reports created" />
+            <MetricCard label="Reports viewed" value={`${pilotUsageSummary?.reportsViewed ?? 0}`} detail="Web/PDF actions" />
+            <MetricCard label="Photos" value={`${pilotUsageSummary?.photosUploaded ?? 0}`} detail="Uploaded in workflows" />
+            <MetricCard label="Mobile" value={`${pilotUsageSummary?.mobileEvents ?? 0}`} detail="Mobile events" />
+            <MetricCard label="Desktop" value={`${pilotUsageSummary?.desktopEvents ?? 0}`} detail="Desktop events" />
+          </div>
+          <div className="mt-4 grid gap-3 md:grid-cols-2">
+            <RankedList title="Most-used features" items={pilotUsageSummary?.mostUsedFeatures ?? []} empty="No usage yet." />
+            <RankedList title="Drop-off points" items={pilotUsageSummary?.dropOffPoints ?? []} empty="No stuck signals yet." />
+          </div>
+        </ConceptCard>
+
+        <ConceptCard eyebrow="Pilot customers" title="Organizations and users">
+          <div className="grid gap-3">
+            {organizations.map((organization) => (
+              <div key={organization.id} className="rounded-lg border border-line bg-white p-4">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <strong className="block text-ink">{organization.name}</strong>
+                    <span className="mt-1 block text-sm text-slate-600">
+                      {organization.contactName} / expires {formatDateTime(organization.expiresAt)}
+                    </span>
+                  </div>
+                  <span className="rounded-full border border-line bg-[#fbfcfb] px-3 py-1 text-xs font-extrabold text-slate-600">
+                    {organization.status}
+                  </span>
+                </div>
+                <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                  <button
+                    type="button"
+                    onClick={() => resetPilotAccount(organization.id)}
+                    className="button-soft min-h-10 rounded-lg px-4 text-sm font-extrabold"
+                  >
+                    Reset Account
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => window.alert("Pilot impersonation is audit-only in this MVP. Use demo role buttons for safe walkthroughs.")}
+                    className="min-h-10 rounded-lg border border-line bg-white px-4 text-sm font-extrabold text-ink"
+                  >
+                    Safe Impersonation
+                  </button>
+                </div>
+              </div>
+            ))}
+            <div className="rounded-lg border border-line bg-[#fbfcfb] p-4">
+              <span className="block text-xs font-extrabold uppercase tracking-[0.08em] text-clay">Pilot users</span>
+              <div className="mt-3 grid gap-2">
+                {users.map((user) => (
+                  <div key={user.id} className="flex items-center justify-between gap-3 rounded-lg border border-line bg-white p-3">
+                    <div>
+                      <strong className="block text-sm text-ink">{user.name}</strong>
+                      <span className="text-xs font-semibold text-slate-500">{user.email}</span>
+                    </div>
+                    <span className="rounded-full bg-[#e7eee9] px-3 py-1 text-xs font-extrabold text-sage-dark">
+                      {user.role}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </ConceptCard>
+      </div>
+
+      <div className="grid gap-5 xl:grid-cols-[0.9fr_1.1fr]">
+        <ConceptCard eyebrow="Feature flags" title="Controlled pilot features">
+          <div className="grid gap-3">
+            {flags.map((flag) => (
+              <button
+                key={flag.id}
+                type="button"
+                onClick={() => toggleFeatureFlag(flag.id)}
+                className="grid gap-2 rounded-lg border border-line bg-white p-4 text-left transition hover:border-sage"
+              >
+                <span className="flex items-start justify-between gap-3">
+                  <strong className="text-ink">{flag.label}</strong>
+                  <span className={`rounded-full px-3 py-1 text-xs font-extrabold ${flag.enabled ? "bg-[#e7eee9] text-sage-dark" : "bg-slate-100 text-slate-500"}`}>
+                    {flag.enabled ? "On" : "Off"}
+                  </span>
+                </span>
+                <span className="text-sm leading-6 text-slate-600">{flag.description}</span>
+              </button>
+            ))}
+          </div>
+        </ConceptCard>
+
+        <ConceptCard eyebrow="Customer validation" title="Latest feedback">
+          <div className="grid gap-3">
+            {feedbackItems.length ? (
+              feedbackItems.slice(0, 6).map((item) => (
+                <div key={item.id} className="rounded-lg border border-line bg-white p-4">
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div>
+                      <strong className="text-ink">{item.type}</strong>
+                      <span className="ml-2 text-sm font-semibold text-slate-500">{item.role} / {item.screen}</span>
+                    </div>
+                    <span className="rounded-full border border-line bg-[#fbfcfb] px-3 py-1 text-xs font-extrabold text-slate-600">
+                      {item.sentiment}
+                    </span>
+                  </div>
+                  <p className="mt-2 text-sm leading-6 text-slate-700">{item.message}</p>
+                </div>
+              ))
+            ) : (
+              <div className="rounded-lg border border-line bg-white p-4 text-sm text-slate-600">
+                No pilot feedback has been captured yet.
+              </div>
+            )}
+          </div>
+        </ConceptCard>
+      </div>
+    </div>
+  );
+}
+
+function OnboardingCard({
+  role,
+  steps,
+  complete,
+  onComplete
+}: {
+  role: AppRole;
+  steps: Array<{ label: string; detail: string; complete: boolean }>;
+  complete: boolean;
+  onComplete: () => void;
+}) {
+  return (
+    <ConceptCard eyebrow="Pilot onboarding" title={`${role} setup checklist`}>
+      <div className="grid gap-3">
+        {steps.map((step) => (
+          <div key={step.label} className="grid grid-cols-[28px_minmax(0,1fr)] gap-3 rounded-lg border border-line bg-white p-3">
+            <span className={`grid h-7 w-7 place-items-center rounded-full text-xs font-black ${step.complete ? "bg-sage text-white" : "bg-[#f4f1ea] text-clay"}`}>
+              {step.complete ? "OK" : "-"}
+            </span>
+            <span>
+              <strong className="block text-sm text-ink">{step.label}</strong>
+              <span className="mt-1 block text-sm leading-5 text-slate-600">{step.detail}</span>
+            </span>
+          </div>
+        ))}
+      </div>
+      <button
+        type="button"
+        onClick={onComplete}
+        disabled={!complete}
+        className="button-primary mt-4 min-h-11 rounded-lg px-4 text-sm font-extrabold disabled:cursor-not-allowed disabled:opacity-60"
+      >
+        {complete ? "Mark Onboarding Complete" : "Complete Checklist First"}
+      </button>
+    </ConceptCard>
+  );
+}
+
+function NotificationCenter({ notifications }: { notifications: Array<{ title: string; detail: string; tone: "normal" | "urgent" }> }) {
+  return (
+    <ConceptCard eyebrow="Notifications" title="Operational alerts">
+      <div className="grid gap-3">
+        {notifications.length ? (
+          notifications.map((notification) => (
+            <div
+              key={`${notification.title}-${notification.detail}`}
+              className={`rounded-lg border p-4 ${
+                notification.tone === "urgent" ? "border-[#e7cbc4] bg-[#fff8f6]" : "border-line bg-white"
+              }`}
+            >
+              <strong className={notification.tone === "urgent" ? "text-[#9f352e]" : "text-ink"}>
+                {notification.title}
+              </strong>
+              <p className="mt-1 text-sm leading-6 text-slate-600">{notification.detail}</p>
+            </div>
+          ))
+        ) : (
+          <div className="rounded-lg border border-line bg-white p-4 text-sm text-slate-600">
+            No active notifications. The property workflow is clear.
+          </div>
+        )}
+      </div>
+    </ConceptCard>
+  );
+}
+
+function FeedbackPanel({
+  form,
+  message,
+  isSaving,
+  setForm,
+  saveFeedback
+}: {
+  form: FeedbackForm;
+  message: string;
+  isSaving: boolean;
+  setForm: Dispatch<SetStateAction<FeedbackForm>>;
+  saveFeedback: (event?: FormEvent<HTMLFormElement>, quickType?: FeedbackType, quickSentiment?: FeedbackSentiment) => void;
+}) {
+  return (
+    <ConceptCard eyebrow="Pilot feedback" title="Help improve EstateIQ">
+      <div className="mb-4 flex flex-wrap gap-2">
+        <button
+          type="button"
+          onClick={() => saveFeedback(undefined, "Thumbs Up", "Positive")}
+          className="button-soft min-h-10 rounded-lg px-4 text-sm font-extrabold"
+        >
+          Thumbs Up
+        </button>
+        <button
+          type="button"
+          onClick={() => saveFeedback(undefined, "Thumbs Down", "Negative")}
+          className="button-soft min-h-10 rounded-lg px-4 text-sm font-extrabold"
+        >
+          Thumbs Down
+        </button>
+      </div>
+      <form className="grid gap-3" onSubmit={(event) => saveFeedback(event)}>
+        <div className="grid gap-3 sm:grid-cols-3">
+          <label className="grid gap-2 text-sm font-extrabold">
+            Type
+            <select
+              value={form.type}
+              onChange={(event) => setForm((current) => ({ ...current, type: event.target.value as FeedbackType }))}
+              className="field-shell rounded-lg p-3"
+            >
+              {(["Feature Request", "Bug Report", "Post Inspection", "Homeowner Satisfaction"] as FeedbackType[]).map((type) => (
+                <option key={type}>{type}</option>
+              ))}
+            </select>
+          </label>
+          <label className="grid gap-2 text-sm font-extrabold">
+            Sentiment
+            <select
+              value={form.sentiment}
+              onChange={(event) => setForm((current) => ({ ...current, sentiment: event.target.value as FeedbackSentiment }))}
+              className="field-shell rounded-lg p-3"
+            >
+              {(["Positive", "Neutral", "Negative"] as FeedbackSentiment[]).map((sentiment) => (
+                <option key={sentiment}>{sentiment}</option>
+              ))}
+            </select>
+          </label>
+          <label className="grid gap-2 text-sm font-extrabold">
+            Rating
+            <select
+              value={form.rating}
+              onChange={(event) => setForm((current) => ({ ...current, rating: event.target.value }))}
+              className="field-shell rounded-lg p-3"
+            >
+              <option value="">Optional</option>
+              {[5, 4, 3, 2, 1].map((rating) => (
+                <option key={rating} value={rating}>{rating}</option>
+              ))}
+            </select>
+          </label>
+        </div>
+        <label className="grid gap-2 text-sm font-extrabold">
+          Note
+          <textarea
+            rows={3}
+            value={form.message}
+            onChange={(event) => setForm((current) => ({ ...current, message: event.target.value }))}
+            className="field-shell rounded-lg p-3"
+            placeholder="What felt useful, confusing, missing, or important during this workflow?"
+          />
+        </label>
+        <label className="grid gap-2 text-sm font-extrabold">
+          Email for follow-up
+          <input
+            type="email"
+            value={form.email}
+            onChange={(event) => setForm((current) => ({ ...current, email: event.target.value }))}
+            className="field-shell rounded-lg p-3"
+            placeholder="Optional"
+          />
+        </label>
+        {message ? <p className="rounded-lg border border-line bg-white p-3 text-sm font-semibold text-slate-600">{message}</p> : null}
+        <button
+          type="submit"
+          disabled={isSaving}
+          className="button-primary min-h-11 rounded-lg px-4 text-sm font-extrabold disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          {isSaving ? "Saving..." : "Send Feedback"}
+        </button>
+      </form>
+    </ConceptCard>
+  );
+}
+
+function RankedList({
+  title,
+  items,
+  empty
+}: {
+  title: string;
+  items: Array<{ label: string; count: number }>;
+  empty: string;
+}) {
+  return (
+    <div className="rounded-lg border border-line bg-[#fbfcfb] p-4">
+      <strong className="block text-sm text-ink">{title}</strong>
+      <div className="mt-3 grid gap-2">
+        {items.length ? (
+          items.map((item) => (
+            <div key={item.label} className="flex items-center justify-between gap-3 rounded-lg bg-white px-3 py-2 text-sm">
+              <span className="font-semibold text-slate-700">{item.label}</span>
+              <span className="font-black text-ink">{item.count}</span>
+            </div>
+          ))
+        ) : (
+          <span className="text-sm text-slate-600">{empty}</span>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function buildOnboardingSteps(
+  role: AppRole,
+  state: {
+    hasProperty: boolean;
+    hasInspection: boolean;
+    hasMaintenance: boolean;
+    hasSchedule: boolean;
+    hasOwnerUpdate: boolean;
+  }
+) {
+  if (role === "Homeowner") {
+    return [
+      {
+        label: "Review property status",
+        detail: "Confirm the owner portal clearly shows the current property condition.",
+        complete: state.hasProperty
+      },
+      {
+        label: "Open latest report",
+        detail: "Validate that the homeowner can access the most recent report.",
+        complete: state.hasInspection
+      },
+      {
+        label: "Review shared updates",
+        detail: "Confirm owner-facing updates feel clear, calm, and concierge-grade.",
+        complete: state.hasOwnerUpdate
+      }
+    ];
+  }
+
+  if (role === "Inspector") {
+    return [
+      {
+        label: "Confirm assigned property",
+        detail: "Select the correct property before starting field work.",
+        complete: state.hasProperty
+      },
+      {
+        label: "Complete first inspection",
+        detail: "Run checklist, add photos, and generate the first report.",
+        complete: state.hasInspection
+      },
+      {
+        label: "Document field issue",
+        detail: "Create a maintenance record when a repair item is observed.",
+        complete: state.hasMaintenance
+      }
+    ];
+  }
+
+  return [
+    {
+      label: "Set up pilot property",
+      detail: "Verify the sample or pilot residence profile is ready.",
+      complete: state.hasProperty
+    },
+    {
+      label: "Create inspection record",
+      detail: "Confirm the core report workflow works end to end.",
+      complete: state.hasInspection
+    },
+    {
+      label: "Schedule next visit",
+      detail: "Add the next inspection, vendor visit, or guest-readiness task.",
+      complete: state.hasSchedule
+    },
+    {
+      label: "Share owner update",
+      detail: "Draft and share one concise homeowner-facing update.",
+      complete: state.hasOwnerUpdate
+    }
+  ];
+}
+
+function buildNotifications({
+  recentReport,
+  maintenanceIssues,
+  upcomingScheduleTasks
+}: {
+  recentReport: Inspection | undefined;
+  maintenanceIssues: MaintenanceIssue[];
+  upcomingScheduleTasks: ScheduleTask[];
+}) {
+  const urgentIssues = maintenanceIssues.filter(
+    (issue) => issue.priority === "Urgent" && issue.status !== "Resolved"
+  );
+  const openIssues = maintenanceIssues.filter((issue) => issue.status !== "Resolved");
+  const upcoming = upcomingScheduleTasks[0];
+  const notifications: Array<{ title: string; detail: string; tone: "normal" | "urgent" }> = [];
+
+  if (recentReport) {
+    notifications.push({
+      title: "Inspection completed",
+      detail: `${getInspectionType(recentReport.checklist)} is ready for review.`,
+      tone: recentReport.urgent === "Yes" ? "urgent" : "normal"
+    });
+    notifications.push({
+      title: "Report ready",
+      detail: "A homeowner-ready web and PDF report is available.",
+      tone: "normal"
+    });
+  }
+
+  if (urgentIssues.length) {
+    notifications.push({
+      title: "Urgent maintenance alert",
+      detail: `${urgentIssues.length} urgent item${urgentIssues.length === 1 ? "" : "s"} require review.`,
+      tone: "urgent"
+    });
+  } else if (openIssues.length) {
+    notifications.push({
+      title: "Issue detected",
+      detail: `${openIssues.length} open maintenance item${openIssues.length === 1 ? "" : "s"} are being tracked.`,
+      tone: "normal"
+    });
+  }
+
+  if (upcoming) {
+    notifications.push({
+      title: "Upcoming inspection reminder",
+      detail: `${upcoming.type} is scheduled for ${formatDateTime(upcoming.scheduledFor)}.`,
+      tone: "normal"
+    });
+  }
+
+  return notifications.slice(0, 4);
 }
 
 function ConceptCard({

@@ -1,5 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from "next";
-import { addProperty, deleteProperty, readDatabase } from "@/lib/db";
+import { addProperty, deleteProperty, readDatabase } from "@/services/database";
 
 export default async function handler(request: NextApiRequest, response: NextApiResponse) {
   if (request.method === "GET") {

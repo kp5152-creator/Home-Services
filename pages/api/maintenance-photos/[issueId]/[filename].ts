@@ -1,6 +1,6 @@
 import path from "path";
 import type { NextApiRequest, NextApiResponse } from "next";
-import { readMaintenancePhotoAsset } from "@/lib/db";
+import { readMaintenancePhotoAsset } from "@/services/database";
 
 const allowedExtensions = new Set([".jpg", ".jpeg", ".png", ".webp"]);
 

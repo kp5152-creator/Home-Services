@@ -1,7 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from "next";
-import { defaultInspectionType, withInspectionType } from "@/lib/checklists";
-import { addInspection } from "@/lib/db";
-import type { UrgentStatus } from "@/lib/types";
+import { defaultInspectionType, withInspectionType } from "@/utils/checklists";
+import { addInspection } from "@/services/database";
+import type { UrgentStatus } from "@/utils/types";
 
 export const config = {
   api: {

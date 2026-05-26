@@ -1,0 +1,15 @@
+[
+  {
+    "id": "event-1779764709297-q2e7n8",
+    "timestamp": "2026-05-26T03:05:08.643Z",
+    "sessionId": "a1391ee4-647b-4225-8919-0ff9d1349680",
+    "name": "screen_view",
+    "role": "Admin",
+    "screen": "Login",
+    "demoMode": false,
+    "metadata": {
+      "hasProperty": true,
+      "deviceType": "desktop"
+    }
+  }
+]

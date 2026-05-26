@@ -1,6 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from "next";
-import { addVendorContact } from "@/lib/db";
-import type { VendorType } from "@/lib/types";
+import { addVendorContact } from "@/services/database";
+import type { VendorType } from "@/utils/types";
 
 const vendorTypes: VendorType[] = [
   "Pool",

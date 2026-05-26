@@ -1,6 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from "next";
-import { addMaintenanceIssue, updateMaintenanceIssue } from "@/lib/db";
-import type { MaintenancePriority, MaintenanceStatus } from "@/lib/types";
+import { addMaintenanceIssue, updateMaintenanceIssue } from "@/services/database";
+import type { MaintenancePriority, MaintenanceStatus } from "@/utils/types";
 
 const priorities: MaintenancePriority[] = ["Low", "Medium", "High", "Urgent"];
 const statuses: MaintenanceStatus[] = ["Open", "Scheduled", "In Progress", "Resolved"];

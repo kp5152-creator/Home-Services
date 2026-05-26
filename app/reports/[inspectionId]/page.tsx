@@ -1,7 +1,9 @@
 import { notFound } from "next/navigation";
 import ReportPageActions from "@/components/ReportPageActions";
-import { getInspectionType, groupChecklistItems, visibleChecklistItems } from "@/lib/checklists";
-import { readDatabase } from "@/lib/db";
+import { Panel, SectionHeading, StatCard } from "@/components/ui";
+import { getInspectionType, groupChecklistItems, visibleChecklistItems } from "@/utils/checklists";
+import { readDatabase } from "@/services/database";
+import { demoDatabase } from "@/reports/demoData";
 
 export const dynamic = "force-dynamic";
 
@@ -22,8 +24,12 @@ export default async function ReportPage({
 }) {
   const { inspectionId } = await params;
   const database = await readDatabase();
-  const inspection = database.inspections.find((item) => item.id === inspectionId);
-  const property = database.properties.find((item) => item.id === inspection?.propertyId);
+  const inspection =
+    database.inspections.find((item) => item.id === inspectionId) ??
+    demoDatabase.inspections.find((item) => item.id === inspectionId);
+  const property =
+    database.properties.find((item) => item.id === inspection?.propertyId) ??
+    demoDatabase.properties.find((item) => item.id === inspection?.propertyId);
 
   if (!inspection || !property) {
     notFound();
@@ -33,22 +39,19 @@ export default async function ReportPage({
 
   return (
     <main className="mx-auto min-h-screen max-w-4xl bg-white px-5 py-6 text-ink sm:px-8 print:p-0">
-      <section className="no-print mb-6 rounded-lg border border-line bg-paper p-4">
+      <Panel tone="paper" className="no-print mb-6 p-4">
         <ReportPageActions pdfUrl={`/api/reports/${inspection.id}`} />
-      </section>
+      </Panel>
 
       <article className="rounded-lg border border-line p-6 print:border-0 print:p-0">
-        <p className="mb-2 text-xs font-extrabold uppercase tracking-[0.1em] text-clay">
-          EstateIQ
-        </p>
-        <h1 className="text-3xl font-extrabold">EstateIQ Homeowner Packet</h1>
-        <p className="mt-2 text-slate-600">
-          {property.name} / {property.owner}
-        </p>
-        <p className="text-slate-600">{property.address}</p>
+        <SectionHeading
+          eyebrow="EstateIQ"
+          title="EstateIQ Homeowner Packet"
+          description={`${property.name} / ${property.owner} · ${property.address}`}
+        />
 
-        <section
-          className={`mt-6 rounded-lg border p-4 ${
+        <Panel
+          className={`mt-6 border p-4 ${
             status.tone === "urgent"
               ? "border-[#e7cbc4] bg-[#fff8f6] text-[#9f352e]"
               : "border-[#c9ddd1] bg-[#f3f8f4] text-sage-dark"
@@ -57,21 +60,25 @@ export default async function ReportPage({
           <span className="block text-xs font-extrabold uppercase tracking-[0.1em]">Property Status</span>
           <strong className="mt-2 block text-xl">{status.label}</strong>
           <p className="mt-2 text-sm leading-6">{status.description}</p>
-        </section>
+        </Panel>
 
         <div className="mt-6 grid gap-3 border-y border-line py-4 sm:grid-cols-2">
-          <ReportField label="Date" value={formatDateTime(inspection.timestamp)} />
-          <ReportField label="Inspection Type" value={getInspectionType(inspection.checklist)} />
-          <ReportField label="Inspector" value={inspection.inspectorName} />
-          <ReportField label="Interior Temperature" value={`${inspection.interiorTemperature} F`} />
-          <ReportField label="Urgent Issue" value={inspection.urgent} urgent={inspection.urgent === "Yes"} />
+          <StatCard label="Date" value={formatDateTime(inspection.timestamp)} />
+          <StatCard label="Inspection Type" value={getInspectionType(inspection.checklist)} />
+          <StatCard label="Inspector" value={inspection.inspectorName} />
+          <StatCard label="Interior Temperature" value={`${inspection.interiorTemperature} F`} />
+          <StatCard
+            label="Urgent Issue"
+            value={inspection.urgent}
+            className={inspection.urgent === "Yes" ? "border-[#e7cbc4] bg-[#fff8f6]" : undefined}
+          />
         </div>
 
         {inspection.executiveSummary ? (
-          <section className="mt-6 rounded-lg border border-line bg-[#fbfcfb] p-4">
+          <Panel tone="paper" className="mt-6 p-4">
             <h2 className="mb-3 text-sm font-extrabold uppercase">Executive Summary</h2>
             <p className="leading-7">{inspection.executiveSummary}</p>
-          </section>
+          </Panel>
         ) : null}
 
         <section className="mt-6">
@@ -118,23 +125,6 @@ export default async function ReportPage({
         ) : null}
       </article>
     </main>
-  );
-}
-
-function ReportField({
-  label,
-  value,
-  urgent = false
-}: {
-  label: string;
-  value: string;
-  urgent?: boolean;
-}) {
-  return (
-    <div>
-      <span className="block text-xs font-extrabold uppercase text-slate-500">{label}</span>
-      <strong className={urgent ? "text-[#b93f35]" : ""}>{value}</strong>
-    </div>
   );
 }
 
