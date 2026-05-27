@@ -390,6 +390,7 @@ export default function InspectionWorkspace({
   const [suggestedSummary, setSuggestedSummary] = useState("");
   const [suggestedSummaryMessage, setSuggestedSummaryMessage] = useState("");
   const [inspectionSaveMessage, setInspectionSaveMessage] = useState("");
+  const [isSavingInspection, setIsSavingInspection] = useState(false);
   const [propertySaveMessage, setPropertySaveMessage] = useState("");
   const [isSavingProperty, setIsSavingProperty] = useState(false);
   const [maintenanceRecommendation, setMaintenanceRecommendation] = useState<MaintenanceRecommendation | null>(null);
@@ -505,10 +506,17 @@ export default function InspectionWorkspace({
     100,
     Math.round((inspectionForm.checklist.length / Math.max(1, inspectionTotalChecks)) * 100)
   );
-  const inspectionReady =
-    Boolean(inspectionForm.inspectorName.trim()) &&
-    Boolean(inspectionForm.interiorTemperature.trim()) &&
-    inspectionForm.checklist.length > 0;
+  const inspectionTemperature = Number(inspectionForm.interiorTemperature);
+  const inspectionReadyMessage = !inspectionForm.inspectorName.trim()
+    ? "Add inspector name to generate the homeowner report."
+    : !inspectionForm.interiorTemperature.trim()
+      ? "Add interior temperature to generate the homeowner report."
+      : !Number.isFinite(inspectionTemperature) || inspectionTemperature < 40 || inspectionTemperature > 120
+        ? "Enter a realistic interior temperature to generate the homeowner report."
+        : !inspectionForm.checklist.length
+          ? "Select at least one checklist item to generate the homeowner report."
+          : "";
+  const inspectionReady = !inspectionReadyMessage;
   const allInspectionChecklistItems = activeInspectionTemplate.sections.flatMap((section) => section.items);
 
   function draftOwnerUpdateFromReport(inspection: Inspection) {
@@ -657,6 +665,7 @@ export default function InspectionWorkspace({
       return;
     }
 
+    setIsSavingInspection(true);
     setInspectionSaveMessage("Preparing homeowner report...");
     trackAnalyticsEvent({
       name: "workflow_step",
@@ -678,6 +687,7 @@ export default function InspectionWorkspace({
       photos = await Promise.all(inspectionForm.photoFiles.map(fileToPhotoUpload));
     } catch {
       setInspectionSaveMessage("One or more photos could not be processed. Please try JPEG or PNG photos.");
+      setIsSavingInspection(false);
       return;
     }
 
@@ -699,7 +709,9 @@ export default function InspectionWorkspace({
       setInspections((current) => [inspection, ...current]);
       setActiveReportId(inspection.id);
       setInspectionForm(emptyInspectionForm);
-      setInspectionSaveMessage("Demo report created locally. Real customer data was not changed.");
+      setActiveExperience("Reports");
+      setInspectionSaveMessage("Demo report created locally and opened in Reports.");
+      setIsSavingInspection(false);
       trackAnalyticsEvent({
         name: "workflow_step",
         role: activeRole,
@@ -712,10 +724,14 @@ export default function InspectionWorkspace({
       return;
     }
 
+    const saveController = new AbortController();
+    const saveTimeout = window.setTimeout(() => saveController.abort(), 30000);
+
     try {
       const response = await fetch("/api/inspections", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        signal: saveController.signal,
         body: JSON.stringify({
           ...inspectionForm,
           inspectorName,
@@ -736,7 +752,8 @@ export default function InspectionWorkspace({
       setInspections((current) => [inspection, ...current]);
       setActiveReportId(inspection.id);
       setInspectionForm(emptyInspectionForm);
-      setInspectionSaveMessage("Homeowner report generated and saved.");
+      setActiveExperience("Reports");
+      setInspectionSaveMessage("Homeowner report generated and opened in Reports.");
       trackAnalyticsEvent({
         name: "workflow_step",
         role: activeRole,
@@ -746,8 +763,16 @@ export default function InspectionWorkspace({
         demoMode,
         metadata: { photoCount: inspection.photos.length, urgent: inspection.urgent === "Yes" }
       });
-    } catch {
-      setInspectionSaveMessage("Inspection report could not be saved. Check your connection and try again.");
+    } catch (error) {
+      const timedOut = error instanceof DOMException && error.name === "AbortError";
+      setInspectionSaveMessage(
+        timedOut
+          ? "Report generation took too long. Please try again."
+          : "Inspection report could not be saved. Check your connection and try again."
+      );
+    } finally {
+      window.clearTimeout(saveTimeout);
+      setIsSavingInspection(false);
     }
   }
 
@@ -2122,9 +2147,11 @@ export default function InspectionWorkspace({
                     {inspectionReady ? "Ready to generate homeowner report" : "Complete the essentials"}
                   </h3>
                   <p className="mt-2 text-sm leading-6 text-slate-600">
-                    {inspectionReady
-                      ? "Inspector, temperature, and checklist details are in place."
-                      : "Add inspector name, interior temperature, and at least one completed checklist item."}
+                    {isSavingInspection
+                      ? "Generating the homeowner report now. This usually takes a moment."
+                      : inspectionReady
+                        ? "Inspector, temperature, and checklist details are in place."
+                        : inspectionReadyMessage}
                   </p>
                   {inspectionSaveMessage ? (
                     <p className="mt-3 rounded-lg border border-line bg-white p-3 text-sm font-semibold text-slate-600">
@@ -2458,6 +2485,42 @@ export default function InspectionWorkspace({
                 </div>
               </div>
 
+              <div className="grid gap-3 rounded-lg border border-line bg-[#fbfcfb] p-4 xl:hidden">
+                <div>
+                  <p className="text-xs font-extrabold uppercase tracking-[0.1em] text-clay">
+                    Report status
+                  </p>
+                  <p className="mt-1 text-sm font-semibold text-slate-700">
+                    {isSavingInspection
+                      ? "Generating the homeowner report now."
+                      : inspectionReady
+                        ? "Ready to generate homeowner report."
+                        : inspectionReadyMessage}
+                  </p>
+                  {inspectionSaveMessage ? (
+                    <p className="mt-3 rounded-lg border border-line bg-white p-3 text-sm font-semibold text-slate-600">
+                      {inspectionSaveMessage}
+                    </p>
+                  ) : null}
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setInspectionForm(emptyInspectionForm)}
+                    className="button-soft min-h-11 rounded-lg px-5 font-extrabold"
+                  >
+                    Clear
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={!inspectionReady || isSavingInspection}
+                    className="button-primary min-h-11 rounded-lg px-5 font-extrabold disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {isSavingInspection ? "Generating..." : inspectionReady ? "Generate Report" : "Complete Required Fields"}
+                  </button>
+                </div>
+              </div>
+
               <div className="hidden flex-wrap justify-end gap-3 xl:flex">
                 <button
                   type="button"
@@ -2468,10 +2531,10 @@ export default function InspectionWorkspace({
                 </button>
                 <button
                   type="submit"
-                  disabled={!inspectionReady}
+                  disabled={!inspectionReady || isSavingInspection}
                   className="button-primary min-h-11 flex-1 rounded-lg px-5 font-extrabold disabled:cursor-not-allowed disabled:opacity-60 sm:flex-none"
                 >
-                  Generate Report
+                  {isSavingInspection ? "Generating..." : inspectionReady ? "Generate Report" : "Complete Required Fields"}
                 </button>
               </div>
             </form>
