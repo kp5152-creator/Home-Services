@@ -640,8 +640,8 @@ export default function InspectionWorkspace({
     await refreshPilotConsole();
   }
 
-  async function saveInspection(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
+  async function saveInspection(event?: FormEvent<HTMLFormElement>) {
+    event?.preventDefault();
     if (!selectedProperty) {
       setInspectionSaveMessage("Select or create a property before generating a report.");
       return;
@@ -649,18 +649,25 @@ export default function InspectionWorkspace({
 
     const inspectorName = inspectionForm.inspectorName.trim();
     const temperature = Number(inspectionForm.interiorTemperature);
+    const demoChecklist = inspectionForm.checklist.length
+      ? inspectionForm.checklist
+      : activeInspectionTemplate.sections.flatMap((section) => section.items).slice(0, 6);
+    const reportInspectorName = demoMode && !inspectorName ? "Demo Inspector" : inspectorName;
+    const reportTemperature =
+      demoMode && (!Number.isFinite(temperature) || temperature < 40 || temperature > 120) ? 76 : temperature;
+    const reportChecklist = demoMode ? demoChecklist : inspectionForm.checklist;
 
-    if (!inspectorName) {
+    if (!demoMode && !inspectorName) {
       setInspectionSaveMessage("Add the inspector name before generating the homeowner report.");
       return;
     }
 
-    if (!Number.isFinite(temperature) || temperature < 40 || temperature > 120) {
+    if (!demoMode && (!Number.isFinite(temperature) || temperature < 40 || temperature > 120)) {
       setInspectionSaveMessage("Enter a realistic interior temperature before generating the report.");
       return;
     }
 
-    if (!inspectionForm.checklist.length) {
+    if (!demoMode && !inspectionForm.checklist.length) {
       setInspectionSaveMessage("Complete at least one checklist item before generating the report.");
       return;
     }
@@ -697,9 +704,9 @@ export default function InspectionWorkspace({
         id: `demo-inspection-${Date.now()}`,
         propertyId: selectedProperty.id,
         timestamp: now,
-        inspectorName,
-        interiorTemperature: String(Math.round(temperature)),
-        checklist: withInspectionType(inspectionForm.checklist, inspectionForm.inspectionType),
+        inspectorName: reportInspectorName,
+        interiorTemperature: String(Math.round(reportTemperature)),
+        checklist: withInspectionType(reportChecklist, inspectionForm.inspectionType),
         executiveSummary: inspectionForm.executiveSummary,
         notes: inspectionForm.notes,
         urgent: inspectionForm.urgent,
@@ -735,8 +742,8 @@ export default function InspectionWorkspace({
         signal: saveController.signal,
         body: JSON.stringify({
           ...inspectionForm,
-          inspectorName,
-          interiorTemperature: String(Math.round(temperature)),
+          inspectorName: reportInspectorName,
+          interiorTemperature: String(Math.round(reportTemperature)),
           photoFiles: undefined,
           photos,
           propertyId: selectedProperty.id
@@ -2106,7 +2113,7 @@ export default function InspectionWorkspace({
             </div>
           </section>
 
-          <section className={`estate-panel no-print rounded-lg p-5 ${activeExperience === "Inspection" ? "" : "hidden"}`}>
+          <section className={`estate-panel no-print rounded-lg p-5 pb-28 xl:pb-5 ${activeExperience === "Inspection" ? "" : "hidden"}`}>
             <div className="mb-5 flex items-start justify-between gap-3">
               <div>
                 <p className="mb-2 text-xs font-extrabold uppercase tracking-[0.1em] text-clay">
@@ -2514,11 +2521,12 @@ export default function InspectionWorkspace({
                     Clear
                   </button>
                   <button
-                    type="submit"
-                    disabled={!inspectionReady || isSavingInspection}
+                    type="button"
+                    onClick={() => void saveInspection()}
+                    disabled={isSavingInspection}
                     className="button-primary min-h-11 rounded-lg px-5 font-extrabold disabled:cursor-not-allowed disabled:opacity-60"
                   >
-                    {isSavingInspection ? "Generating..." : inspectionReady ? "Generate Report" : "Complete Required Fields"}
+                    {isSavingInspection ? "Generating..." : "Generate Report"}
                   </button>
                 </div>
               </div>
@@ -2532,11 +2540,12 @@ export default function InspectionWorkspace({
                   Clear
                 </button>
                 <button
-                  type="submit"
-                  disabled={!inspectionReady || isSavingInspection}
+                  type="button"
+                  onClick={() => void saveInspection()}
+                  disabled={isSavingInspection}
                   className="button-primary min-h-11 flex-1 rounded-lg px-5 font-extrabold disabled:cursor-not-allowed disabled:opacity-60 sm:flex-none"
                 >
-                  {isSavingInspection ? "Generating..." : inspectionReady ? "Generate Report" : "Complete Required Fields"}
+                  {isSavingInspection ? "Generating..." : "Generate Report"}
                 </button>
               </div>
             </form>
