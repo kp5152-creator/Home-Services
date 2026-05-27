@@ -496,6 +496,10 @@ export default function InspectionWorkspace({
     selectedInspections.find((inspection) => inspection.id === activeReportId) ?? selectedInspections[0];
   const selectedReportAction =
     selectedInspections.find((inspection) => inspection.id === selectedReportActionId) ?? null;
+  const reportRouteId = (inspection: Inspection) =>
+    demoMode && inspection.id.startsWith("demo-inspection-") && !demoDatabase.inspections.some((item) => item.id === inspection.id)
+      ? demoDatabase.inspections[0]?.id ?? inspection.id
+      : inspection.id;
   const selectedNextScheduleTask = selectedScheduleTasks.find((task) => !["Complete", "Skipped"].includes(task.status));
   const activeInspectionTemplate = useMemo(
     () => getInspectionTemplate(inspectionForm.inspectionType),
@@ -2696,7 +2700,7 @@ export default function InspectionWorkspace({
               </p>
               <div className="mt-4 grid gap-2 sm:grid-cols-2">
                 <a
-                  href={`/reports/${selectedReportAction.id}`}
+                  href={`/reports/${reportRouteId(selectedReportAction)}`}
                   target="_blank"
                   rel="noreferrer"
                   className="button-primary grid min-h-11 place-items-center rounded-lg px-4 text-sm font-extrabold"
@@ -2704,7 +2708,7 @@ export default function InspectionWorkspace({
                   Open Web Report
                 </a>
                 <a
-                  href={`/api/reports/${selectedReportAction.id}`}
+                  href={`/api/reports/${reportRouteId(selectedReportAction)}`}
                   className="button-soft grid min-h-11 place-items-center rounded-lg px-4 text-sm font-extrabold"
                 >
                   Download PDF
