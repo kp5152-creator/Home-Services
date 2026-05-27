@@ -3145,7 +3145,6 @@ function LuxuryExperiencePanel({
   toggleFeatureFlag: (featureId: string) => void;
   resetPilotAccount: (organizationId: string) => void;
 }) {
-  const [showHomePropertyStatus, setShowHomePropertyStatus] = useState(false);
   const urgentCount = selectedInspections.filter((inspection) => inspection.urgent === "Yes").length;
   const urgentMaintenanceCount = maintenanceIssues.filter(
     (issue) => issue.priority === "Urgent" && issue.status !== "Resolved"
@@ -3519,22 +3518,6 @@ function LuxuryExperiencePanel({
           </div>
 
           <div className="estate-panel rounded-lg p-5 xl:hidden">
-            <div className="mb-4">
-              <p className="mb-2 text-xs font-extrabold uppercase tracking-[0.12em] text-clay">
-                Today
-              </p>
-              <button
-                type="button"
-                onClick={() => setShowHomePropertyStatus(true)}
-                className="block w-full text-left text-3xl font-extrabold leading-tight text-ink transition hover:text-sage-dark"
-              >
-                {selectedProperty?.name || "Select a property"}
-              </button>
-              <p className="mt-2 text-sm font-semibold text-slate-600">
-                {selectedProperty?.owner || "No homeowner selected"}
-              </p>
-            </div>
-
             <div className="mb-4">
               <div className="mb-2 flex items-center justify-between gap-3">
                 <span className="text-xs font-extrabold uppercase tracking-[0.1em] text-clay">
@@ -4591,51 +4574,6 @@ function LuxuryExperiencePanel({
                 </div>
               ) : null}
             </ConceptCard>
-          </div>
-        </div>
-      ) : null}
-
-      {showHomePropertyStatus ? (
-        <div className="fixed inset-0 z-50 grid place-items-center bg-ink/45 p-4 backdrop-blur-sm xl:hidden">
-          <div className="w-full max-w-lg rounded-lg bg-white p-5 shadow-estate">
-            <div className="mb-4 flex items-start justify-between gap-4 border-b border-line pb-4">
-              <div className="min-w-0">
-                <p className="mb-2 text-xs font-extrabold uppercase tracking-[0.1em] text-clay">
-                  Property status
-                </p>
-                <h3 className="truncate text-2xl font-extrabold text-ink">{selectedProperty?.name || "Property"}</h3>
-                <p className="mt-1 text-sm font-semibold text-slate-600">{ownerPortalStatus}</p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setShowHomePropertyStatus(false)}
-                className="button-soft min-h-10 shrink-0 rounded-lg px-3 text-sm font-extrabold"
-              >
-                Close
-              </button>
-            </div>
-            <div className="mb-4 flex items-center justify-between gap-3 rounded-lg border border-line bg-[#fbfcfb] p-4">
-              <span className="text-sm font-extrabold text-ink">{ownerPortalDetail}</span>
-              <span
-                className={`shrink-0 rounded-full px-3 py-1 text-xs font-extrabold ${
-                  ownerAttentionCount > 0 ? "bg-danger-soft text-danger" : "bg-success-soft text-sage-dark"
-                }`}
-              >
-                {ownerAttentionCount > 0 ? `${ownerAttentionCount} alert` : "Clear"}
-              </span>
-            </div>
-            <p className="mb-4 text-sm leading-6 text-slate-600">{dashboardBriefing}</p>
-            <div className="grid gap-2 text-sm">
-              <DetailStrip
-                label="Last report"
-                value={recentReport ? formatDateTime(recentReport.timestamp) : "No report yet"}
-              />
-              <DetailStrip
-                label="Next visit"
-                value={upcomingScheduleTasks[0] ? formatDateTime(upcomingScheduleTasks[0].scheduledFor) : "Not scheduled"}
-              />
-              <DetailStrip label="Open issues" value={`${openMaintenanceCount}`} />
-            </div>
           </div>
         </div>
       ) : null}
