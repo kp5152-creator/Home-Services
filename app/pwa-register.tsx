@@ -8,6 +8,17 @@ export function PwaRegister() {
       return;
     }
 
+    const isLocalDemo = ["localhost", "127.0.0.1"].includes(window.location.hostname);
+
+    if (isLocalDemo) {
+      navigator.serviceWorker.getRegistrations().then((registrations) => {
+        registrations.forEach((registration) => {
+          void registration.unregister();
+        });
+      });
+      return;
+    }
+
     let refreshing = false;
     const reloadOnControllerChange = () => {
       if (refreshing) return;

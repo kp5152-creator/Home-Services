@@ -1,4 +1,4 @@
-const CACHE_NAME = "estateiq-v2";
+const CACHE_NAME = "estateiq-v3";
 const APP_SHELL = [
   "/offline.html",
   "/manifest.webmanifest",
@@ -21,7 +21,9 @@ self.addEventListener("activate", (event) => {
   event.waitUntil(
     caches
       .keys()
-      .then((cacheNames) => Promise.all(cacheNames.map((name) => caches.delete(name))))
+      .then((cacheNames) =>
+        Promise.all(cacheNames.filter((name) => name !== CACHE_NAME).map((name) => caches.delete(name)))
+      )
       .then(() => self.clients.claim())
   );
 });
@@ -49,7 +51,9 @@ self.addEventListener("fetch", (event) => {
       if (cachedResponse) return cachedResponse;
 
       return fetch(request).then((response) => {
-        if (response.ok) {
+        const contentType = response.headers.get("content-type") || "";
+
+        if (response.ok && !contentType.includes("text/html")) {
           const copy = response.clone();
           caches.open(CACHE_NAME).then((cache) => cache.put(request, copy));
         }

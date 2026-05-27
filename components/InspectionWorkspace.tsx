@@ -269,6 +269,10 @@ function mobileScreenLabel(screen: ExperienceScreen) {
   return labels[screen] ?? screen;
 }
 
+function screenLabel(screen: ExperienceScreen) {
+  return mobileScreenLabel(screen);
+}
+
 function formatPhoneNumber(value: string) {
   const digits = value.replace(/\D/g, "");
   const localDigits = digits.length === 11 && digits.startsWith("1") ? digits.slice(1) : digits;
@@ -369,6 +373,7 @@ export default function InspectionWorkspace({
   const [ownerUpdates, setOwnerUpdates] = useState<OwnerUpdate[]>(initialDatabase.ownerUpdates ?? []);
   const [selectedPropertyId, setSelectedPropertyId] = useState(initialDatabase.properties[0]?.id ?? "");
   const [activeReportId, setActiveReportId] = useState(initialDatabase.inspections[0]?.id ?? "");
+  const [selectedReportActionId, setSelectedReportActionId] = useState("");
   const [inspectionForm, setInspectionForm] = useState<InspectionForm>(emptyInspectionForm);
   const [propertyForm, setPropertyForm] = useState<NewPropertyForm>(emptyPropertyForm);
   const [maintenanceIssueForm, setMaintenanceIssueForm] =
@@ -488,6 +493,8 @@ export default function InspectionWorkspace({
 
   const activeReport =
     selectedInspections.find((inspection) => inspection.id === activeReportId) ?? selectedInspections[0];
+  const selectedReportAction =
+    selectedInspections.find((inspection) => inspection.id === selectedReportActionId) ?? null;
   const selectedNextScheduleTask = selectedScheduleTasks.find((task) => !["Complete", "Skipped"].includes(task.status));
   const activeInspectionTemplate = useMemo(
     () => getInspectionTemplate(inspectionForm.inspectionType),
@@ -1672,7 +1679,7 @@ export default function InspectionWorkspace({
                     : "bg-white text-slate-700 hover:bg-[#f2f5f2]"
                 }`}
               >
-                {screen}
+                {screenLabel(screen)}
               </button>
             ))}
           </div>
@@ -1693,7 +1700,7 @@ export default function InspectionWorkspace({
               Workflow
             </p>
               <h2 className="text-lg font-extrabold text-ink">
-              {currentFlowIndex + 1} of {visibleExperienceScreens.length}: {activeExperience}
+              {currentFlowIndex + 1} of {visibleExperienceScreens.length}: {screenLabel(activeExperience)}
             </h2>
             <p className="mt-1 text-sm font-semibold text-slate-600">{roleLabels[activeRole].title}</p>
           </div>
@@ -1703,7 +1710,7 @@ export default function InspectionWorkspace({
               onClick={() => setActiveExperience(nextFlowScreen)}
               className="button-primary min-h-11 rounded-lg px-5 text-sm font-extrabold"
             >
-              Continue to {nextFlowScreen}
+              Continue to {screenLabel(nextFlowScreen)}
             </button>
           ) : (
             <button
@@ -1742,6 +1749,7 @@ export default function InspectionWorkspace({
         onSelectProperty={(propertyId) => {
           setSelectedPropertyId(propertyId);
           setActiveReportId("");
+          setSelectedReportActionId("");
           setShowVendorForm(false);
           setSelectedVendorId("");
           setSelectedMaintenanceIssueId("");
@@ -2485,29 +2493,13 @@ export default function InspectionWorkspace({
             </div>
             <div className="no-print grid gap-2 sm:grid-cols-2 lg:min-w-[320px]">
               {activeReport ? (
-                <>
-                  <a
-                    href={`/reports/${activeReport.id}`}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="button-primary grid min-h-11 place-items-center rounded-lg px-4 text-sm font-extrabold"
-                  >
-                    View Web Report
-                  </a>
-                  <a
-                    href={`/api/reports/${activeReport.id}`}
-                    className="button-soft grid min-h-11 place-items-center rounded-lg px-4 text-sm font-extrabold"
-                  >
-                    Download PDF
-                  </a>
-                  <button
-                    type="button"
-                    onClick={() => draftOwnerUpdateFromReport(activeReport)}
-                    className="button-soft min-h-11 rounded-lg px-4 text-sm font-extrabold sm:col-span-2"
-                  >
-                    Draft Owner Share Note
-                  </button>
-                </>
+                <button
+                  type="button"
+                  onClick={() => setSelectedReportActionId(activeReport.id)}
+                  className="button-primary min-h-11 rounded-lg px-4 text-sm font-extrabold sm:col-span-2"
+                >
+                  Report Actions
+                </button>
               ) : null}
               <button
                 type="button"
@@ -2549,7 +2541,7 @@ export default function InspectionWorkspace({
 
           <div className="no-print mt-7">
             <p className="mb-2 text-xs font-extrabold uppercase tracking-[0.1em] text-clay">
-              Inspection History
+              Visit History
             </p>
             <h2 className="mb-4 text-xl font-extrabold text-ink">
               {selectedInspections.length} Saved Visit{selectedInspections.length === 1 ? "" : "s"}
@@ -2557,62 +2549,37 @@ export default function InspectionWorkspace({
             <div className="grid gap-3">
               {selectedInspections.length ? (
                 selectedInspections.map((inspection) => (
-                  <div
+                  <button
                     key={inspection.id}
+                    type="button"
+                    onClick={() => {
+                      setActiveReportId(inspection.id);
+                      setSelectedReportActionId(inspection.id);
+                    }}
                     className={`rounded-lg border p-4 transition ${
                       activeReport?.id === inspection.id
                         ? "border-sage bg-[#f3f8f4] shadow-[inset_4px_0_0_#5f786c]"
                         : "border-line bg-white hover:border-sage hover:shadow-lift"
                     }`}
                   >
-                    <button
-                      type="button"
-                      onClick={() => setActiveReportId(inspection.id)}
-                      className="block w-full text-left"
-                    >
-                      <div className="flex flex-wrap items-start justify-between gap-3">
-                        <div>
-                          <strong className="block text-ink">{formatDateTime(inspection.timestamp)}</strong>
-                          <span className="mt-1 block text-sm text-slate-600">
-                            {getInspectionType(inspection.checklist)} / {inspection.inspectorName || "Inspector"} /{" "}
-                            {inspection.interiorTemperature ? `${inspection.interiorTemperature} F` : "No temp recorded"}
-                          </span>
-                        </div>
-                        <span
-                          className={`rounded-full border px-3 py-1 text-xs font-extrabold ${
-                            inspection.urgent === "Yes"
-                              ? "border-[#e7cbc4] bg-[#fff8f6] text-[#9f352e]"
-                              : "border-[#c9ddd1] bg-[#f3f8f4] text-sage-dark"
-                          }`}
-                        >
-                          {reportConditionStatus(inspection).label}
+                    <div className="grid w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-3 text-left">
+                      <span className="min-w-0">
+                        <strong className="block truncate text-ink">{formatDateTime(inspection.timestamp)}</strong>
+                        <span className="mt-1 block truncate text-sm font-semibold text-slate-600">
+                          {getInspectionType(inspection.checklist)} / {inspection.inspectorName || "Inspector"}
                         </span>
-                      </div>
-                    </button>
-                    <div className="mt-3 hidden gap-2 sm:grid-cols-2 xl:grid">
-                      <a
-                        href={`/reports/${inspection.id}`}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="button-soft grid min-h-10 place-items-center rounded-lg px-3 text-sm font-extrabold"
+                      </span>
+                      <span
+                        className={`rounded-full border px-3 py-1 text-xs font-extrabold ${
+                          inspection.urgent === "Yes"
+                            ? "border-[#e7cbc4] bg-[#fff8f6] text-[#9f352e]"
+                            : "border-[#c9ddd1] bg-[#f3f8f4] text-sage-dark"
+                        }`}
                       >
-                        Open Report
-                      </a>
-                      <a
-                        href={`/api/reports/${inspection.id}`}
-                        className="button-soft grid min-h-10 place-items-center rounded-lg px-3 text-sm font-extrabold"
-                      >
-                        Download PDF
-                      </a>
-                      <button
-                        type="button"
-                        onClick={() => draftOwnerUpdateFromReport(inspection)}
-                        className="button-primary min-h-10 rounded-lg px-3 text-sm font-extrabold sm:col-span-2"
-                      >
-                        Draft Owner Share Note
-                      </button>
+                        {reportConditionStatus(inspection).label}
+                      </span>
                     </div>
-                  </div>
+                  </button>
                 ))
               ) : (
                 <p className="text-sm text-slate-600">No saved inspections yet.</p>
@@ -2620,6 +2587,68 @@ export default function InspectionWorkspace({
             </div>
           </div>
         </aside>
+
+        {selectedReportAction ? (
+          <div className="fixed inset-0 z-50 grid place-items-center bg-ink/45 p-4 backdrop-blur-sm">
+            <div className="max-h-[calc(100svh-2rem)] w-full max-w-xl overflow-y-auto rounded-lg bg-white p-5 shadow-[0_24px_80px_rgba(35,45,41,0.24)]">
+              <div className="mb-4 flex items-start justify-between gap-3 border-b border-line pb-4">
+                <div>
+                  <span className="text-xs font-extrabold uppercase tracking-[0.1em] text-clay">
+                    Report details
+                  </span>
+                  <h3 className="mt-1 text-2xl font-extrabold text-ink">
+                    {formatDateTime(selectedReportAction.timestamp)}
+                  </h3>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setSelectedReportActionId("")}
+                  className="button-soft min-h-10 rounded-lg px-4 text-sm font-extrabold"
+                >
+                  Close
+                </button>
+              </div>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <DetailStrip label="Type" value={getInspectionType(selectedReportAction.checklist)} />
+                <DetailStrip label="Inspector" value={selectedReportAction.inspectorName || "Inspector"} />
+                <DetailStrip
+                  label="Completed Checks"
+                  value={`${visibleChecklistItems(selectedReportAction.checklist).length}`}
+                />
+                <DetailStrip label="Photos" value={`${selectedReportAction.photos.length}`} />
+              </div>
+              <p className="mt-4 rounded-lg border border-line bg-[#fbfcfb] p-4 text-sm leading-6 text-slate-700">
+                {selectedReportAction.executiveSummary || reportConditionStatus(selectedReportAction).description}
+              </p>
+              <div className="mt-4 grid gap-2 sm:grid-cols-2">
+                <a
+                  href={`/reports/${selectedReportAction.id}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="button-primary grid min-h-11 place-items-center rounded-lg px-4 text-sm font-extrabold"
+                >
+                  Open Web Report
+                </a>
+                <a
+                  href={`/api/reports/${selectedReportAction.id}`}
+                  className="button-soft grid min-h-11 place-items-center rounded-lg px-4 text-sm font-extrabold"
+                >
+                  Download PDF
+                </a>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedReportActionId("");
+                    draftOwnerUpdateFromReport(selectedReportAction);
+                  }}
+                  className="button-soft min-h-11 rounded-lg px-4 text-sm font-extrabold sm:col-span-2"
+                >
+                  Draft Owner Share Note
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : null}
       </section>
 
       <div className="pb-6 xl:pb-0">
@@ -2653,69 +2682,6 @@ export default function InspectionWorkspace({
           ))}
         </div>
       </nav>
-
-      {activeExperience === "Schedule" ? (
-        <div className="fixed inset-x-0 bottom-[4.85rem] z-30 px-3 xl:hidden">
-          <div className="mx-auto grid max-w-[520px] grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-lg border border-line bg-white/95 p-3 shadow-[0_-8px_28px_rgba(35,45,41,0.12)] backdrop-blur-xl">
-            <div className="min-w-0">
-              <strong className="block truncate text-sm text-ink">Schedule item</strong>
-              <span className="block truncate text-xs font-semibold text-slate-600">
-                {scheduleTaskForm.type} / {scheduleTaskForm.scheduledFor ? "date selected" : "date needed"}
-              </span>
-            </div>
-            <button
-              type="submit"
-              form="schedule-form"
-              disabled={isSavingScheduleTask}
-              className="button-primary min-h-11 rounded-lg px-4 text-sm font-extrabold disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              {isSavingScheduleTask ? "Saving" : "Save"}
-            </button>
-          </div>
-        </div>
-      ) : null}
-
-      {activeExperience === "Owner Portal" && activeRole !== "Homeowner" ? (
-        <div className="fixed inset-x-0 bottom-[4.85rem] z-30 px-3 xl:hidden">
-          <div className="mx-auto grid max-w-[520px] grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-lg border border-line bg-white/95 p-3 shadow-[0_-8px_28px_rgba(35,45,41,0.12)] backdrop-blur-xl">
-            <div className="min-w-0">
-              <strong className="block truncate text-sm text-ink">Owner update</strong>
-              <span className="block truncate text-xs font-semibold text-slate-600">
-                {ownerUpdateForm.category} / {ownerUpdateForm.status}
-              </span>
-            </div>
-            <button
-              type="submit"
-              form="owner-update-form"
-              disabled={isSavingOwnerUpdate}
-              className="button-primary min-h-11 rounded-lg px-4 text-sm font-extrabold disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              {isSavingOwnerUpdate ? "Saving" : "Save"}
-            </button>
-          </div>
-        </div>
-      ) : null}
-
-      {activeExperience === "Property" && showVendorForm && !showPropertyForm ? (
-        <div className="fixed inset-x-0 bottom-[4.85rem] z-30 px-3 xl:hidden">
-          <div className="mx-auto grid max-w-[520px] grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-lg border border-line bg-white/95 p-3 shadow-[0_-8px_28px_rgba(35,45,41,0.12)] backdrop-blur-xl">
-            <div className="min-w-0">
-              <strong className="block truncate text-sm text-ink">Vendor contact</strong>
-              <span className="block truncate text-xs font-semibold text-slate-600">
-                {vendorForm.name || "Add vendor"} / {vendorForm.type}
-              </span>
-            </div>
-            <button
-              type="submit"
-              form="vendor-form"
-              disabled={isSavingVendor}
-              className="button-primary min-h-11 rounded-lg px-4 text-sm font-extrabold disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              {isSavingVendor ? "Saving" : "Save"}
-            </button>
-          </div>
-        </div>
-      ) : null}
 
       {selectedVendor ? (
         <div className="fixed inset-0 z-50 grid place-items-center bg-ink/45 p-4 backdrop-blur-sm">
@@ -3155,6 +3121,9 @@ function LuxuryExperiencePanel({
   const recentReport = selectedInspections[0];
   const sharedOwnerUpdates = ownerUpdates.filter((update) => update.status === "Shared");
   const internalOwnerUpdates = ownerUpdates.filter((update) => update.status !== "Shared");
+  const [showOwnerUpdateForm, setShowOwnerUpdateForm] = useState(false);
+  const [selectedOwnerUpdateId, setSelectedOwnerUpdateId] = useState("");
+  const selectedOwnerUpdate = ownerUpdates.find((update) => update.id === selectedOwnerUpdateId) ?? null;
   const ownerAttentionCount = urgentCount + urgentMaintenanceCount;
   const ownerPortalStatus = ownerAttentionCount > 0 ? "Attention Recommended" : "Property Stable";
   const ownerPortalDetail =
@@ -3182,7 +3151,7 @@ function LuxuryExperiencePanel({
           }
         : openMaintenanceCount > 0
           ? {
-              label: "Review Open Maintenance",
+              label: "Review Open Issues",
               detail: `${openMaintenanceCount} repair item${openMaintenanceCount === 1 ? "" : "s"} still open.`,
               screen: "Maintenance" as ExperienceScreen
             }
@@ -3205,73 +3174,20 @@ function LuxuryExperiencePanel({
           screen: "Owner Portal" as ExperienceScreen
         }
       : baseDashboardAction;
-  const dashboardBriefing =
-    ownerAttentionCount > 0
-      ? "A priority item is active. Review the repair record, confirm vendor action, and share a concise homeowner update."
-      : openMaintenanceCount > 0
-        ? "The property is stable, with open maintenance still being tracked."
-        : recentReport
-          ? "The property is stable with no urgent homeowner action flagged."
-          : "Select a property and complete the first inspection to establish the service record.";
-  const dashboardActivity = [
-    ...selectedInspections.map((inspection) => ({
-      id: `inspection-${inspection.id}`,
-      date: inspection.timestamp,
-      label: "Inspection",
-      title: getInspectionType(inspection.checklist),
-      detail: `${inspection.inspectorName || "Inspector"} / ${inspection.urgent === "Yes" ? "Attention recommended" : "Property stable"}`,
-      screen: "Reports" as ExperienceScreen
-    })),
-    ...maintenanceIssues.map((issue) => ({
-      id: `maintenance-${issue.id}`,
-      date: issue.createdAt,
-      label: "Maintenance",
-      title: issue.title,
-      detail: `${issue.priority} / ${issue.status}`,
-      screen: "Maintenance" as ExperienceScreen
-    })),
-    ...scheduleTasks.map((task) => ({
-      id: `schedule-${task.id}`,
-      date: task.scheduledFor,
-      label: "Schedule",
-      title: task.title,
-      detail: `${task.type} / ${task.status}`,
-      screen: "Schedule" as ExperienceScreen
-    })),
-    ...ownerUpdates.map((update) => ({
-      id: `owner-${update.id}`,
-      date: update.createdAt,
-      label: "Owner Update",
-      title: update.title,
-      detail: `${update.category} / ${update.status}`,
-      screen: "Owner Portal" as ExperienceScreen
-    }))
-  ]
-    .sort((first, second) => new Date(second.date).getTime() - new Date(first.date).getTime())
-    .slice(0, 6);
-  const occupancyTasks = scheduleTasks.filter((task) =>
-    ["Pre-Guest Arrival", "Post-Checkout", "Cleaner"].includes(task.type)
-  );
   const activeScheduleTasks = scheduleTasks
     .filter((task) => !["Complete", "Skipped"].includes(task.status))
     .sort((first, second) => new Date(first.scheduledFor).getTime() - new Date(second.scheduledFor).getTime());
   const completedScheduleTasks = scheduleTasks.filter((task) => task.status === "Complete");
-  const nextArrivalTask = occupancyTasks.find((task) => task.type === "Pre-Guest Arrival");
-  const nextCheckoutTask = occupancyTasks.find((task) => task.type === "Post-Checkout");
-  const nextCleanerTask = occupancyTasks.find((task) => task.type === "Cleaner");
-  const roleOnboardingSteps = buildOnboardingSteps(activeRole, {
-    hasProperty: Boolean(selectedProperty),
-    hasInspection: selectedInspections.length > 0,
-    hasMaintenance: maintenanceIssues.length > 0,
-    hasSchedule: scheduleTasks.length > 0,
-    hasOwnerUpdate: ownerUpdates.some((update) => update.status === "Shared")
-  });
-  const onboardingComplete = roleOnboardingSteps.every((step) => step.complete);
-  const notifications = buildNotifications({
-    recentReport,
-    maintenanceIssues,
-    upcomingScheduleTasks
-  });
+  const [showScheduleForm, setShowScheduleForm] = useState(false);
+  const [selectedScheduleTaskId, setSelectedScheduleTaskId] = useState("");
+  const selectedScheduleTask = scheduleTasks.find((task) => task.id === selectedScheduleTaskId) ?? null;
+
+  useEffect(() => {
+    setSelectedScheduleTaskId("");
+    setShowScheduleForm(false);
+    setSelectedOwnerUpdateId("");
+    setShowOwnerUpdateForm(false);
+  }, [selectedPropertyId]);
 
   function localDateTimeValue(daysFromNow: number, hour: number, minute = 0) {
     const date = new Date();
@@ -3322,11 +3238,7 @@ function LuxuryExperiencePanel({
       assignedTo: current.assignedTo,
       ...template
     }));
-  }
-
-  function startOccupancyTask(type: ScheduleTaskType) {
-    prepareScheduleTemplate(type);
-    setActiveExperience("Schedule");
+    setShowScheduleForm(true);
   }
 
   function draftLatestInspectionOwnerUpdate() {
@@ -3337,6 +3249,7 @@ function LuxuryExperiencePanel({
       title: recentReport ? "Latest inspection completed" : "Inspection update",
       message: latestExecutiveSummary
     }));
+    setShowOwnerUpdateForm(true);
   }
 
   function draftMaintenanceOwnerUpdate() {
@@ -3353,6 +3266,7 @@ function LuxuryExperiencePanel({
           }`
         : "No open maintenance items are currently visible for this property."
     }));
+    setShowOwnerUpdateForm(true);
   }
 
   function draftOwnerUpdateFromMaintenance(issue: MaintenanceIssue) {
@@ -3366,6 +3280,7 @@ function LuxuryExperiencePanel({
       }${issue.nextStep || issue.description || "The item is being monitored and will be updated as work progresses."}`
     }));
     setActiveExperience("Owner Portal");
+    setShowOwnerUpdateForm(true);
   }
 
   function planVendorVisitFromMaintenance(issue: MaintenanceIssue) {
@@ -3381,6 +3296,7 @@ function LuxuryExperiencePanel({
       }`
     }));
     setActiveExperience("Schedule");
+    setShowScheduleForm(true);
   }
 
   function inspectionTypeForScheduleTask(type: ScheduleTaskType): InspectionType {
@@ -3498,25 +3414,6 @@ function LuxuryExperiencePanel({
 
       {activeExperience === "Dashboard" ? (
         <div className="grid gap-5">
-          <div className="hidden gap-5 xl:grid lg:grid-cols-[0.9fr_1.1fr]">
-            <OnboardingCard
-              role={activeRole}
-              steps={roleOnboardingSteps}
-              complete={onboardingComplete}
-              onComplete={() => {
-                trackAnalyticsEvent({
-                  name: "workflow_step",
-                  role: activeRole,
-                  screen: activeExperience,
-                  workflow: "onboarding",
-                  target: "onboarding_completed",
-                  demoMode: false
-                });
-              }}
-            />
-            <NotificationCenter notifications={notifications} />
-          </div>
-
           <div className="estate-panel rounded-lg p-5 xl:hidden">
             <div className="mb-4">
               <div className="mb-2 flex items-center justify-between gap-3">
@@ -3571,12 +3468,12 @@ function LuxuryExperiencePanel({
 
             <div className="grid gap-2">
               <MobileActionButton
-                label="Start Inspection"
+                label="Start Visit"
                 detail="Checklist, photos, report"
                 onClick={() => setActiveExperience("Inspection")}
               />
               <MobileActionButton
-                label="Add Maintenance"
+                label="Add Issue"
                 detail={`${openMaintenanceCount} open item${openMaintenanceCount === 1 ? "" : "s"}`}
                 onClick={() => setActiveExperience("Maintenance")}
                 urgent={openMaintenanceCount > 0}
@@ -3600,363 +3497,349 @@ function LuxuryExperiencePanel({
             </div>
           </div>
 
-          <div className="hidden estate-panel rounded-lg p-5 xl:block">
-            <div className="mb-5 flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
-              <div>
-                <p className="mb-2 text-xs font-extrabold uppercase tracking-[0.12em] text-clay">
-                  Executive dashboard
-                </p>
-                <h2 className="text-3xl font-extrabold text-ink">Today’s property command center</h2>
-                <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">{dashboardBriefing}</p>
+          <div className="hidden estate-panel rounded-lg p-5 xl:grid xl:grid-cols-[1.1fr_0.9fr] xl:gap-5">
+            <div>
+              <div className="mb-4 flex items-center justify-between gap-3">
+                <div>
+                  <p className="mb-2 text-xs font-extrabold uppercase tracking-[0.12em] text-clay">
+                    Home
+                  </p>
+                  <h2 className="text-3xl font-extrabold text-ink">Today’s properties</h2>
+                </div>
+                <span className="rounded-full border border-line bg-white px-3 py-1 text-xs font-extrabold text-slate-600">
+                  {properties.length}
+                </span>
               </div>
-              <div className="grid min-w-[280px] gap-2">
-                <label className="text-xs font-extrabold uppercase tracking-[0.1em] text-clay">
-                  Active property
-                </label>
-                <select
-                  value={selectedPropertyId}
-                  onChange={(event) => onSelectProperty(event.target.value)}
-                  className="field-shell rounded-lg p-3 text-sm font-extrabold"
-                >
-                  {properties.map((property) => (
-                    <option key={property.id} value={property.id}>
-                      {property.name}
-                    </option>
-                  ))}
-                </select>
+              <div className="overflow-hidden rounded-lg border border-line bg-white">
+                {properties.map((property) => (
+                  <button
+                    key={property.id}
+                    type="button"
+                    onClick={() => {
+                      onSelectProperty(property.id);
+                      setActiveExperience("Inspection");
+                    }}
+                    className="grid min-h-16 w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-3 border-b border-line px-4 py-3 text-left transition last:border-b-0 hover:bg-[#f7faf7]"
+                  >
+                    <span className="min-w-0">
+                      <strong className="block truncate text-ink">{property.name}</strong>
+                      <span className="mt-1 block truncate text-sm font-semibold text-slate-600">
+                        {property.owner} / {property.status}
+                      </span>
+                    </span>
+                    <span className="rounded-full border border-line bg-[#fbfcfb] px-3 py-1 text-xs font-extrabold text-slate-600">
+                      Inspect
+                    </span>
+                  </button>
+                ))}
               </div>
             </div>
-            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-              <MetricCard label="Portfolio" value={`${properties.length}`} detail="Active residences" />
-              <MetricCard label="Upcoming" value={`${upcomingScheduleTasks.length}`} detail="Scheduled work" />
-              <MetricCard
-                label="Urgent"
-                value={`${urgentCount + urgentMaintenanceCount}`}
-                detail="Needs attention"
-                urgent={urgentCount + urgentMaintenanceCount > 0}
-              />
-              <MetricCard
-                label="Last Report"
-                value={recentReport ? formatDateTime(recentReport.timestamp) : "Pending"}
-                detail="Latest inspection"
-              />
-            </div>
-          </div>
-          <div className="hidden gap-5 xl:grid lg:grid-cols-[0.8fr_1.2fr]">
-            <ConceptCard eyebrow="Recommended next" title={roleDashboardAction.label}>
-              <p className="text-sm leading-6 text-slate-600">{roleDashboardAction.detail}</p>
-              <button
-                type="button"
-                onClick={() => setActiveExperience(roleDashboardAction.screen)}
-                className="button-primary mt-4 min-h-11 rounded-lg px-5 text-sm font-extrabold"
-              >
-                Continue
-              </button>
-              <div className="mt-5 grid gap-2">
-                <button
-                  type="button"
-                  onClick={() => setActiveExperience("Inspection")}
-                  className="min-h-11 rounded-lg border border-line bg-white px-4 text-left text-sm font-extrabold transition hover:border-sage hover:shadow-lift"
-                >
-                  Start Inspection
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setActiveExperience("Owner Portal")}
-                  className="min-h-11 rounded-lg border border-line bg-white px-4 text-left text-sm font-extrabold transition hover:border-sage hover:shadow-lift"
-                >
-                  Share Owner Update
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setActiveExperience("Reports")}
-                  className="min-h-11 rounded-lg border border-line bg-white px-4 text-left text-sm font-extrabold transition hover:border-sage hover:shadow-lift"
-                >
-                  View Reports
-                </button>
-              </div>
-            </ConceptCard>
-            <ConceptCard eyebrow="Occupancy" title="Guest readiness">
-              <div className="grid gap-3 md:grid-cols-3">
-                <DetailStrip
-                  label="Arrival Prep"
-                  value={nextArrivalTask ? formatDateTime(nextArrivalTask.scheduledFor) : "Not scheduled"}
-                />
-                <DetailStrip
-                  label="Post-Checkout"
-                  value={nextCheckoutTask ? formatDateTime(nextCheckoutTask.scheduledFor) : "Not scheduled"}
-                />
-                <DetailStrip
-                  label="Cleaner"
-                  value={nextCleanerTask ? formatDateTime(nextCleanerTask.scheduledFor) : "Not scheduled"}
-                />
-              </div>
-              <div className="mt-4 grid gap-2 sm:grid-cols-3">
-                <button
-                  type="button"
-                  onClick={() => startOccupancyTask("Pre-Guest Arrival")}
-                  className="button-soft min-h-11 rounded-lg px-4 text-sm font-extrabold"
-                >
-                  Plan Arrival
-                </button>
-                <button
-                  type="button"
-                  onClick={() => startOccupancyTask("Post-Checkout")}
-                  className="button-soft min-h-11 rounded-lg px-4 text-sm font-extrabold"
-                >
-                  Plan Checkout
-                </button>
-                <button
-                  type="button"
-                  onClick={() => startOccupancyTask("Cleaner")}
-                  className="button-soft min-h-11 rounded-lg px-4 text-sm font-extrabold"
-                >
-                  Plan Cleaner
-                </button>
-              </div>
-            </ConceptCard>
-          </div>
-          <div className="hidden gap-5 xl:grid">
-            <ConceptCard eyebrow="Upcoming work" title="Operations schedule">
-              <div className="grid gap-3">
-                {upcomingScheduleTasks.length ? (
-                  upcomingScheduleTasks.map((task) => {
-                    const property = properties.find((item) => item.id === task.propertyId);
 
-                    return (
-                      <ScheduleTaskCard
-                        key={task.id}
-                        task={task}
-                        propertyName={property?.name}
-                        updateScheduleTaskStatus={updateScheduleTaskStatus}
-                        onStartInspection={startInspectionFromSchedule}
-                      />
-                    );
-                  })
-                ) : (
-                  <div className="rounded-lg border border-line bg-white p-4 text-sm text-slate-600">
-                    No upcoming work has been scheduled yet.
-                  </div>
-                )}
+            <div className="grid content-start gap-4">
+              <div className="rounded-lg border border-line bg-white p-4">
+                <span className="text-xs font-extrabold uppercase tracking-[0.1em] text-clay">
+                  Next step
+                </span>
+                <h3 className="mt-2 text-2xl font-extrabold leading-tight text-ink">{roleDashboardAction.label}</h3>
+                <p className="mt-2 text-sm leading-6 text-slate-600">{roleDashboardAction.detail}</p>
+                <button
+                  type="button"
+                  onClick={() => setActiveExperience(roleDashboardAction.screen)}
+                  className="button-primary mt-4 min-h-11 w-full rounded-lg px-4 text-sm font-extrabold"
+                >
+                  Continue
+                </button>
               </div>
-            </ConceptCard>
-            <ConceptCard eyebrow="Activity feed" title="Recent property activity">
-              <div className="grid gap-3">
-                {dashboardActivity.length ? (
-                  dashboardActivity.map((item) => (
-                    <button
-                      key={item.id}
-                      type="button"
-                      onClick={() => setActiveExperience(item.screen)}
-                      className="grid gap-3 rounded-lg border border-line bg-white p-4 text-left transition hover:border-sage hover:shadow-lift sm:grid-cols-[130px_minmax(0,1fr)_auto] sm:items-center"
-                    >
-                      <span className="text-xs font-extrabold uppercase tracking-[0.08em] text-clay">
-                        {item.label}
-                      </span>
-                      <span className="min-w-0">
-                        <strong className="block truncate text-ink">{item.title}</strong>
-                        <span className="mt-1 block truncate text-sm text-slate-600">{item.detail}</span>
-                      </span>
-                      <span className="text-xs font-semibold text-slate-500">{formatDateTime(item.date)}</span>
-                    </button>
-                  ))
-                ) : (
-                  <div className="rounded-lg border border-line bg-white p-4 text-sm text-slate-600">
-                    No activity has been recorded for this property yet.
-                  </div>
-                )}
+              <div className="grid gap-2">
+                <MobileActionButton
+                  label="Start Visit"
+                  detail="Checklist, photos, report"
+                  onClick={() => setActiveExperience("Inspection")}
+                />
+                <MobileActionButton
+                  label="Add Issue"
+                  detail={`${openMaintenanceCount} open item${openMaintenanceCount === 1 ? "" : "s"}`}
+                  onClick={() => setActiveExperience("Maintenance")}
+                  urgent={openMaintenanceCount > 0}
+                />
+                <MobileActionButton
+                  label="Schedule Visit"
+                  detail={
+                    upcomingScheduleTasks[0]
+                      ? `Next: ${formatDateTime(upcomingScheduleTasks[0].scheduledFor)}`
+                      : "No upcoming work"
+                  }
+                  onClick={() => setActiveExperience("Schedule")}
+                />
+                <MobileActionButton
+                  label="Owner Update"
+                  detail={`${ownerUpdates.filter((update) => update.status === "Shared").length} shared update${
+                    ownerUpdates.filter((update) => update.status === "Shared").length === 1 ? "" : "s"
+                  }`}
+                  onClick={() => setActiveExperience("Owner Portal")}
+                />
               </div>
-            </ConceptCard>
+            </div>
           </div>
         </div>
       ) : null}
 
       {activeExperience === "Schedule" ? (
-        <div className="grid gap-5 lg:grid-cols-[0.95fr_1.05fr]">
-          <ConceptCard eyebrow="Schedule work" title="Plan the next visit">
-            <div className="mb-4 grid gap-2 sm:grid-cols-2">
-              {(["Home Watch", "Pre-Guest Arrival", "Post-Checkout", "Cleaner", "Vendor"] as ScheduleTaskType[]).map(
-                (type) => (
-                  <button
-                    key={type}
-                    type="button"
-                    onClick={() => prepareScheduleTemplate(type)}
-                    className={`min-h-11 rounded-lg border px-4 text-left text-sm font-extrabold transition hover:border-sage hover:shadow-lift ${
-                      scheduleTaskForm.type === type ? "border-sage bg-[#f3f8f4] text-sage-dark" : "border-line bg-white text-ink"
-                    }`}
-                  >
-                    {type}
-                  </button>
-                )
-              )}
-            </div>
-            <form id="schedule-form" className="grid gap-3" onSubmit={saveScheduleTask}>
-              <label className="grid gap-2 text-sm font-extrabold">
-                Task title
-                <input
-                  required
-                  value={scheduleTaskForm.title}
-                  onChange={(event) =>
-                    setScheduleTaskForm((current) => ({ ...current, title: event.target.value }))
-                  }
-                  className="field-shell rounded-lg p-3"
-                  placeholder="Weekly home watch inspection"
-                />
-              </label>
-              <div className="grid gap-3 sm:grid-cols-2">
-                <label className="grid gap-2 text-sm font-extrabold">
-                  Work type
-                  <select
-                    value={scheduleTaskForm.type}
-                    onChange={(event) =>
-                      setScheduleTaskForm((current) => ({
-                        ...current,
-                        type: event.target.value as ScheduleTaskType
-                      }))
-                    }
-                    className="field-shell rounded-lg p-3"
-                  >
-                    {scheduleTaskTypes.map((type) => (
-                      <option key={type}>{type}</option>
-                    ))}
-                  </select>
-                </label>
-                <label className="grid gap-2 text-sm font-extrabold">
-                  Date and time
-                  <input
-                    required
-                    type="datetime-local"
-                    value={scheduleTaskForm.scheduledFor}
-                    onChange={(event) =>
-                      setScheduleTaskForm((current) => ({ ...current, scheduledFor: event.target.value }))
-                    }
-                    className="field-shell rounded-lg p-3"
-                  />
-                </label>
+        <>
+          <div className="grid gap-5 lg:grid-cols-[0.8fr_1.2fr]">
+            <ConceptCard eyebrow="Schedule work" title="Choose a task type">
+              <div className="mb-4 flex justify-end">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setScheduleTaskForm(emptyScheduleTaskForm);
+                    setShowScheduleForm(true);
+                  }}
+                  className="button-primary min-h-11 rounded-lg px-4 text-sm font-extrabold"
+                >
+                  Add Task
+                </button>
               </div>
-              <div className="grid gap-3 sm:grid-cols-2">
-                <label className="grid gap-2 text-sm font-extrabold">
-                  Assigned to
-                  <input
-                    value={scheduleTaskForm.assignedTo}
-                    onChange={(event) =>
-                      setScheduleTaskForm((current) => ({ ...current, assignedTo: event.target.value }))
-                    }
-                    className="field-shell rounded-lg p-3"
-                    placeholder="Inspector, cleaner, or vendor"
-                  />
-                </label>
-                <label className="grid gap-2 text-sm font-extrabold">
-                  Status
-                  <select
-                    value={scheduleTaskForm.status}
-                    onChange={(event) =>
-                      setScheduleTaskForm((current) => ({
-                        ...current,
-                        status: event.target.value as ScheduleTaskStatus
-                      }))
-                    }
-                    className="field-shell rounded-lg p-3"
-                  >
-                    {scheduleTaskStatuses.map((status) => (
-                      <option key={status}>{status}</option>
-                    ))}
-                  </select>
-                </label>
+              <div className="grid gap-2 sm:grid-cols-2">
+                {(["Home Watch", "Pre-Guest Arrival", "Post-Checkout", "Cleaner", "Vendor"] as ScheduleTaskType[]).map(
+                  (type) => (
+                    <button
+                      key={type}
+                      type="button"
+                      onClick={() => prepareScheduleTemplate(type)}
+                      className={`min-h-11 rounded-lg border px-4 text-left text-sm font-extrabold transition hover:border-sage hover:shadow-lift ${
+                        scheduleTaskForm.type === type ? "border-sage bg-[#f3f8f4] text-sage-dark" : "border-line bg-white text-ink"
+                      }`}
+                    >
+                      {type}
+                    </button>
+                  )
+                )}
               </div>
-              <label className="grid gap-2 text-sm font-extrabold">
-                Notes
-                <textarea
-                  rows={4}
-                  value={scheduleTaskForm.notes}
-                  onChange={(event) =>
-                    setScheduleTaskForm((current) => ({ ...current, notes: event.target.value }))
-                  }
-                  className="field-shell rounded-lg p-3"
-                  placeholder="Arrival prep, vendor instructions, gate notes, owner requests..."
-                />
-              </label>
               {scheduleSaveMessage ? (
-                <div className="rounded-lg border border-line bg-white p-3 text-sm font-semibold text-slate-600">
+                <div className="mt-4 rounded-lg border border-line bg-white p-3 text-sm font-semibold text-slate-600">
                   {scheduleSaveMessage}
                 </div>
               ) : null}
-              <button
-                type="submit"
-                disabled={isSavingScheduleTask}
-                className="button-primary min-h-12 rounded-lg px-5 font-extrabold disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                {isSavingScheduleTask ? "Saving..." : "Save Schedule Item"}
-              </button>
-            </form>
-          </ConceptCard>
+            </ConceptCard>
 
-          <ConceptCard
-            eyebrow={`${scheduleTasks.length} scheduled item${scheduleTasks.length === 1 ? "" : "s"}`}
-            title="Property calendar"
-          >
-            <div className="mb-4 grid gap-3 sm:grid-cols-3">
-              <MetricCard
-                label="Active"
-                value={`${activeScheduleTasks.length}`}
-                detail="Scheduled or in progress"
-                urgent={activeScheduleTasks.length > 0}
-              />
-              <MetricCard
-                label="Complete"
-                value={`${completedScheduleTasks.length}`}
-                detail="Finished work"
-              />
-              <MetricCard
-                label="Next"
-                value={activeScheduleTasks[0] ? activeScheduleTasks[0].type : "None"}
-                detail={activeScheduleTasks[0] ? formatDateTime(activeScheduleTasks[0].scheduledFor) : "No upcoming work"}
-              />
-            </div>
-            <div className="grid gap-3">
-              {scheduleTasks.length ? (
-                scheduleTasks.map((task) => (
-                  <ScheduleTaskCard
-                    key={task.id}
-                    task={task}
-                    updateScheduleTaskStatus={updateScheduleTaskStatus}
-                    onStartInspection={startInspectionFromSchedule}
-                  />
-                ))
-              ) : (
-                <div className="rounded-lg border border-line bg-white p-4">
-                  <p className="text-sm leading-6 text-slate-600">
-                    No work has been scheduled for this property yet. Start with a common visit type, confirm the date,
-                    then save it to the property calendar.
-                  </p>
-                  <div className="mt-4 grid gap-2 sm:grid-cols-3">
-                    <button
-                      type="button"
-                      onClick={() => prepareScheduleTemplate("Home Watch")}
-                      className="button-soft min-h-10 rounded-lg px-4 text-sm font-extrabold"
-                    >
-                      Plan Home Watch
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => prepareScheduleTemplate("Pre-Guest Arrival")}
-                      className="button-soft min-h-10 rounded-lg px-4 text-sm font-extrabold"
-                    >
-                      Plan Arrival
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => prepareScheduleTemplate("Cleaner")}
-                      className="button-soft min-h-10 rounded-lg px-4 text-sm font-extrabold"
-                    >
-                      Plan Cleaner
-                    </button>
+            <ConceptCard
+              eyebrow={`${scheduleTasks.length} scheduled item${scheduleTasks.length === 1 ? "" : "s"}`}
+              title="Scheduled work"
+            >
+              <div className="mb-4 hidden gap-3 xl:grid xl:grid-cols-3">
+                <MetricCard
+                  label="Active"
+                  value={`${activeScheduleTasks.length}`}
+                  detail="Scheduled or in progress"
+                  urgent={activeScheduleTasks.length > 0}
+                />
+                <MetricCard
+                  label="Complete"
+                  value={`${completedScheduleTasks.length}`}
+                  detail="Finished work"
+                />
+                <MetricCard
+                  label="Next"
+                  value={activeScheduleTasks[0] ? activeScheduleTasks[0].type : "None"}
+                  detail={activeScheduleTasks[0] ? formatDateTime(activeScheduleTasks[0].scheduledFor) : "No upcoming work"}
+                />
+              </div>
+              <div className="grid gap-3">
+                {scheduleTasks.length ? (
+                  scheduleTasks.map((task) => (
+                    <ScheduleTaskListItem
+                      key={task.id}
+                      task={task}
+                      onSelect={() => setSelectedScheduleTaskId(task.id)}
+                    />
+                  ))
+                ) : (
+                  <div className="rounded-lg border border-line bg-white p-4">
+                    <p className="text-sm leading-6 text-slate-600">
+                      No work has been scheduled for this property yet. Start with a common visit type, confirm the date,
+                      then save it to the property calendar.
+                    </p>
+                    <div className="mt-4 grid gap-2 sm:grid-cols-3">
+                      <button
+                        type="button"
+                        onClick={() => prepareScheduleTemplate("Home Watch")}
+                        className="button-soft min-h-10 rounded-lg px-4 text-sm font-extrabold"
+                      >
+                        Plan Home Watch
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => prepareScheduleTemplate("Pre-Guest Arrival")}
+                        className="button-soft min-h-10 rounded-lg px-4 text-sm font-extrabold"
+                      >
+                        Plan Arrival
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => prepareScheduleTemplate("Cleaner")}
+                        className="button-soft min-h-10 rounded-lg px-4 text-sm font-extrabold"
+                      >
+                        Plan Cleaner
+                      </button>
+                    </div>
                   </div>
+                )}
+              </div>
+            </ConceptCard>
+          </div>
+
+          {showScheduleForm ? (
+            <div className="fixed inset-0 z-50 grid place-items-center bg-ink/45 p-4 backdrop-blur-sm">
+              <form
+                id="schedule-form"
+                className="grid max-h-[calc(100svh-2rem)] w-full max-w-2xl gap-3 overflow-y-auto rounded-lg bg-white p-5 shadow-[0_24px_80px_rgba(35,45,41,0.24)]"
+                onSubmit={(event) => {
+                  saveScheduleTask(event);
+                  setShowScheduleForm(false);
+                }}
+              >
+                <div className="mb-1 flex items-start justify-between gap-3 border-b border-line pb-4">
+                  <div>
+                    <span className="text-xs font-extrabold uppercase tracking-[0.1em] text-clay">
+                      Schedule work
+                    </span>
+                    <h3 className="mt-1 text-2xl font-extrabold text-ink">Add task</h3>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setShowScheduleForm(false)}
+                    className="button-soft min-h-10 rounded-lg px-4 text-sm font-extrabold"
+                  >
+                    Close
+                  </button>
                 </div>
-              )}
+                <label className="grid gap-2 text-sm font-extrabold">
+                  Task title
+                  <input
+                    required
+                    value={scheduleTaskForm.title}
+                    onChange={(event) =>
+                      setScheduleTaskForm((current) => ({ ...current, title: event.target.value }))
+                    }
+                    className="field-shell rounded-lg p-3"
+                    placeholder="Weekly home watch inspection"
+                  />
+                </label>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <label className="grid gap-2 text-sm font-extrabold">
+                    Work type
+                    <select
+                      value={scheduleTaskForm.type}
+                      onChange={(event) =>
+                        setScheduleTaskForm((current) => ({
+                          ...current,
+                          type: event.target.value as ScheduleTaskType
+                        }))
+                      }
+                      className="field-shell rounded-lg p-3"
+                    >
+                      {scheduleTaskTypes.map((type) => (
+                        <option key={type}>{type}</option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="grid gap-2 text-sm font-extrabold">
+                    Date and time
+                    <input
+                      required
+                      type="datetime-local"
+                      value={scheduleTaskForm.scheduledFor}
+                      onChange={(event) =>
+                        setScheduleTaskForm((current) => ({ ...current, scheduledFor: event.target.value }))
+                      }
+                      className="field-shell rounded-lg p-3"
+                    />
+                  </label>
+                </div>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <label className="grid gap-2 text-sm font-extrabold">
+                    Assigned to
+                    <input
+                      value={scheduleTaskForm.assignedTo}
+                      onChange={(event) =>
+                        setScheduleTaskForm((current) => ({ ...current, assignedTo: event.target.value }))
+                      }
+                      className="field-shell rounded-lg p-3"
+                      placeholder="Inspector, cleaner, or vendor"
+                    />
+                  </label>
+                  <label className="grid gap-2 text-sm font-extrabold">
+                    Status
+                    <select
+                      value={scheduleTaskForm.status}
+                      onChange={(event) =>
+                        setScheduleTaskForm((current) => ({
+                          ...current,
+                          status: event.target.value as ScheduleTaskStatus
+                        }))
+                      }
+                      className="field-shell rounded-lg p-3"
+                    >
+                      {scheduleTaskStatuses.map((status) => (
+                        <option key={status}>{status}</option>
+                      ))}
+                    </select>
+                  </label>
+                </div>
+                <label className="grid gap-2 text-sm font-extrabold">
+                  Notes
+                  <textarea
+                    rows={4}
+                    value={scheduleTaskForm.notes}
+                    onChange={(event) =>
+                      setScheduleTaskForm((current) => ({ ...current, notes: event.target.value }))
+                    }
+                    className="field-shell rounded-lg p-3"
+                    placeholder="Arrival prep, vendor instructions, gate notes, owner requests..."
+                  />
+                </label>
+                <button
+                  type="submit"
+                  disabled={isSavingScheduleTask}
+                  className="button-primary min-h-12 rounded-lg px-5 font-extrabold disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {isSavingScheduleTask ? "Saving..." : "Save Task"}
+                </button>
+              </form>
             </div>
-          </ConceptCard>
-        </div>
+          ) : null}
+
+          {selectedScheduleTask ? (
+            <div className="fixed inset-0 z-50 grid place-items-center bg-ink/45 p-4 backdrop-blur-sm">
+              <div className="max-h-[calc(100svh-2rem)] w-full max-w-xl overflow-y-auto rounded-lg bg-white p-5 shadow-[0_24px_80px_rgba(35,45,41,0.24)]">
+                <div className="mb-4 flex items-start justify-between gap-3 border-b border-line pb-4">
+                  <div>
+                    <span className="text-xs font-extrabold uppercase tracking-[0.1em] text-clay">
+                      Schedule detail
+                    </span>
+                    <h3 className="mt-1 text-2xl font-extrabold text-ink">{selectedScheduleTask.title}</h3>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedScheduleTaskId("")}
+                    className="button-soft min-h-10 rounded-lg px-4 text-sm font-extrabold"
+                  >
+                    Close
+                  </button>
+                </div>
+                <ScheduleTaskCard
+                  task={selectedScheduleTask}
+                  updateScheduleTaskStatus={updateScheduleTaskStatus}
+                  onStartInspection={(task) => {
+                    setSelectedScheduleTaskId("");
+                    startInspectionFromSchedule(task);
+                  }}
+                />
+              </div>
+            </div>
+          ) : null}
+        </>
       ) : null}
 
       {activeExperience === "Maintenance" ? (
@@ -4184,7 +4067,7 @@ function LuxuryExperiencePanel({
                     <p className="mb-1 text-xs font-extrabold uppercase tracking-[0.1em] text-clay">
                       Recommended Next Step
                     </p>
-                    <h3 className="text-lg font-extrabold text-ink">Maintenance guidance</h3>
+                    <h3 className="text-lg font-extrabold text-ink">Issue guidance</h3>
                     <p className="mt-1 text-sm leading-6 text-slate-600">
                       Suggests priority, vendor type, and owner-facing wording for review.
                     </p>
@@ -4391,7 +4274,7 @@ function LuxuryExperiencePanel({
                 <MetricCard
                   label="Open items"
                   value={`${openMaintenanceCount}`}
-                  detail="Maintenance visibility"
+                  detail="Issue visibility"
                   urgent={openMaintenanceCount > 0}
                 />
                 <MetricCard
@@ -4432,7 +4315,17 @@ function LuxuryExperiencePanel({
 
           <div className={`grid gap-5 ${activeRole === "Homeowner" ? "" : "lg:grid-cols-[0.9fr_1.1fr]"}`}>
             {activeRole !== "Homeowner" ? (
-              <ConceptCard eyebrow="Owner update" title="Create homeowner-facing note">
+              <ConceptCard eyebrow="Owner update" title="Prepare homeowner note">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setOwnerUpdateForm(emptyOwnerUpdateForm);
+                    setShowOwnerUpdateForm(true);
+                  }}
+                  className="button-primary mb-4 min-h-11 w-full rounded-lg px-4 text-sm font-extrabold"
+                >
+                  Draft Update
+                </button>
                 <div className="mb-4 grid gap-3 sm:grid-cols-2">
                   <button
                     type="button"
@@ -4449,7 +4342,104 @@ function LuxuryExperiencePanel({
                     Draft Maintenance Update
                   </button>
                 </div>
-                <form id="owner-update-form" className="grid gap-3" onSubmit={saveOwnerUpdate}>
+                {ownerUpdateSaveMessage ? (
+                  <div className="rounded-lg border border-line bg-white p-3 text-sm font-semibold text-slate-600">
+                    {ownerUpdateSaveMessage}
+                  </div>
+                ) : null}
+              </ConceptCard>
+            ) : null}
+
+            <ConceptCard eyebrow="Homeowner view" title="Shared service record">
+              <div className="grid gap-3">
+                {sharedOwnerUpdates.length ? (
+                  sharedOwnerUpdates.map((update) => (
+                    <OwnerUpdateListItem
+                      key={update.id}
+                      update={update}
+                      onSelect={() => setSelectedOwnerUpdateId(update.id)}
+                    />
+                  ))
+                ) : (
+                  <div className="rounded-lg border border-line bg-white p-4">
+                    <p className="text-sm leading-6 text-slate-600">
+                      No updates have been shared with the homeowner yet. Draft a polished first update, review the
+                      wording, then change visibility to Shared when it is ready.
+                    </p>
+                    {activeRole !== "Homeowner" ? (
+                      <div className="mt-4 grid gap-2 sm:grid-cols-2">
+                        <button
+                          type="button"
+                          onClick={draftLatestInspectionOwnerUpdate}
+                          className="button-soft min-h-10 rounded-lg px-4 text-sm font-extrabold"
+                        >
+                          Draft Inspection Update
+                        </button>
+                        <button
+                          type="button"
+                          onClick={draftMaintenanceOwnerUpdate}
+                          className="button-soft min-h-10 rounded-lg px-4 text-sm font-extrabold"
+                        >
+                          Draft Maintenance Update
+                        </button>
+                      </div>
+                    ) : null}
+                  </div>
+                )}
+              </div>
+              {activeRole !== "Homeowner" && internalOwnerUpdates.length ? (
+                <div className="mt-5 rounded-lg border border-line bg-[#fbfcfb] p-4">
+                  <span className="block text-xs font-extrabold uppercase tracking-[0.1em] text-clay">
+                    Internal queue
+                  </span>
+                  <div className="mt-3 grid gap-2">
+                    {internalOwnerUpdates.slice(0, 3).map((update) => (
+                      <button
+                        key={update.id}
+                        type="button"
+                        onClick={() => setSelectedOwnerUpdateId(update.id)}
+                        className="flex items-start justify-between gap-3 rounded-lg border border-line bg-white p-3 text-left transition hover:border-sage hover:shadow-lift"
+                      >
+                        <div className="min-w-0">
+                          <strong className="block text-sm text-ink">{update.title}</strong>
+                          <span className="text-xs font-semibold text-slate-500">{update.category}</span>
+                        </div>
+                        <span className="rounded-full border border-line bg-[#fbfcfb] px-3 py-1 text-xs font-extrabold text-slate-600">
+                          {update.status}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
+            </ConceptCard>
+          </div>
+
+          {showOwnerUpdateForm && activeRole !== "Homeowner" ? (
+            <div className="fixed inset-0 z-50 grid place-items-center bg-ink/45 p-4 backdrop-blur-sm">
+              <form
+                id="owner-update-form"
+                className="grid max-h-[calc(100svh-2rem)] w-full max-w-2xl gap-3 overflow-y-auto rounded-lg bg-white p-5 shadow-[0_24px_80px_rgba(35,45,41,0.24)]"
+                onSubmit={(event) => {
+                  saveOwnerUpdate(event);
+                  setShowOwnerUpdateForm(false);
+                }}
+              >
+                <div className="mb-1 flex items-start justify-between gap-3 border-b border-line pb-4">
+                  <div>
+                    <span className="text-xs font-extrabold uppercase tracking-[0.1em] text-clay">
+                      Owner update
+                    </span>
+                    <h3 className="mt-1 text-2xl font-extrabold text-ink">Draft homeowner note</h3>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setShowOwnerUpdateForm(false)}
+                    className="button-soft min-h-10 rounded-lg px-4 text-sm font-extrabold"
+                  >
+                    Close
+                  </button>
+                </div>
                 <div className="grid gap-3 sm:grid-cols-2">
                   <label className="grid gap-2 text-sm font-extrabold">
                     Category
@@ -4506,75 +4496,39 @@ function LuxuryExperiencePanel({
                     placeholder="Write the concise, professional update the homeowner should see."
                   />
                 </label>
-                {ownerUpdateSaveMessage ? (
-                  <div className="rounded-lg border border-line bg-white p-3 text-sm font-semibold text-slate-600">
-                    {ownerUpdateSaveMessage}
-                  </div>
-                ) : null}
                 <button
                   type="submit"
                   disabled={isSavingOwnerUpdate}
                   className="button-primary min-h-12 rounded-lg px-5 font-extrabold disabled:cursor-not-allowed disabled:opacity-60"
                 >
-                  {isSavingOwnerUpdate ? "Saving..." : "Save Owner Update"}
+                  {isSavingOwnerUpdate ? "Saving..." : "Save Update"}
                 </button>
-                </form>
-              </ConceptCard>
-            ) : null}
+              </form>
+            </div>
+          ) : null}
 
-            <ConceptCard eyebrow="Homeowner view" title="Shared service record">
-              <div className="grid gap-3">
-                {sharedOwnerUpdates.length ? (
-                  sharedOwnerUpdates.map((update) => <OwnerUpdateCard key={update.id} update={update} />)
-                ) : (
-                  <div className="rounded-lg border border-line bg-white p-4">
-                    <p className="text-sm leading-6 text-slate-600">
-                      No updates have been shared with the homeowner yet. Draft a polished first update, review the
-                      wording, then change visibility to Shared when it is ready.
-                    </p>
-                    {activeRole !== "Homeowner" ? (
-                      <div className="mt-4 grid gap-2 sm:grid-cols-2">
-                        <button
-                          type="button"
-                          onClick={draftLatestInspectionOwnerUpdate}
-                          className="button-soft min-h-10 rounded-lg px-4 text-sm font-extrabold"
-                        >
-                          Draft Inspection Update
-                        </button>
-                        <button
-                          type="button"
-                          onClick={draftMaintenanceOwnerUpdate}
-                          className="button-soft min-h-10 rounded-lg px-4 text-sm font-extrabold"
-                        >
-                          Draft Maintenance Update
-                        </button>
-                      </div>
-                    ) : null}
+          {selectedOwnerUpdate ? (
+            <div className="fixed inset-0 z-50 grid place-items-center bg-ink/45 p-4 backdrop-blur-sm">
+              <div className="max-h-[calc(100svh-2rem)] w-full max-w-xl overflow-y-auto rounded-lg bg-white p-5 shadow-[0_24px_80px_rgba(35,45,41,0.24)]">
+                <div className="mb-4 flex items-start justify-between gap-3 border-b border-line pb-4">
+                  <div>
+                    <span className="text-xs font-extrabold uppercase tracking-[0.1em] text-clay">
+                      Homeowner update
+                    </span>
+                    <h3 className="mt-1 text-2xl font-extrabold text-ink">{selectedOwnerUpdate.title}</h3>
                   </div>
-                )}
-              </div>
-              {activeRole !== "Homeowner" && internalOwnerUpdates.length ? (
-                <div className="mt-5 rounded-lg border border-line bg-[#fbfcfb] p-4">
-                  <span className="block text-xs font-extrabold uppercase tracking-[0.1em] text-clay">
-                    Internal queue
-                  </span>
-                  <div className="mt-3 grid gap-2">
-                    {internalOwnerUpdates.slice(0, 3).map((update) => (
-                      <div key={update.id} className="flex items-start justify-between gap-3 rounded-lg border border-line bg-white p-3">
-                        <div>
-                          <strong className="block text-sm text-ink">{update.title}</strong>
-                          <span className="text-xs font-semibold text-slate-500">{update.category}</span>
-                        </div>
-                        <span className="rounded-full border border-line bg-[#fbfcfb] px-3 py-1 text-xs font-extrabold text-slate-600">
-                          {update.status}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedOwnerUpdateId("")}
+                    className="button-soft min-h-10 rounded-lg px-4 text-sm font-extrabold"
+                  >
+                    Close
+                  </button>
                 </div>
-              ) : null}
-            </ConceptCard>
-          </div>
+                <OwnerUpdateCard update={selectedOwnerUpdate} />
+              </div>
+            </div>
+          ) : null}
         </div>
       ) : null}
 
@@ -4747,72 +4701,6 @@ function PilotAdminConsole({
   );
 }
 
-function OnboardingCard({
-  role,
-  steps,
-  complete,
-  onComplete
-}: {
-  role: AppRole;
-  steps: Array<{ label: string; detail: string; complete: boolean }>;
-  complete: boolean;
-  onComplete: () => void;
-}) {
-  return (
-    <ConceptCard eyebrow="Pilot onboarding" title={`${role} setup checklist`}>
-      <div className="grid gap-3">
-        {steps.map((step) => (
-          <div key={step.label} className="grid grid-cols-[28px_minmax(0,1fr)] gap-3 rounded-lg border border-line bg-white p-3">
-            <span className={`grid h-7 w-7 place-items-center rounded-full text-xs font-black ${step.complete ? "bg-sage text-white" : "bg-[#f4f1ea] text-clay"}`}>
-              {step.complete ? "OK" : "-"}
-            </span>
-            <span>
-              <strong className="block text-sm text-ink">{step.label}</strong>
-              <span className="mt-1 block text-sm leading-5 text-slate-600">{step.detail}</span>
-            </span>
-          </div>
-        ))}
-      </div>
-      <button
-        type="button"
-        onClick={onComplete}
-        disabled={!complete}
-        className="button-primary mt-4 min-h-11 rounded-lg px-4 text-sm font-extrabold disabled:cursor-not-allowed disabled:opacity-60"
-      >
-        {complete ? "Mark Onboarding Complete" : "Complete Checklist First"}
-      </button>
-    </ConceptCard>
-  );
-}
-
-function NotificationCenter({ notifications }: { notifications: Array<{ title: string; detail: string; tone: "normal" | "urgent" }> }) {
-  return (
-    <ConceptCard eyebrow="Notifications" title="Operational alerts">
-      <div className="grid gap-3">
-        {notifications.length ? (
-          notifications.map((notification) => (
-            <div
-              key={`${notification.title}-${notification.detail}`}
-              className={`rounded-lg border p-4 ${
-                notification.tone === "urgent" ? "border-[#e7cbc4] bg-[#fff8f6]" : "border-line bg-white"
-              }`}
-            >
-              <strong className={notification.tone === "urgent" ? "text-[#9f352e]" : "text-ink"}>
-                {notification.title}
-              </strong>
-              <p className="mt-1 text-sm leading-6 text-slate-600">{notification.detail}</p>
-            </div>
-          ))
-        ) : (
-          <div className="rounded-lg border border-line bg-white p-4 text-sm text-slate-600">
-            No active notifications. The property workflow is clear.
-          </div>
-        )}
-      </div>
-    </ConceptCard>
-  );
-}
-
 function FeedbackPanel({
   form,
   message,
@@ -4826,9 +4714,11 @@ function FeedbackPanel({
   setForm: Dispatch<SetStateAction<FeedbackForm>>;
   saveFeedback: (event?: FormEvent<HTMLFormElement>, quickType?: FeedbackType, quickSentiment?: FeedbackSentiment) => void;
 }) {
+  const [showFeedbackForm, setShowFeedbackForm] = useState(false);
+
   return (
     <ConceptCard eyebrow="Pilot feedback" title="Help improve EstateIQ">
-      <div className="mb-4 flex flex-wrap gap-2">
+      <div className="flex flex-wrap gap-2">
         <button
           type="button"
           onClick={() => saveFeedback(undefined, "Thumbs Up", "Positive")}
@@ -4843,76 +4733,109 @@ function FeedbackPanel({
         >
           Thumbs Down
         </button>
-      </div>
-      <form className="grid gap-3" onSubmit={(event) => saveFeedback(event)}>
-        <div className="grid gap-3 sm:grid-cols-3">
-          <label className="grid gap-2 text-sm font-extrabold">
-            Type
-            <select
-              value={form.type}
-              onChange={(event) => setForm((current) => ({ ...current, type: event.target.value as FeedbackType }))}
-              className="field-shell rounded-lg p-3"
-            >
-              {(["Feature Request", "Bug Report", "Post Inspection", "Homeowner Satisfaction"] as FeedbackType[]).map((type) => (
-                <option key={type}>{type}</option>
-              ))}
-            </select>
-          </label>
-          <label className="grid gap-2 text-sm font-extrabold">
-            Sentiment
-            <select
-              value={form.sentiment}
-              onChange={(event) => setForm((current) => ({ ...current, sentiment: event.target.value as FeedbackSentiment }))}
-              className="field-shell rounded-lg p-3"
-            >
-              {(["Positive", "Neutral", "Negative"] as FeedbackSentiment[]).map((sentiment) => (
-                <option key={sentiment}>{sentiment}</option>
-              ))}
-            </select>
-          </label>
-          <label className="grid gap-2 text-sm font-extrabold">
-            Rating
-            <select
-              value={form.rating}
-              onChange={(event) => setForm((current) => ({ ...current, rating: event.target.value }))}
-              className="field-shell rounded-lg p-3"
-            >
-              <option value="">Optional</option>
-              {[5, 4, 3, 2, 1].map((rating) => (
-                <option key={rating} value={rating}>{rating}</option>
-              ))}
-            </select>
-          </label>
-        </div>
-        <label className="grid gap-2 text-sm font-extrabold">
-          Note
-          <textarea
-            rows={3}
-            value={form.message}
-            onChange={(event) => setForm((current) => ({ ...current, message: event.target.value }))}
-            className="field-shell rounded-lg p-3"
-            placeholder="What felt useful, confusing, missing, or important during this workflow?"
-          />
-        </label>
-        <label className="grid gap-2 text-sm font-extrabold">
-          Email for follow-up
-          <input
-            type="email"
-            value={form.email}
-            onChange={(event) => setForm((current) => ({ ...current, email: event.target.value }))}
-            className="field-shell rounded-lg p-3"
-            placeholder="Optional"
-          />
-        </label>
-        {message ? <p className="rounded-lg border border-line bg-white p-3 text-sm font-semibold text-slate-600">{message}</p> : null}
         <button
-          type="submit"
-          disabled={isSaving}
-          className="button-primary min-h-11 rounded-lg px-4 text-sm font-extrabold disabled:cursor-not-allowed disabled:opacity-60"
+          type="button"
+          onClick={() => setShowFeedbackForm(true)}
+          className="button-primary min-h-10 rounded-lg px-4 text-sm font-extrabold"
         >
-          {isSaving ? "Saving..." : "Send Feedback"}
+          Share Feedback
         </button>
-      </form>
+      </div>
+      {message ? <p className="mt-3 rounded-lg border border-line bg-white p-3 text-sm font-semibold text-slate-600">{message}</p> : null}
+
+      {showFeedbackForm ? (
+        <div className="fixed inset-0 z-50 grid place-items-center bg-ink/45 p-4 backdrop-blur-sm">
+          <form
+            className="grid max-h-[calc(100svh-2rem)] w-full max-w-2xl gap-3 overflow-y-auto rounded-lg bg-white p-5 shadow-[0_24px_80px_rgba(35,45,41,0.24)]"
+            onSubmit={(event) => {
+              saveFeedback(event);
+              setShowFeedbackForm(false);
+            }}
+          >
+            <div className="mb-1 flex items-start justify-between gap-3 border-b border-line pb-4">
+              <div>
+                <span className="text-xs font-extrabold uppercase tracking-[0.1em] text-clay">
+                  Pilot feedback
+                </span>
+                <h3 className="mt-1 text-2xl font-extrabold text-ink">Share feedback</h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowFeedbackForm(false)}
+                className="button-soft min-h-10 rounded-lg px-4 text-sm font-extrabold"
+              >
+                Close
+              </button>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-3">
+              <label className="grid gap-2 text-sm font-extrabold">
+                Type
+                <select
+                  value={form.type}
+                  onChange={(event) => setForm((current) => ({ ...current, type: event.target.value as FeedbackType }))}
+                  className="field-shell rounded-lg p-3"
+                >
+                  {(["Feature Request", "Bug Report", "Post Inspection", "Homeowner Satisfaction"] as FeedbackType[]).map((type) => (
+                    <option key={type}>{type}</option>
+                  ))}
+                </select>
+              </label>
+              <label className="grid gap-2 text-sm font-extrabold">
+                Sentiment
+                <select
+                  value={form.sentiment}
+                  onChange={(event) => setForm((current) => ({ ...current, sentiment: event.target.value as FeedbackSentiment }))}
+                  className="field-shell rounded-lg p-3"
+                >
+                  {(["Positive", "Neutral", "Negative"] as FeedbackSentiment[]).map((sentiment) => (
+                    <option key={sentiment}>{sentiment}</option>
+                  ))}
+                </select>
+              </label>
+              <label className="grid gap-2 text-sm font-extrabold">
+                Rating
+                <select
+                  value={form.rating}
+                  onChange={(event) => setForm((current) => ({ ...current, rating: event.target.value }))}
+                  className="field-shell rounded-lg p-3"
+                >
+                  <option value="">Optional</option>
+                  {[5, 4, 3, 2, 1].map((rating) => (
+                    <option key={rating} value={rating}>{rating}</option>
+                  ))}
+                </select>
+              </label>
+            </div>
+            <label className="grid gap-2 text-sm font-extrabold">
+              Note
+              <textarea
+                rows={3}
+                value={form.message}
+                onChange={(event) => setForm((current) => ({ ...current, message: event.target.value }))}
+                className="field-shell rounded-lg p-3"
+                placeholder="What felt useful, confusing, missing, or important during this workflow?"
+              />
+            </label>
+            <label className="grid gap-2 text-sm font-extrabold">
+              Email for follow-up
+              <input
+                type="email"
+                value={form.email}
+                onChange={(event) => setForm((current) => ({ ...current, email: event.target.value }))}
+                className="field-shell rounded-lg p-3"
+                placeholder="Optional"
+              />
+            </label>
+            <button
+              type="submit"
+              disabled={isSaving}
+              className="button-primary min-h-11 rounded-lg px-4 text-sm font-extrabold disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {isSaving ? "Saving..." : "Send Feedback"}
+            </button>
+          </form>
+        </div>
+      ) : null}
     </ConceptCard>
   );
 }
@@ -4943,134 +4866,6 @@ function RankedList({
       </div>
     </div>
   );
-}
-
-function buildOnboardingSteps(
-  role: AppRole,
-  state: {
-    hasProperty: boolean;
-    hasInspection: boolean;
-    hasMaintenance: boolean;
-    hasSchedule: boolean;
-    hasOwnerUpdate: boolean;
-  }
-) {
-  if (role === "Homeowner") {
-    return [
-      {
-        label: "Review property status",
-        detail: "Confirm the owner portal clearly shows the current property condition.",
-        complete: state.hasProperty
-      },
-      {
-        label: "Open latest report",
-        detail: "Validate that the homeowner can access the most recent report.",
-        complete: state.hasInspection
-      },
-      {
-        label: "Review shared updates",
-        detail: "Confirm owner-facing updates feel clear, calm, and concierge-grade.",
-        complete: state.hasOwnerUpdate
-      }
-    ];
-  }
-
-  if (role === "Inspector") {
-    return [
-      {
-        label: "Confirm assigned property",
-        detail: "Select the correct property before starting field work.",
-        complete: state.hasProperty
-      },
-      {
-        label: "Complete first inspection",
-        detail: "Run checklist, add photos, and generate the first report.",
-        complete: state.hasInspection
-      },
-      {
-        label: "Document field issue",
-        detail: "Create a maintenance record when a repair item is observed.",
-        complete: state.hasMaintenance
-      }
-    ];
-  }
-
-  return [
-    {
-      label: "Set up pilot property",
-      detail: "Verify the sample or pilot residence profile is ready.",
-      complete: state.hasProperty
-    },
-    {
-      label: "Create inspection record",
-      detail: "Confirm the core report workflow works end to end.",
-      complete: state.hasInspection
-    },
-    {
-      label: "Schedule next visit",
-      detail: "Add the next inspection, vendor visit, or guest-readiness task.",
-      complete: state.hasSchedule
-    },
-    {
-      label: "Share owner update",
-      detail: "Draft and share one concise homeowner-facing update.",
-      complete: state.hasOwnerUpdate
-    }
-  ];
-}
-
-function buildNotifications({
-  recentReport,
-  maintenanceIssues,
-  upcomingScheduleTasks
-}: {
-  recentReport: Inspection | undefined;
-  maintenanceIssues: MaintenanceIssue[];
-  upcomingScheduleTasks: ScheduleTask[];
-}) {
-  const urgentIssues = maintenanceIssues.filter(
-    (issue) => issue.priority === "Urgent" && issue.status !== "Resolved"
-  );
-  const openIssues = maintenanceIssues.filter((issue) => issue.status !== "Resolved");
-  const upcoming = upcomingScheduleTasks[0];
-  const notifications: Array<{ title: string; detail: string; tone: "normal" | "urgent" }> = [];
-
-  if (recentReport) {
-    notifications.push({
-      title: "Inspection completed",
-      detail: `${getInspectionType(recentReport.checklist)} is ready for review.`,
-      tone: recentReport.urgent === "Yes" ? "urgent" : "normal"
-    });
-    notifications.push({
-      title: "Report ready",
-      detail: "A homeowner-ready web and PDF report is available.",
-      tone: "normal"
-    });
-  }
-
-  if (urgentIssues.length) {
-    notifications.push({
-      title: "Urgent maintenance alert",
-      detail: `${urgentIssues.length} urgent item${urgentIssues.length === 1 ? "" : "s"} require review.`,
-      tone: "urgent"
-    });
-  } else if (openIssues.length) {
-    notifications.push({
-      title: "Issue detected",
-      detail: `${openIssues.length} open maintenance item${openIssues.length === 1 ? "" : "s"} are being tracked.`,
-      tone: "normal"
-    });
-  }
-
-  if (upcoming) {
-    notifications.push({
-      title: "Upcoming inspection reminder",
-      detail: `${upcoming.type} is scheduled for ${formatDateTime(upcoming.scheduledFor)}.`,
-      tone: "normal"
-    });
-  }
-
-  return notifications.slice(0, 4);
 }
 
 function ConceptCard({
@@ -5183,6 +4978,33 @@ function MetricCard({
   );
 }
 
+function OwnerUpdateListItem({ update, onSelect }: { update: OwnerUpdate; onSelect: () => void }) {
+  const statusClass =
+    update.status === "Shared"
+      ? "border-[#c9ddd1] bg-[#f3f8f4] text-sage-dark"
+      : update.status === "Archived"
+        ? "border-line bg-[#fbfcfb] text-slate-600"
+        : "border-[#ead2a8] bg-[#fff8ed] text-[#7b5426]";
+
+  return (
+    <button
+      type="button"
+      onClick={onSelect}
+      className={`grid min-h-16 w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-lg border p-4 text-left transition hover:border-sage hover:shadow-lift ${statusClass}`}
+    >
+      <span className="min-w-0">
+        <strong className="block truncate text-ink">{update.title}</strong>
+        <span className="mt-1 block truncate text-sm font-semibold text-slate-600">
+          {update.category} / {formatDateTime(update.createdAt)}
+        </span>
+      </span>
+      <span className="rounded-full border border-current/20 px-3 py-1 text-xs font-extrabold">
+        {update.status}
+      </span>
+    </button>
+  );
+}
+
 function OwnerUpdateCard({ update }: { update: OwnerUpdate }) {
   const statusClass =
     update.status === "Shared"
@@ -5209,6 +5031,33 @@ function OwnerUpdateCard({ update }: { update: OwnerUpdate }) {
       </p>
       <span className="mt-3 block text-xs font-semibold opacity-65">{formatDateTime(update.createdAt)}</span>
     </article>
+  );
+}
+
+function ScheduleTaskListItem({ task, onSelect }: { task: ScheduleTask; onSelect: () => void }) {
+  const statusClass =
+    task.status === "Complete"
+      ? "border-[#c9ddd1] bg-[#f3f8f4] text-sage-dark"
+      : task.status === "Skipped"
+        ? "border-[#e7cbc4] bg-[#fff8f6] text-[#9f352e]"
+        : "border-line bg-white text-ink";
+
+  return (
+    <button
+      type="button"
+      onClick={onSelect}
+      className={`grid min-h-16 w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-lg border p-4 text-left transition hover:border-sage hover:shadow-lift ${statusClass}`}
+    >
+      <span className="min-w-0">
+        <strong className="block truncate text-ink">{task.title}</strong>
+        <span className="mt-1 block truncate text-sm font-semibold text-slate-600">
+          {task.type} / {formatDateTime(task.scheduledFor)}
+        </span>
+      </span>
+      <span className="rounded-full border border-current/20 px-3 py-1 text-xs font-extrabold">
+        {task.status}
+      </span>
+    </button>
   );
 }
 
