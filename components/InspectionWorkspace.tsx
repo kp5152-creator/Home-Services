@@ -708,9 +708,10 @@ export default function InspectionWorkspace({
 
       setInspections((current) => [inspection, ...current]);
       setActiveReportId(inspection.id);
+      setSelectedReportActionId(inspection.id);
       setInspectionForm(emptyInspectionForm);
       setActiveExperience("Reports");
-      setInspectionSaveMessage("Demo report created locally and opened in Reports.");
+      setInspectionSaveMessage("Demo report created locally and opened.");
       setIsSavingInspection(false);
       trackAnalyticsEvent({
         name: "workflow_step",
@@ -751,9 +752,10 @@ export default function InspectionWorkspace({
       const inspection = (await response.json()) as Inspection;
       setInspections((current) => [inspection, ...current]);
       setActiveReportId(inspection.id);
+      setSelectedReportActionId(inspection.id);
       setInspectionForm(emptyInspectionForm);
       setActiveExperience("Reports");
-      setInspectionSaveMessage("Homeowner report generated and opened in Reports.");
+      setInspectionSaveMessage("Homeowner report generated and opened.");
       trackAnalyticsEvent({
         name: "workflow_step",
         role: activeRole,
