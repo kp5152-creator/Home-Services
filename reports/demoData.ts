@@ -2,6 +2,9 @@ import { withInspectionType } from "@/utils/checklists";
 import type { Database } from "@/utils/types";
 
 const propertyId = "demo-property-estate";
+const villaPropertyId = "demo-property-villa";
+const ridgePropertyId = "demo-property-ridge";
+const casitaPropertyId = "demo-property-casita";
 const inspectionId = "demo-inspection-home-watch";
 
 export const demoDatabase: Database = {
@@ -16,6 +19,39 @@ export const demoDatabase: Database = {
       email: "sample.owner@example.com",
       accessNotes:
         "Demo access only. Standard access notes are available for the inspection team. No real client access codes or security details are stored in this sample."
+    },
+    {
+      id: villaPropertyId,
+      status: "Active",
+      name: "Mirage Palms Villa",
+      owner: "Sample Villa Owner",
+      address: "78110 Palms Ridge Lane, Indian Wells CA 92210",
+      phone: "(760) 555-0126",
+      email: "villa.owner@example.com",
+      accessNotes:
+        "Demo access only. Inspector should verify exterior gates, courtyard lighting, pool equipment, and package area."
+    },
+    {
+      id: ridgePropertyId,
+      status: "Active",
+      name: "Desert Ridge Retreat",
+      owner: "Sample Retreat Owner",
+      address: "53340 Canyon Vista Road, Palm Desert CA 92260",
+      phone: "(760) 555-0173",
+      email: "retreat.owner@example.com",
+      accessNotes:
+        "Demo access only. Focus on hillside drainage, garage entry, HVAC operation, and rear patio condition."
+    },
+    {
+      id: casitaPropertyId,
+      status: "Active",
+      name: "Sagebrush Casita",
+      owner: "Sample Casita Owner",
+      address: "45815 Sagebrush Court, Rancho Mirage CA 92270",
+      phone: "(760) 555-0162",
+      email: "casita.owner@example.com",
+      accessNotes:
+        "Demo access only. Check guest-ready presentation, thermostat, plumbing fixtures, and private courtyard."
     }
   ],
   inspections: [
@@ -130,6 +166,39 @@ export const demoDatabase: Database = {
       phone: "(760) 555-0181",
       email: "pool@example.com",
       notes: "Weekly pool and spa service."
+    },
+    {
+      id: "demo-vendor-villa-cleaning",
+      propertyId: villaPropertyId,
+      createdAt: "2026-05-21T15:00:00.000Z",
+      name: "Palm Housekeeping Co.",
+      type: "Cleaning",
+      contactName: "Nina Sol",
+      phone: "(760) 555-0138",
+      email: "cleaning@example.com",
+      notes: "Demo turnover and arrival-prep vendor."
+    },
+    {
+      id: "demo-vendor-ridge-hvac",
+      propertyId: ridgePropertyId,
+      createdAt: "2026-05-21T15:20:00.000Z",
+      name: "Summit Climate Service",
+      type: "HVAC",
+      contactName: "Grant Cole",
+      phone: "(760) 555-0159",
+      email: "hvac@example.com",
+      notes: "Demo HVAC service contact for seasonal checks."
+    },
+    {
+      id: "demo-vendor-casita-handyman",
+      propertyId: casitaPropertyId,
+      createdAt: "2026-05-21T15:40:00.000Z",
+      name: "Valley Estate Repairs",
+      type: "Handyman",
+      contactName: "Lena Hart",
+      phone: "(760) 555-0117",
+      email: "repairs@example.com",
+      notes: "Demo general repair and guest-readiness support."
     }
   ],
   scheduleTasks: [
@@ -154,6 +223,39 @@ export const demoDatabase: Database = {
       status: "Scheduled",
       assignedTo: "Desert Bloom Landscape",
       notes: "Inspect south planter drip line and confirm no leak."
+    },
+    {
+      id: "demo-schedule-villa-arrival",
+      propertyId: villaPropertyId,
+      createdAt: "2026-05-25T19:00:00.000Z",
+      scheduledFor: "2026-05-30T18:00:00.000Z",
+      type: "Pre-Guest Arrival",
+      title: "Guest arrival readiness",
+      status: "Scheduled",
+      assignedTo: "Avery Stone",
+      notes: "Confirm cleaning completion, pool presentation, thermostat, and entry lighting."
+    },
+    {
+      id: "demo-schedule-ridge-home-watch",
+      propertyId: ridgePropertyId,
+      createdAt: "2026-05-25T19:15:00.000Z",
+      scheduledFor: "2026-06-01T16:30:00.000Z",
+      type: "Home Watch",
+      title: "Ridge property check",
+      status: "Scheduled",
+      assignedTo: "Avery Stone",
+      notes: "Focus on hillside drainage, HVAC, and rear patio after wind conditions."
+    },
+    {
+      id: "demo-schedule-casita-cleaner",
+      propertyId: casitaPropertyId,
+      createdAt: "2026-05-25T19:30:00.000Z",
+      scheduledFor: "2026-05-28T20:00:00.000Z",
+      type: "Cleaner",
+      title: "Casita turnover confirmation",
+      status: "Scheduled",
+      assignedTo: "Palm Housekeeping Co.",
+      notes: "Verify linens, kitchen reset, courtyard sweep, and guest-ready details."
     }
   ],
   ownerUpdates: [
