@@ -94,7 +94,7 @@ create table if not exists public.owner_updates (
 
 insert into storage.buckets (id, name, public)
 values ('inspection-photos', 'inspection-photos', false)
-on conflict (id) do nothing;
+on conflict (id) do update set public = false;
 
 alter table public.properties enable row level security;
 alter table public.inspections enable row level security;
@@ -105,5 +105,31 @@ alter table public.vendors enable row level security;
 alter table public.schedule_tasks enable row level security;
 alter table public.owner_updates enable row level security;
 
--- The app uses SUPABASE_SERVICE_ROLE_KEY from server-side API routes.
--- No public browser access policies are required for this first version.
+revoke all on table public.properties from anon, authenticated;
+revoke all on table public.inspections from anon, authenticated;
+revoke all on table public.inspection_photos from anon, authenticated;
+revoke all on table public.maintenance_issues from anon, authenticated;
+revoke all on table public.maintenance_issue_photos from anon, authenticated;
+revoke all on table public.vendors from anon, authenticated;
+revoke all on table public.schedule_tasks from anon, authenticated;
+revoke all on table public.owner_updates from anon, authenticated;
+
+grant usage on schema public to service_role;
+
+grant select, insert, update, delete on table public.properties to service_role;
+grant select, insert, update, delete on table public.inspections to service_role;
+grant select, insert, update, delete on table public.inspection_photos to service_role;
+grant select, insert, update, delete on table public.maintenance_issues to service_role;
+grant select, insert, update, delete on table public.maintenance_issue_photos to service_role;
+grant select, insert, update, delete on table public.vendors to service_role;
+grant select, insert, update, delete on table public.schedule_tasks to service_role;
+grant select, insert, update, delete on table public.owner_updates to service_role;
+
+alter default privileges in schema public
+grant select, insert, update, delete on tables to service_role;
+
+alter default privileges in schema public
+revoke all on tables from anon, authenticated;
+
+-- EstateIQ uses SUPABASE_SERVICE_ROLE_KEY from server-side API routes.
+-- Do not grant anon/authenticated table access until browser auth and RLS policies are designed.

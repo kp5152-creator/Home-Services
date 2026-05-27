@@ -1,4 +1,4 @@
-# Deploying Desert Estate Watch
+# Deploying EstateIQ
 
 This app can run two ways:
 
@@ -18,7 +18,23 @@ This creates:
 - `properties`
 - `inspections`
 - `inspection_photos`
+- `maintenance_issues`
+- `maintenance_issue_photos`
+- `vendors`
+- `schedule_tasks`
+- `owner_updates`
 - private storage bucket: `inspection-photos`
+
+The schema also enables row level security and grants Data API access to `service_role` only. EstateIQ currently talks to Supabase through server-side API routes using `SUPABASE_SERVICE_ROLE_KEY`, so `anon` and `authenticated` table access should stay locked down until browser auth and RLS policies are intentionally designed.
+
+Supabase is changing new `public` table behavior so Data API access requires explicit grants. Keep future table migrations aligned with the grant block at the bottom of `supabase/schema.sql`.
+
+After running the schema, you can paste `supabase/security-audit.sql` into the SQL Editor to confirm:
+
+- RLS is enabled on EstateIQ tables.
+- `service_role` can select, insert, update, and delete.
+- `anon` and `authenticated` cannot select these tables yet.
+- The `inspection-photos` storage bucket is not public.
 
 ## 2. Supabase Environment Values
 
@@ -66,11 +82,13 @@ https://your-project-name.vercel.app
 
 On the live URL:
 
-1. Add a property.
-2. Create an inspection.
-3. Upload one or two photos.
-4. Save the inspection.
-5. Open Export Report.
-6. Use Print / Save PDF.
+1. Open `/api/health` and confirm `ok` is `true`.
+2. Add a property.
+3. Create an inspection.
+4. Upload one or two photos.
+5. Save the inspection.
+6. Open the report.
+7. Download the PDF.
+8. Add an issue, vendor, schedule item, and owner update.
 
 If photos do not show, check that `SUPABASE_SERVICE_ROLE_KEY` is set correctly in Vercel.
