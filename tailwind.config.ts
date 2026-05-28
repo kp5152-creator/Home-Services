@@ -1,4 +1,5 @@
 import type { Config } from "tailwindcss";
+import { designTokens } from "./utils/designTokens";
 
 const config: Config = {
   content: [
@@ -16,44 +17,73 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        ink: "#17211f",
-        charcoal: "#27312f",
-        slate: "#5d6a64",
-        clay: "#b76e46",
-        gold: "#b88a45",
-        sun: "#d99a5c",
-        sage: "#5f786c",
-        "sage-dark": "#344b43",
-        paper: "#fbfaf7",
-        sand: "#f5f2eb",
-        cream: "#fffdf8",
-        line: "#d9e1dc",
-        danger: "#9f352e",
-        "success-soft": "#e7eee9",
-        "warning-soft": "#fff8ed",
-        "danger-soft": "#fff0ed"
+        ink: designTokens.color.brand.ink,
+        charcoal: designTokens.color.brand.charcoal,
+        slate: designTokens.color.brand.slate,
+        clay: designTokens.color.brand.clay,
+        gold: designTokens.color.brand.gold,
+        sun: designTokens.color.brand.sun,
+        sage: designTokens.color.brand.sage,
+        "sage-dark": designTokens.color.brand.sageDark,
+        paper: designTokens.color.surface.paper,
+        sand: designTokens.color.surface.page,
+        cream: designTokens.color.surface.cream,
+        line: designTokens.color.border.line,
+        danger: designTokens.color.state.danger,
+        "success-soft": designTokens.color.state.successSoft,
+        "warning-soft": designTokens.color.state.warningSoft,
+        "danger-soft": designTokens.color.state.dangerSoft
       },
       borderRadius: {
-        estate: "8px",
-        "estate-lg": "12px",
-        "estate-xl": "16px"
+        estate: designTokens.radius.md,
+        "estate-lg": designTokens.radius.lg,
+        "estate-xl": designTokens.radius.xl
       },
       boxShadow: {
-        estate: "0 18px 44px rgba(35, 45, 41, 0.09)",
-        lift: "0 12px 28px rgba(35, 45, 41, 0.1)",
-        soft: "0 8px 20px rgba(35, 45, 41, 0.04)"
+        estate: designTokens.shadow.card,
+        lift: designTokens.shadow.lift,
+        soft: designTokens.shadow.soft,
+        modal: designTokens.shadow.modal,
+        button: designTokens.shadow.button
       },
       spacing: {
-        "estate-xs": "0.5rem",
-        "estate-sm": "0.75rem",
-        "estate-md": "1rem",
-        "estate-lg": "1.25rem",
-        "estate-xl": "1.5rem",
-        "estate-section": "2rem"
+        "estate-xs": designTokens.spacing.xs,
+        "estate-sm": designTokens.spacing.sm,
+        "estate-md": designTokens.spacing.md,
+        "estate-lg": designTokens.spacing.lg,
+        "estate-xl": designTokens.spacing.xl,
+        "estate-section": designTokens.spacing.section,
+        "estate-page": designTokens.spacing.page
       },
       fontSize: {
-        eyebrow: ["0.75rem", { lineHeight: "1rem", letterSpacing: "0.1em", fontWeight: "800" }],
-        label: ["0.875rem", { lineHeight: "1.25rem", fontWeight: "800" }]
+        eyebrow: [
+          designTokens.typography.size.eyebrow,
+          {
+            lineHeight: "1rem",
+            letterSpacing: designTokens.typography.tracking.eyebrow,
+            fontWeight: designTokens.typography.weight.extraBold
+          }
+        ],
+        label: [
+          designTokens.typography.size.label,
+          {
+            lineHeight: "1.25rem",
+            fontWeight: designTokens.typography.weight.extraBold
+          }
+        ]
+      },
+      fontFamily: {
+        sans: designTokens.typography.fontFamily.sans.split(", "),
+        serif: designTokens.typography.fontFamily.display.split(", ")
+      },
+      transitionDuration: {
+        fast: designTokens.animation.duration.fast,
+        base: designTokens.animation.duration.base,
+        slow: designTokens.animation.duration.slow
+      },
+      transitionTimingFunction: {
+        estate: designTokens.animation.easing.standard,
+        "estate-out": designTokens.animation.easing.entrance
       }
     }
   },

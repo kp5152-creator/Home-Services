@@ -1,30 +1,36 @@
 # EstateIQ Design System
 
-EstateIQ should feel simple, accurate, and luxurious: Apple-level clarity with a Four Seasons / estate-management tone.
+EstateIQ should feel simple, accurate, and luxurious: Apple-level clarity with a Four Seasons / estate-management tone. The master visual reference is the gold EstateIQ logo: charcoal, warm gold, and refined sand.
 
 ## Color System
 
-Use warm neutrals, soft black, sage, clay, and restrained gold. Avoid loud gradients or bright SaaS colors.
+Use charcoal, warm sand, and restrained metallic gold. Avoid loud gradients, bright SaaS colors, and generic corporate blues.
 
-- Ink: primary text and dark panels.
-- Charcoal/slate: supporting text.
-- Paper/sand/cream: page and card surfaces.
-- Sage/sage-dark: trusted action color.
-- Clay/gold: premium accents, eyebrows, dividers, and report details.
+- Ink/charcoal: primary app background and dark panels.
+- Warm sand/cream: card surfaces and readable report pages.
+- Gold: trusted action color, premium accents, active states, icons, dividers, and report details.
 - Danger: urgent issue states only.
 
-Core tokens live in `app/globals.css`, `tailwind.config.ts`, and `utils/designSystem.ts`.
+Core tokens live in `utils/designTokens.ts`. Tailwind reads from that file through `tailwind.config.ts`, CSS variables are mirrored in `app/globals.css`, and compatibility helpers are exported from `utils/designSystem.ts`.
 
 ## Typography System
 
 - H1: screen-level title only.
 - H2: panel and page section titles.
 - H3: card-level title.
-- Eyebrow: small uppercase clay/gold label.
+- Eyebrow: small uppercase gold label.
 - Body: calm, readable 14px-16px text with generous line height.
 - Labels: bold and short.
 
 Do not use oversized hero text inside compact panels or forms.
+
+Typography tokens cover:
+
+- font families
+- type sizes
+- line heights
+- weights
+- letter spacing
 
 ## Spacing System
 
@@ -38,6 +44,18 @@ Use a compact 4px/8px rhythm:
 - section: 32px
 
 Mobile pages should feel focused: fewer stacked panels, clear actions, and no repeated content.
+
+Spacing tokens should be used before one-off values when creating new shared UI patterns.
+
+## Motion System
+
+Use subtle motion only. EstateIQ should feel polished, not busy.
+
+- Fast: small hover and press response.
+- Base: border, focus, and background transitions.
+- Slow: modal or sheet entrance only.
+- Standard easing: calm UI state changes.
+- Entrance easing: polished modal/sheet appearance.
 
 ## Button Styles
 
@@ -64,7 +82,7 @@ Use `FieldShell`, `TextInput`, `TextArea`, and `SelectInput` from `components/ui
 
 - Labels are short and bold.
 - Inputs are 48px tall where possible.
-- Focus state uses sage ring.
+- Focus state uses a restrained gold ring.
 - Help text is small, calm, and only used when useful.
 
 ## Implementation Rule

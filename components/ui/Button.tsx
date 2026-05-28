@@ -5,8 +5,8 @@ type ButtonVariant = "primary" | "soft" | "ghost" | "danger";
 type ButtonSize = "sm" | "md" | "lg" | "icon";
 
 const variantClasses: Record<ButtonVariant, string> = {
-  primary: "button-primary border border-transparent text-white",
-  soft: "button-soft border border-transparent text-ink",
+  primary: "button-primary border border-transparent text-ink",
+  soft: "button-soft border border-transparent text-cream",
   ghost: "button-ghost",
   danger: "button-danger"
 };
@@ -34,7 +34,7 @@ export function Button({
   return (
     <button
       className={cn(
-        "inline-grid place-items-center rounded-estate font-extrabold disabled:cursor-not-allowed disabled:opacity-60",
+        "inline-grid place-items-center rounded-estate font-extrabold tracking-[0.01em] disabled:cursor-not-allowed disabled:opacity-60",
         variantClasses[variant],
         sizeClasses[size],
         className
@@ -56,7 +56,7 @@ export function ButtonLink({
   return (
     <a
       className={cn(
-        "inline-grid place-items-center rounded-estate font-extrabold",
+        "inline-grid place-items-center rounded-estate font-extrabold tracking-[0.01em]",
         variantClasses[variant],
         sizeClasses[size],
         className

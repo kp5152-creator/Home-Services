@@ -5,9 +5,9 @@ type PanelTone = "default" | "paper" | "ink" | "warning" | "danger";
 
 const toneClasses: Record<PanelTone, string> = {
   default: "estate-panel",
-  paper: "border border-line bg-paper shadow-soft",
-  ink: "bg-ink text-white shadow-estate",
-  warning: "border border-[#ead2a8] bg-warning-soft",
+  paper: "border border-gold/20 bg-cream/90 shadow-soft",
+  ink: "border border-gold/20 bg-ink text-white shadow-estate",
+  warning: "border border-gold/35 bg-warning-soft",
   danger: "border border-[#e7cbc4] bg-danger-soft text-danger"
 };
 

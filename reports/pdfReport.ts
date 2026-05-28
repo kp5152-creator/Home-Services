@@ -6,14 +6,13 @@ import { readPhotoAsset } from "@/services/database";
 import type { Inspection, InspectionPhoto, Property } from "@/utils/types";
 
 const palette = {
-  ink: "#17211f",
-  charcoal: "#27312f",
-  muted: "#69736f",
-  line: "#e6dfd3",
-  sand: "#f6f1e8",
-  cream: "#fbf8f1",
-  gold: "#b88a45",
-  green: "#40584d",
+  ink: "#1F1F1F",
+  charcoal: "#252525",
+  muted: "#6f6658",
+  line: "#E5C76B",
+  sand: "#EAE4D8",
+  cream: "#F5F2EA",
+  gold: "#D4AF37",
   urgent: "#9f352e",
   white: "#ffffff"
 };
@@ -71,30 +70,36 @@ function drawCoverPage(
   drawPageBackground(doc);
 
   if (coverImage) {
+    doc.save();
+    doc.roundedRect(48, 42, 516, 250, 14).clip();
     doc.image(coverImage, 48, 42, { fit: [516, 250], align: "center", valign: "center" });
+    doc.rect(48, 42, 516, 250).fillOpacity(0.1).fill(palette.ink);
+    doc.restore();
   } else {
-    doc.roundedRect(48, 42, 516, 250, 16).fill(palette.sand);
+    doc.roundedRect(48, 42, 516, 250, 14).fill(palette.sand);
   }
 
-  doc.roundedRect(48, 42, 516, 250, 16).lineWidth(1).strokeColor(palette.line).stroke();
-  doc.font("Helvetica").fontSize(9).fillColor(palette.gold).text("ESTATEIQ", 54, 326, {
+  doc.roundedRect(48, 42, 516, 250, 14).lineWidth(1).strokeColor(palette.line).stroke();
+  doc.font("Helvetica").fontSize(9).fillColor(palette.gold).text("PRIVATE ESTATEIQ HOME WATCH", 54, 324, {
     characterSpacing: 2.4,
     align: "center",
     width: 504
   });
-  doc.font("Helvetica-Bold").fontSize(29).fillColor(palette.ink).text("Homeowner Inspection Report", 70, 352, {
+  doc.font("Times-Bold").fontSize(36).fillColor(palette.ink).text("Homeowner Packet", 70, 350, {
     align: "center",
     width: 472
   });
   doc.font("Helvetica").fontSize(12).fillColor(palette.muted).text(
-    "Prepared for confident ownership, clear communication, and white-glove property oversight.",
+    "Prepared for confident ownership, clear communication, and white-glove estate oversight.",
     94,
-    392,
+    398,
     { align: "center", width: 424, lineGap: 3 }
   );
 
-  drawStatusPill(doc, status.label, status.tone === "urgent" ? palette.urgent : palette.green, 218, 438, 176);
-  doc.roundedRect(74, 494, 464, 122, 14).fill(palette.white).strokeColor(palette.line).stroke();
+  drawStatusPill(doc, status.label, status.tone === "urgent" ? palette.urgent : palette.gold, 218, 438, 176);
+  doc.roundedRect(74, 494, 464, 122, 12).fill(palette.white).strokeColor(palette.line).stroke();
+  doc.moveTo(98, 548).lineTo(514, 548).lineWidth(0.4).strokeColor(palette.sand).stroke();
+  doc.moveTo(298, 512).lineTo(298, 600).lineWidth(0.4).strokeColor(palette.sand).stroke();
   writeCoverMeta(doc, "Property", property.name, 98, 518);
   writeCoverMeta(doc, "Homeowner", property.owner, 98, 558);
   writeCoverMeta(doc, "Inspection", getInspectionType(inspection.checklist), 322, 518);
@@ -120,32 +125,52 @@ function drawSummaryPage(
 ) {
   doc.addPage();
   drawPageBackground(doc);
-  drawSectionHeader(doc, "Executive Summary", "Homeowner-ready property intelligence", 54, 48);
+  drawSectionHeader(doc, "Homeowner Summary", "Concierge notes and visit context", 54, 48);
 
-  doc.roundedRect(54, 112, 504, 120, 14).fill(palette.ink);
-  doc.font("Helvetica").fontSize(9).fillColor(palette.gold).text("PROPERTY CONDITION", 78, 138, { characterSpacing: 1.4 });
-  doc.font("Helvetica-Bold").fontSize(22).fillColor(palette.white).text(status.label, 78, 160, { width: 280 });
-  doc.font("Helvetica").fontSize(10).fillColor("#d8d0c1").text(status.description, 78, 192, { width: 418, lineGap: 2 });
-
-  const completedCount = visibleChecklistItems(inspection.checklist).length;
-  drawMetricCard(doc, "Completed Checks", String(completedCount), 54, 266, 154);
-  drawMetricCard(doc, "Photos", String(inspection.photos.length), 225, 266, 154);
-  drawMetricCard(doc, "Urgent Issues", inspection.urgent, 396, 266, 162, inspection.urgent === "Yes");
-
-  doc.roundedRect(54, 388, 504, 180, 14).fill(palette.white).strokeColor(palette.line).stroke();
-  doc.font("Helvetica-Bold").fontSize(13).fillColor(palette.ink).text("Concierge Notes", 78, 414);
+  doc.roundedRect(54, 112, 504, 232, 14).fill(palette.white).strokeColor(palette.line).stroke();
+  doc.rect(54, 112, 504, 5).fill(palette.gold);
+  doc.font("Helvetica").fontSize(9).fillColor(palette.gold).text("CONCIERGE NOTE", 78, 142, {
+    characterSpacing: 1.4
+  });
+  doc.font("Times-Bold").fontSize(22).fillColor(palette.ink).text("What the homeowner needs to know", 78, 164, {
+    width: 456
+  });
   doc.font("Helvetica").fontSize(10.5).fillColor(palette.charcoal).text(
     inspection.executiveSummary || "The property inspection has been completed and is ready for homeowner review.",
     78,
-    440,
-    { width: 456, lineGap: 4 }
+    206,
+    { width: 456, lineGap: 5 }
   );
 
-  doc.roundedRect(54, 596, 504, 86, 14).fill(palette.sand).strokeColor(palette.line).stroke();
-  doc.font("Helvetica-Bold").fontSize(12).fillColor(palette.ink).text("Visit Details", 78, 620);
-  writeInlineDetail(doc, "Inspector", inspection.inspectorName, 78, 646);
-  writeInlineDetail(doc, "Interior Temp", inspection.interiorTemperature + " F", 238, 646);
-  writeInlineDetail(doc, "Property", property.name, 398, 646);
+  doc.roundedRect(54, 372, 242, 142, 12).fill(palette.sand).strokeColor(palette.line).stroke();
+  doc.font("Helvetica").fontSize(8).fillColor(palette.gold).text("HOMEOWNER ACTION", 78, 398, {
+    characterSpacing: 1.2
+  });
+  doc.font("Times-Bold").fontSize(16).fillColor(status.tone === "urgent" ? palette.urgent : palette.ink).text(
+    status.tone === "urgent" ? "Review promptly" : "No immediate action",
+    78,
+    420,
+    { width: 190 }
+  );
+  doc.font("Helvetica").fontSize(9.5).fillColor(palette.charcoal).text(status.description, 78, 450, {
+    width: 190,
+    lineGap: 3
+  });
+
+  doc.roundedRect(316, 372, 242, 142, 12).fill(palette.white).strokeColor(palette.line).stroke();
+  doc.font("Helvetica").fontSize(8).fillColor(palette.gold).text("VISIT CONTEXT", 340, 398, {
+    characterSpacing: 1.2
+  });
+  writeInlineDetail(doc, "Inspector", inspection.inspectorName, 340, 426);
+  writeInlineDetail(doc, "Interior Temp", inspection.interiorTemperature + " F", 460, 426);
+  writeInlineDetail(doc, "Inspection", getInspectionType(inspection.checklist), 340, 472);
+
+  doc.roundedRect(54, 550, 504, 104, 12).fill(palette.white).strokeColor(palette.line).stroke();
+  doc.font("Times-Bold").fontSize(15).fillColor(palette.ink).text("Included in this packet", 78, 576);
+  doc.moveTo(78, 596).lineTo(198, 596).lineWidth(0.8).strokeColor(palette.gold).stroke();
+  writePacketItem(doc, "Inspection record", "Checklist observations and any notes from the property visit.", 78, 618);
+  writePacketItem(doc, "Photo documentation", "Representative images are included for visual confirmation.", 252, 618);
+  writePacketItem(doc, "Service history", "Report details remain available inside EstateIQ for future reference.", 426, 618);
 }
 
 function drawInspectionRecordPage(
@@ -157,8 +182,8 @@ function drawInspectionRecordPage(
   drawPageBackground(doc);
   drawSectionHeader(doc, "Inspection Record", "Checklist, notes, and visual documentation", 54, 48);
 
-  doc.roundedRect(54, 104, 504, 72, 14).fill(palette.white).strokeColor(palette.line).stroke();
-  doc.font("Helvetica-Bold").fontSize(11).fillColor(palette.ink).text("Notes / Issues Found", 78, 126);
+  doc.roundedRect(54, 104, 504, 72, 12).fill(palette.white).strokeColor(palette.line).stroke();
+  doc.font("Times-Bold").fontSize(14).fillColor(palette.ink).text("Notes / Issues Found", 78, 126);
   doc.font("Helvetica").fontSize(9.2).fillColor(palette.charcoal).text(
     inspection.notes || "No issues were noted during this visit.",
     78,
@@ -176,13 +201,14 @@ function drawInspectionRecordPage(
 
   sections.slice(0, 2).forEach((section, sectionIndex) => {
     const x = sectionIndex === 0 ? 54 : 316;
-    doc.roundedRect(x, sectionY, sectionWidth, 250, 14).fill(palette.white).strokeColor(palette.line).stroke();
-    doc.font("Helvetica-Bold").fontSize(12).fillColor(palette.gold).text(section.title, x + 18, sectionY + 18);
+    doc.roundedRect(x, sectionY, sectionWidth, 250, 12).fill(palette.white).strokeColor(palette.line).stroke();
+    doc.rect(x, sectionY, sectionWidth, 4).fill(palette.gold);
+    doc.font("Times-Bold").fontSize(14).fillColor(palette.ink).text(section.title, x + 18, sectionY + 18);
 
     let itemY = sectionY + 44;
     section.items.forEach((item) => {
       if (itemY > sectionY + 226) return;
-      doc.circle(x + 24, itemY + 4, 3.2).fill(palette.green);
+      doc.circle(x + 24, itemY + 4, 3.2).fill(palette.gold);
       doc.font("Helvetica").fontSize(7.8).fillColor(palette.charcoal).text(item, x + 36, itemY, {
         width: sectionWidth - 52,
         lineGap: 0.4
@@ -199,7 +225,7 @@ function drawInspectionRecordPage(
   const photoWidth = 154;
   photoAssets.slice(0, 3).forEach(({ photo, asset }, index) => {
     const x = 54 + index * 175;
-    doc.roundedRect(x, photoY, photoWidth, 150, 12).fill(palette.white).strokeColor(palette.line).stroke();
+    doc.roundedRect(x, photoY, photoWidth, 150, 10).fill(palette.white).strokeColor(palette.line).stroke();
     if (asset) {
       try {
         doc.image(asset.buffer, x + 10, photoY + 12, { fit: [photoWidth - 20, 92], align: "center", valign: "center" });
@@ -222,7 +248,7 @@ function drawInspectionRecordPage(
     });
   });
 
-  doc.roundedRect(54, 686, 504, 34, 12).fill(palette.sand).strokeColor(palette.line).stroke();
+  doc.roundedRect(54, 686, 504, 34, 10).fill(palette.sand).strokeColor(palette.line).stroke();
   doc.font("Helvetica").fontSize(8.5).fillColor(palette.muted).text(
     "Complete photo set and checklist detail are retained in EstateIQ inspection history.",
     76,
@@ -237,13 +263,15 @@ function cleanPhotoName(name: string) {
 
 function drawPageBackground(doc: PDFKit.PDFDocument) {
   doc.rect(0, 0, 612, 792).fill(palette.cream);
-  doc.rect(0, 0, 612, 18).fill(palette.ink);
-  doc.rect(0, 774, 612, 18).fill(palette.ink);
+  doc.rect(0, 0, 612, 24).fill(palette.ink);
+  doc.rect(0, 24, 612, 2).fill(palette.gold);
+  doc.rect(0, 766, 612, 2).fill(palette.gold);
+  doc.rect(0, 768, 612, 24).fill(palette.ink);
 }
 
 function drawSectionHeader(doc: PDFKit.PDFDocument, title: string, subtitle: string, x: number, y: number) {
   doc.font("Helvetica").fontSize(8).fillColor(palette.gold).text("ESTATEIQ", x, y, { characterSpacing: 2 });
-  doc.font("Helvetica-Bold").fontSize(22).fillColor(palette.ink).text(title, x, y + 18);
+  doc.font("Times-Bold").fontSize(24).fillColor(palette.ink).text(title, x, y + 18);
   doc.font("Helvetica").fontSize(10).fillColor(palette.muted).text(subtitle, x, y + 48);
   doc.moveTo(x, y + 70).lineTo(558, y + 70).lineWidth(0.8).strokeColor(palette.line).stroke();
 }
@@ -267,12 +295,13 @@ function drawMetricCard(
   width: number,
   urgent = false
 ) {
-  doc.roundedRect(x, y, width, 86, 14).fill(palette.white).strokeColor(palette.line).stroke();
+  doc.roundedRect(x, y, width, 86, 12).fill(palette.white).strokeColor(palette.line).stroke();
+  doc.rect(x, y, width, 4).fill(urgent ? palette.urgent : palette.gold);
   doc.font("Helvetica").fontSize(8).fillColor(palette.gold).text(label.toUpperCase(), x + 18, y + 20, {
     characterSpacing: 1.1,
     width: width - 36
   });
-  doc.font("Helvetica-Bold").fontSize(24).fillColor(urgent ? palette.urgent : palette.ink).text(value, x + 18, y + 42, {
+  doc.font("Times-Bold").fontSize(26).fillColor(urgent ? palette.urgent : palette.ink).text(value, x + 18, y + 40, {
     width: width - 36
   });
 }
@@ -280,6 +309,15 @@ function drawMetricCard(
 function writeInlineDetail(doc: PDFKit.PDFDocument, label: string, value: string, x: number, y: number) {
   doc.font("Helvetica").fontSize(8).fillColor(palette.gold).text(label.toUpperCase(), x, y, { width: 120, characterSpacing: 1 });
   doc.font("Helvetica-Bold").fontSize(10).fillColor(palette.ink).text(value, x, y + 14, { width: 130 });
+}
+
+function writePacketItem(doc: PDFKit.PDFDocument, title: string, body: string, x: number, y: number) {
+  doc.circle(x, y + 5, 3).fill(palette.gold);
+  doc.font("Helvetica-Bold").fontSize(9).fillColor(palette.ink).text(title, x + 12, y, { width: 112 });
+  doc.font("Helvetica").fontSize(8).fillColor(palette.muted).text(body, x + 12, y + 16, {
+    width: 112,
+    lineGap: 2
+  });
 }
 
 function addFooters(doc: PDFKit.PDFDocument, property: Property) {

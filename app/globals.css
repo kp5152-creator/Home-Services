@@ -4,28 +4,62 @@
 
 :root {
   color-scheme: light;
-  --page-bg: #f5f2eb;
-  --paper: #fbfaf7;
-  --cream: #fffdf8;
-  --ink: #17211f;
-  --charcoal: #27312f;
-  --muted: #5d6a64;
-  --line: #d9e1dc;
-  --sage: #5f786c;
-  --sage-dark: #344b43;
-  --clay: #b76e46;
-  --gold: #b88a45;
-  --sun: #d99a5c;
+  --page-bg: #1f1f1f;
+  --paper: #252525;
+  --cream: #f5f2ea;
+  --ink: #1f1f1f;
+  --charcoal: #252525;
+  --muted: #6f6658;
+  --line: rgba(212, 175, 55, 0.22);
+  --sage: #c9a227;
+  --sage-dark: #d4af37;
+  --clay: #d4af37;
+  --gold: #d4af37;
+  --sun: #f2d98a;
   --danger: #9f352e;
-  --success-soft: #e7eee9;
-  --warning-soft: #fff8ed;
+  --success-soft: #f0e8c8;
+  --warning-soft: #eae4d8;
   --danger-soft: #fff0ed;
+  --warning: #7b5426;
+  --line-strong: rgba(212, 175, 55, 0.42);
   --radius-sm: 6px;
   --radius-md: 8px;
   --radius-lg: 12px;
-  --shadow-card: 0 18px 44px rgba(35, 45, 41, 0.09);
-  --shadow-lift: 0 12px 28px rgba(35, 45, 41, 0.1);
-  --shadow-soft: 0 8px 20px rgba(35, 45, 41, 0.04);
+  --radius-xl: 16px;
+  --radius-pill: 999px;
+  --shadow-card: 0 24px 70px rgba(0, 0, 0, 0.28);
+  --shadow-lift: 0 16px 38px rgba(0, 0, 0, 0.22);
+  --shadow-soft: 0 10px 26px rgba(0, 0, 0, 0.14);
+  --shadow-modal: 0 30px 90px rgba(0, 0, 0, 0.42);
+  --shadow-button: 0 14px 30px rgba(212, 175, 55, 0.26);
+  --space-xs: 0.5rem;
+  --space-sm: 0.75rem;
+  --space-md: 1rem;
+  --space-lg: 1.25rem;
+  --space-xl: 1.5rem;
+  --space-section: 2rem;
+  --font-sans: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-display: "Cormorant Garamond", "Playfair Display", Georgia, "Times New Roman", serif;
+  --type-eyebrow: 0.75rem;
+  --type-label: 0.875rem;
+  --type-body-sm: 0.875rem;
+  --type-body: 1rem;
+  --type-h3: 1.125rem;
+  --type-h2: 1.5rem;
+  --type-h1: 2.25rem;
+  --leading-tight: 1.12;
+  --leading-body: 1.5;
+  --tracking-eyebrow: 0.1em;
+  --duration-fast: 140ms;
+  --duration-base: 160ms;
+  --duration-slow: 240ms;
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --ease-entrance: cubic-bezier(0.16, 1, 0.3, 1);
+  --transition-interactive:
+    transform var(--duration-fast) var(--ease-standard),
+    box-shadow var(--duration-base) var(--ease-standard),
+    background var(--duration-base) var(--ease-standard),
+    border-color var(--duration-base) var(--ease-standard);
 }
 
 * {
@@ -34,10 +68,11 @@
 
 body {
   background:
-    radial-gradient(circle at top left, rgba(217, 154, 92, 0.22), transparent 30rem),
-    radial-gradient(circle at bottom right, rgba(95, 120, 108, 0.2), transparent 34rem),
-    linear-gradient(180deg, #fbfaf7 0%, var(--page-bg) 100%);
-  color: var(--ink);
+    radial-gradient(circle at top left, rgba(212, 175, 55, 0.18), transparent 30rem),
+    radial-gradient(circle at bottom right, rgba(242, 217, 138, 0.12), transparent 34rem),
+    linear-gradient(180deg, #2c2c2c 0%, var(--page-bg) 56%, #151515 100%);
+  color: var(--cream);
+  font-family: var(--font-sans);
   min-height: 100vh;
   -webkit-font-smoothing: antialiased;
   text-rendering: geometricPrecision;
@@ -68,9 +103,11 @@ textarea {
 
 @layer components {
   .estate-panel {
-    border: 1px solid rgba(217, 225, 220, 0.92);
+    border: 1px solid var(--line);
     border-radius: var(--radius-md);
-    background: rgba(255, 255, 255, 0.92);
+    background:
+      linear-gradient(180deg, rgba(234, 228, 216, 0.98), rgba(245, 242, 234, 0.92)),
+      #eae4d8;
     box-shadow: var(--shadow-card);
     backdrop-filter: blur(14px);
   }
@@ -78,8 +115,30 @@ textarea {
   .estate-card {
     border: 1px solid var(--line);
     border-radius: var(--radius-md);
-    background: #fff;
+    background: var(--cream);
     box-shadow: var(--shadow-soft);
+  }
+
+  .estate-modal-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 50;
+    display: grid;
+    place-items: center;
+    padding: 1rem;
+    background:
+      radial-gradient(circle at top, rgba(212, 175, 55, 0.16), transparent 28rem),
+      rgba(18, 18, 18, 0.66);
+    backdrop-filter: blur(14px);
+  }
+
+  .estate-modal-panel {
+    border: 1px solid rgba(212, 175, 55, 0.28);
+    border-radius: var(--radius-md);
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.97), rgba(245, 242, 234, 0.94)),
+      var(--cream);
+    box-shadow: var(--shadow-modal);
   }
 
   .type-eyebrow {
@@ -88,12 +147,13 @@ textarea {
     font-weight: 800;
     text-transform: uppercase;
     letter-spacing: 0.1em;
-    color: var(--clay);
+    color: var(--gold);
   }
 
   .type-title {
     color: var(--ink);
-    font-weight: 800;
+    font-family: var(--font-display);
+    font-weight: 700;
     line-height: 1.12;
   }
 
@@ -107,18 +167,19 @@ textarea {
     min-height: 3rem;
     border: 1px solid var(--line);
     border-radius: var(--radius-md);
-    background: white;
+    background: rgba(255, 255, 255, 0.9);
+    color: var(--ink);
     outline: none;
     transition:
-      border-color 160ms ease,
-      box-shadow 160ms ease,
-      background 160ms ease;
+      border-color var(--duration-base) var(--ease-standard),
+      box-shadow var(--duration-base) var(--ease-standard),
+      background var(--duration-base) var(--ease-standard);
   }
 
   .field-shell:focus,
   .field-shell:focus-within {
     border-color: var(--sage);
-    box-shadow: 0 0 0 4px rgba(95, 120, 108, 0.14);
+    box-shadow: 0 0 0 4px rgba(212, 175, 55, 0.18);
   }
 
   .button-primary,
@@ -127,11 +188,7 @@ textarea {
   .button-danger {
     min-height: 2.75rem;
     border-radius: var(--radius-md);
-    transition:
-      transform 140ms ease,
-      box-shadow 160ms ease,
-      background 160ms ease,
-      border-color 160ms ease;
+    transition: var(--transition-interactive);
   }
 
   .button-primary:hover,
@@ -142,26 +199,93 @@ textarea {
   }
 
   .button-primary {
-    background: linear-gradient(135deg, var(--sage-dark), #223630);
-    color: white;
-    box-shadow: 0 12px 24px rgba(52, 75, 67, 0.22);
+    background: linear-gradient(135deg, #f2d98a 0%, #d4af37 45%, #a97f16 100%);
+    color: #1f1f1f;
+    box-shadow: var(--shadow-button);
   }
 
   .button-soft {
-    background: #edf2ef;
-    color: var(--ink);
+    border: 1px solid rgba(212, 175, 55, 0.36);
+    background: linear-gradient(180deg, rgba(31, 31, 31, 0.96), rgba(44, 44, 44, 0.92));
+    color: var(--cream);
   }
 
   .button-ghost {
-    border: 1px solid var(--line);
-    background: white;
-    color: var(--ink);
+    border: 1px solid rgba(212, 175, 55, 0.34);
+    background: rgba(245, 242, 234, 0.08);
+    color: var(--cream);
   }
 
   .button-danger {
     border: 1px solid #e7cbc4;
-    background: var(--danger-soft);
+    background: linear-gradient(180deg, #fff8f6, var(--danger-soft));
     color: var(--danger);
+  }
+
+  .bg-ink {
+    background-color: #1f1f1f;
+  }
+
+  .text-clay,
+  .text-gold {
+    color: var(--gold);
+  }
+
+  .text-muted {
+    color: var(--muted);
+  }
+
+  .border-line {
+    border-color: var(--line);
+  }
+
+  .text-slate-500,
+  .text-slate-600,
+  .text-slate-700 {
+    color: var(--muted);
+  }
+
+  .bg-white,
+  .bg-white\/70,
+  .bg-white\/90,
+  .bg-\[\#fbfcfb\],
+  .bg-\[\#f8faf8\],
+  .bg-\[\#f3f8f4\] {
+    background-color: rgba(245, 242, 234, 0.88);
+  }
+
+  .shadow-estate {
+    box-shadow: var(--shadow-card);
+  }
+
+  .shadow-lift {
+    box-shadow: var(--shadow-lift);
+  }
+
+  .luxury-surface {
+    border: 1px solid var(--line);
+    background:
+      linear-gradient(180deg, rgba(245, 242, 234, 0.96), rgba(234, 228, 216, 0.9)),
+      var(--cream);
+    box-shadow: var(--shadow-card);
+  }
+
+  .luxury-gold-line {
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(212, 175, 55, 0.72), transparent);
+  }
+
+  .motion-reveal {
+    animation: estate-reveal var(--duration-slow) var(--ease-entrance) both;
+  }
+
+  .motion-hover-lift {
+    transition: var(--transition-interactive);
+  }
+
+  .motion-hover-lift:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-lift);
   }
 
   .luxury-dark {
@@ -180,7 +304,8 @@ textarea {
 
   .luxury-dark .text-slate-600,
   .luxury-dark .text-slate-700,
-  .luxury-dark .text-slate-500 {
+  .luxury-dark .text-slate-500,
+  .luxury-dark .text-muted {
     color: rgba(248, 244, 235, 0.68);
   }
 
@@ -206,6 +331,18 @@ textarea {
   .luxury-dark .button-soft {
     background: rgba(255, 255, 255, 0.1);
     color: #f8f4eb;
+  }
+}
+
+@keyframes estate-reveal {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
   }
 }
 

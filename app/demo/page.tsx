@@ -1,10 +1,31 @@
 import InspectionWorkspace from "@/components/InspectionWorkspace";
+import type { AppRole } from "@/components/InspectionWorkspace";
 import { readDatabase } from "@/services/database";
 
 export const dynamic = "force-dynamic";
 
-export default async function DemoPage() {
-  const database = await readDatabase();
+function resolveInitialDemoRole(params: { demo?: string; role?: string } | undefined): AppRole | undefined {
+  const demo = params?.demo?.toLowerCase();
+  const role = params?.role?.toLowerCase();
 
-  return <InspectionWorkspace initialDatabase={database} />;
+  if (demo !== "true" && demo !== "admin" && demo !== "inspector" && demo !== "homeowner") {
+    return undefined;
+  }
+
+  if (role === "inspector" || demo === "inspector") return "Inspector";
+  if (role === "homeowner" || demo === "homeowner") return "Homeowner";
+
+  return "Admin";
+}
+
+export default async function DemoPage({
+  searchParams
+}: {
+  searchParams?: Promise<{ demo?: string; role?: string }>;
+}) {
+  const database = await readDatabase();
+  const params = await searchParams;
+  const initialDemoRole = resolveInitialDemoRole(params);
+
+  return <InspectionWorkspace initialDatabase={database} initialDemoRole={initialDemoRole} />;
 }

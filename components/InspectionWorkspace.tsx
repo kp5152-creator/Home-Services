@@ -121,22 +121,22 @@ type ExperienceScreen =
   | "Maintenance"
   | "Owner Portal";
 
-type AppRole = "Admin" | "Inspector" | "Homeowner";
+export type AppRole = "Admin" | "Inspector" | "Homeowner";
 
 const roleLabels: Record<AppRole, { title: string; description: string; firstScreen: ExperienceScreen }> = {
   Admin: {
-    title: "Admin Command Center",
-    description: "Full SaaS workspace for portfolio, operations, reports, vendors, scheduling, and owner communication.",
+    title: "Command Center",
+    description: "Portfolio operations, reports, vendors, scheduling, and owner communication in one calm workspace.",
     firstScreen: "Dashboard"
   },
   Inspector: {
-    title: "Inspector Field App",
-    description: "Mobile-first field workflow for inspections, photos, maintenance issues, and scheduled work.",
+    title: "Inspector",
+    description: "Focused field workflow for inspections, photos, maintenance issues, and property confirmation.",
     firstScreen: "Dashboard"
   },
   Homeowner: {
-    title: "Homeowner Portal",
-    description: "Read-only homeowner experience for property condition, shared updates, and report access.",
+    title: "Owner Portal",
+    description: "Private homeowner view for property condition, shared updates, and report access.",
     firstScreen: "Owner Portal"
   }
 };
@@ -223,14 +223,14 @@ const scheduleTaskTypes: ScheduleTaskType[] = [
 const scheduleTaskStatuses: ScheduleTaskStatus[] = ["Scheduled", "In Progress", "Complete", "Skipped"];
 
 const experienceScreens: ExperienceScreen[] = [
-  "Pilot Admin",
+  "Dashboard",
   "Property",
   "Inspection",
   "Maintenance",
   "Schedule",
   "Reports",
-  "Dashboard",
-  "Owner Portal"
+  "Owner Portal",
+  "Pilot Admin"
 ];
 
 function roleExperienceScreens(role: AppRole): ExperienceScreen[] {
@@ -376,9 +376,11 @@ function loadImage(url: string) {
 }
 
 export default function InspectionWorkspace({
-  initialDatabase
+  initialDatabase,
+  initialDemoRole
 }: {
   initialDatabase: Database;
+  initialDemoRole?: AppRole;
 }) {
   const [properties, setProperties] = useState<Property[]>(initialDatabase.properties);
   const [inspections, setInspections] = useState<Inspection[]>(initialDatabase.inspections);
@@ -429,9 +431,13 @@ export default function InspectionWorkspace({
   const [activeExperience, setActiveExperience] = useState<ExperienceScreen>("Login");
   const [activeRole, setActiveRole] = useState<AppRole>("Admin");
   const [demoMode, setDemoMode] = useState(false);
+  const [hasAppliedInitialDemoRole, setHasAppliedInitialDemoRole] = useState(false);
   const [darkMode, setDarkMode] = useState(false);
   const [now] = useState(() => new Date());
   const visibleExperienceScreens = roleExperienceScreens(activeRole);
+  const desktopNavigationScreens = visibleExperienceScreens.includes("Dashboard")
+    ? (["Dashboard", ...visibleExperienceScreens.filter((screen) => screen !== "Dashboard")] as ExperienceScreen[])
+    : visibleExperienceScreens;
   const mobileExperienceScreens = mobileRoleExperienceScreens(activeRole, activeExperience).filter((screen) =>
     visibleExperienceScreens.includes(screen)
   );
@@ -458,6 +464,13 @@ export default function InspectionWorkspace({
 
     void refreshPilotConsole();
   }, [activeRole]);
+
+  useEffect(() => {
+    if (!initialDemoRole || hasAppliedInitialDemoRole) return;
+
+    setHasAppliedInitialDemoRole(true);
+    loadDemoMode(initialDemoRole);
+  }, [hasAppliedInitialDemoRole, initialDemoRole]);
 
   const selectedInspections = useMemo(
     () => inspections.filter((inspection) => inspection.propertyId === selectedProperty?.id),
@@ -1481,10 +1494,11 @@ export default function InspectionWorkspace({
     "Reports",
     "Property"
   ].includes(activeExperience) && visibleExperienceScreens.includes(activeExperience);
-  const currentFlowIndex = visibleExperienceScreens.indexOf(activeExperience);
+  const workflowExperienceScreens: ExperienceScreen[] = visibleExperienceScreens;
+  const currentFlowIndex = workflowExperienceScreens.indexOf(activeExperience);
   const nextFlowScreen =
-    currentFlowIndex >= 0 && currentFlowIndex < visibleExperienceScreens.length - 1
-      ? visibleExperienceScreens[currentFlowIndex + 1]
+    currentFlowIndex >= 0 && currentFlowIndex < workflowExperienceScreens.length - 1
+        ? workflowExperienceScreens[currentFlowIndex + 1]
       : undefined;
 
   function enterRole(role: AppRole) {
@@ -1542,14 +1556,14 @@ export default function InspectionWorkspace({
         <section className="estate-panel w-full max-w-[440px] rounded-lg p-6 shadow-estate sm:p-8">
           <div className="mb-8 text-center">
             <img
-              src="/estateiq-logo.png"
+              src="/estateiq-logo-clean.png"
               alt="EstateIQ"
-              className="mx-auto mb-5 w-full max-w-[300px] rounded-lg shadow-lift"
+              className="mx-auto mb-5 w-full max-w-[300px] drop-shadow-[0_14px_34px_rgba(0,0,0,0.28)]"
             />
             <p className="mb-2 text-xs font-extrabold uppercase tracking-[0.16em] text-clay">
               Property Intelligence. Peace of Mind.
             </p>
-            <h1 className="text-3xl font-extrabold text-ink">EstateIQ Sign In</h1>
+            <h1 className="font-serif text-4xl font-extrabold leading-tight text-ink">EstateIQ</h1>
           </div>
 
           <form className="grid gap-4">
@@ -1578,8 +1592,8 @@ export default function InspectionWorkspace({
                 onClick={() => setActiveRole(role)}
                 className={`rounded-lg border p-3 text-left transition ${
                   activeRole === role
-                    ? "border-sage bg-[#f3f8f4] shadow-[inset_4px_0_0_#5f786c]"
-                    : "border-line bg-white hover:border-sage"
+                    ? "border-gold bg-warning-soft shadow-[inset_4px_0_0_#d4af37]"
+                    : "border-line bg-cream hover:border-gold/50 hover:bg-warning-soft/60"
                 }`}
               >
                 <strong className="block text-sm text-ink">{roleLabels[role].title}</strong>
@@ -1622,13 +1636,13 @@ export default function InspectionWorkspace({
     return (
       <main className={`mx-auto min-h-screen w-full max-w-[980px] p-3 sm:p-6 ${darkMode ? "luxury-dark" : ""}`}>
         <section className="mb-5 overflow-hidden rounded-lg bg-ink text-white shadow-estate">
-          <div className="bg-[linear-gradient(135deg,rgba(217,154,92,0.22),transparent_42%),linear-gradient(315deg,rgba(95,120,108,0.45),transparent_48%)] p-6">
+          <div className="bg-[radial-gradient(circle_at_top_left,rgba(242,217,138,0.28),transparent_34rem),linear-gradient(135deg,rgba(31,31,31,0.96),rgba(44,44,44,0.92))] p-6">
             <img
-              src="/estateiq-logo.png"
+              src="/estateiq-logo-clean.png"
               alt="EstateIQ"
-              className="mb-5 h-24 w-24 rounded-lg border border-white/20 object-cover shadow-lift"
+              className="mb-5 h-24 w-auto drop-shadow-[0_14px_34px_rgba(0,0,0,0.38)]"
             />
-            <p className="mb-2 text-xs font-extrabold uppercase tracking-[0.16em] text-[#f1c27d]">
+            <p className="mb-2 text-xs font-extrabold uppercase tracking-[0.16em] text-gold">
               Property Intelligence. Peace of Mind.
             </p>
             <h1 className="text-4xl font-extrabold leading-none tracking-normal">EstateIQ</h1>
@@ -1739,31 +1753,31 @@ export default function InspectionWorkspace({
     <main
       className={`mx-auto min-h-screen w-full max-w-[1480px] p-3 ${
         hasMobileActionBar ? "pb-44" : "pb-28"
-      } sm:p-6 xl:pb-6 ${darkMode ? "luxury-dark" : ""}`}
+      } sm:p-6 lg:pb-6 ${darkMode ? "luxury-dark" : ""}`}
     >
-      <section className="mb-5 overflow-hidden rounded-lg bg-ink text-white shadow-estate">
-        <div className="flex min-h-28 flex-col justify-between gap-5 bg-[linear-gradient(135deg,rgba(217,154,92,0.22),transparent_42%),linear-gradient(315deg,rgba(95,120,108,0.45),transparent_48%)] p-5 md:flex-row md:items-center md:p-7 xl:min-h-36">
-          <div className="flex items-center gap-4">
+      <section className="mb-5 overflow-hidden rounded-lg border border-gold/20 bg-ink text-white shadow-estate motion-reveal">
+        <div className="flex min-h-24 flex-col justify-between gap-5 bg-[radial-gradient(circle_at_top_left,rgba(242,217,138,0.24),transparent_30rem),linear-gradient(135deg,rgba(31,31,31,0.98),rgba(44,44,44,0.94))] p-4 md:flex-row md:items-center md:p-5 xl:min-h-28">
+          <div className="flex min-w-0 items-center gap-4">
             <img
-              src="/estateiq-logo.png"
+              src="/estateiq-logo-clean.png"
               alt="EstateIQ"
-              className="h-20 w-20 shrink-0 rounded-lg border border-white/20 object-cover shadow-lift xl:h-24 xl:w-24"
+              className="h-16 w-auto shrink-0 drop-shadow-[0_14px_34px_rgba(0,0,0,0.38)] xl:h-20"
             />
-            <div>
-              <p className="mb-2 text-xs font-extrabold uppercase tracking-[0.16em] text-[#f1c27d]">
+            <div className="min-w-0">
+              <p className="mb-1 text-xs font-extrabold uppercase tracking-[0.16em] text-gold">
                 Property Intelligence. Peace of Mind.
               </p>
-              <h1 className="text-3xl font-extrabold leading-none tracking-normal sm:text-5xl xl:text-6xl">
-                EstateIQ
+              <h1 className="truncate font-serif text-3xl font-semibold leading-none tracking-normal sm:text-4xl xl:text-5xl">
+                {selectedProperty ? selectedProperty.name : "EstateIQ"}
               </h1>
-              <p className="mt-2 text-xs font-extrabold uppercase tracking-[0.16em] text-white/68">
-                Inspect | Report | Protect
+              <p className="mt-2 truncate text-xs font-extrabold uppercase tracking-[0.16em] text-white/68">
+                {selectedProperty ? selectedProperty.address : "Inspect | Report | Protect"}
               </p>
             </div>
           </div>
-          <div className="hidden rounded-lg border border-white/15 bg-white/10 px-5 py-4 text-left text-white/78 md:min-w-48 md:text-right xl:block">
-            <span className="block">{formatShortDate(now)}</span>
-            <strong className="block text-2xl text-white">
+          <div className="hidden rounded-lg border border-gold/20 bg-white/10 px-4 py-3 text-left text-white/78 md:min-w-48 md:text-right lg:block">
+            <span className="block text-xs font-extrabold uppercase tracking-[0.12em] text-gold">{formatShortDate(now)}</span>
+            <strong className="block font-serif text-2xl font-semibold text-white">
               {new Intl.DateTimeFormat("en-US", { hour: "numeric", minute: "2-digit" }).format(now)}
             </strong>
           </div>
@@ -1771,13 +1785,13 @@ export default function InspectionWorkspace({
       </section>
 
       {demoMode ? (
-        <section className="no-print mb-5 rounded-lg border border-[#ead2a8] bg-[#fff8ed] p-4">
+        <section className="no-print mb-5 rounded-lg border border-gold/25 bg-[#252525] p-3 text-cream shadow-soft">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <p className="text-xs font-extrabold uppercase tracking-[0.12em] text-[#7b5426]">
+              <p className="text-xs font-extrabold uppercase tracking-[0.12em] text-gold">
                 Demo Mode Active
               </p>
-              <p className="mt-1 text-sm font-semibold text-slate-700">
+              <p className="mt-1 text-sm font-semibold text-[#d8d0c2]">
                 Showing sample EstateIQ data only. Safe for live customer demos.
               </p>
             </div>
@@ -1792,18 +1806,18 @@ export default function InspectionWorkspace({
         </section>
       ) : null}
 
-      <section className="estate-panel no-print mb-5 hidden rounded-lg p-3 sm:p-4 xl:block">
+      <section className="estate-panel no-print mb-5 hidden rounded-lg p-2.5 sm:p-3 lg:block">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-          <div className="flex gap-2 overflow-x-auto pb-1">
-            {visibleExperienceScreens.map((screen) => (
+          <div className="flex gap-1.5 overflow-x-auto pb-1">
+            {desktopNavigationScreens.map((screen) => (
               <button
                 key={screen}
                 type="button"
                 onClick={() => setActiveExperience(screen)}
-                className={`min-h-10 shrink-0 rounded-lg px-4 text-sm font-extrabold transition ${
+                className={`min-h-10 shrink-0 rounded-lg border px-4 text-sm font-extrabold transition ${
                   activeExperience === screen
-                    ? "bg-ink text-white shadow-lift"
-                    : "bg-white text-slate-700 hover:bg-[#f2f5f2]"
+                    ? "border-gold bg-[linear-gradient(135deg,#f2d98a,#d4af37)] text-ink shadow-button"
+                    : "border-gold/20 bg-cream/80 text-slate-700 hover:border-gold hover:bg-warning-soft"
                 }`}
               >
                 {screenLabel(screen)}
@@ -1820,22 +1834,24 @@ export default function InspectionWorkspace({
         </div>
       </section>
 
-      <section className="estate-panel no-print mb-5 hidden rounded-lg p-4 xl:block">
+      <section className="estate-panel no-print mb-5 hidden rounded-lg p-4 lg:block">
         <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
           <div>
-            <p className="mb-1 text-xs font-extrabold uppercase tracking-[0.12em] text-clay">
+            <p className="mb-1 text-xs font-extrabold uppercase tracking-[0.12em] text-gold">
               Workflow
             </p>
-              <h2 className="text-lg font-extrabold text-ink">
-              {currentFlowIndex + 1} of {visibleExperienceScreens.length}: {screenLabel(activeExperience)}
+            <h2 className="font-serif text-2xl font-semibold text-ink">
+              {screenLabel(activeExperience)}
             </h2>
-            <p className="mt-1 text-sm font-semibold text-slate-600">{roleLabels[activeRole].title}</p>
+            <p className="mt-1 text-sm font-semibold text-slate-600">
+              {roleLabels[activeRole].title} / Step {currentFlowIndex + 1} of {workflowExperienceScreens.length}
+            </p>
           </div>
           {nextFlowScreen ? (
             <button
               type="button"
               onClick={() => setActiveExperience(nextFlowScreen)}
-              className="button-primary min-h-11 rounded-lg px-5 text-sm font-extrabold"
+              className="button-soft min-h-11 rounded-lg px-5 text-sm font-extrabold"
             >
               Continue to {screenLabel(nextFlowScreen)}
             </button>
@@ -1845,10 +1861,17 @@ export default function InspectionWorkspace({
               onClick={() => setActiveExperience("Property")}
               className="button-soft min-h-11 rounded-lg px-5 text-sm font-extrabold"
             >
-              Start New Property Flow
-            </button>
-          ) : null}
+            Start New Property Flow
+          </button>
+        ) : null}
         </div>
+        {selectedProperty && activeExperience !== "Pilot Admin" ? (
+          <PropertyReferenceStrip
+            property={selectedProperty}
+            activeExperience={activeExperience}
+            onViewProperty={() => setActiveExperience("Property")}
+          />
+        ) : null}
       </section>
 
       <LuxuryExperiencePanel
@@ -1874,6 +1897,7 @@ export default function InspectionWorkspace({
         vendorSaveMessage={vendorSaveMessage}
         selectedInspections={selectedInspections}
         selectedProperty={selectedProperty}
+        openAddPropertyForm={openAddPropertyForm}
         onSelectProperty={(propertyId) => {
           setSelectedPropertyId(propertyId);
           setActiveReportId("");
@@ -1919,173 +1943,60 @@ export default function InspectionWorkspace({
       />
 
       <section className="grid gap-5">
-        <aside className={`estate-panel no-print hidden rounded-lg p-5 xl:block ${activeExperience === "Property" ? "" : "xl:hidden"}`}>
-          <div className="mb-5 flex items-start justify-between gap-3">
-            <div>
-              <p className="mb-2 text-xs font-extrabold uppercase tracking-[0.1em] text-clay">
-                Portfolio
-              </p>
-              <h2 className="text-xl font-extrabold text-ink">Properties</h2>
-            </div>
-            <button
-              type="button"
-              onClick={openAddPropertyForm}
-              className="button-primary grid h-11 w-11 place-items-center rounded-lg text-2xl font-extrabold leading-none"
-              aria-label="Add property"
-            >
-              +
-            </button>
-          </div>
-
-          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-            {properties.map((property) => {
-              const count = inspections.filter((inspection) => inspection.propertyId === property.id).length;
-              const active = property.id === selectedProperty?.id;
-
-              return (
-                <div
-                  key={property.id}
-                  className={`flex min-h-full flex-col rounded-lg border p-3 text-left transition ${
-                    active
-                      ? "border-sage bg-[#f3f8f4] shadow-[inset_4px_0_0_#5f786c]"
-                      : "border-line bg-white hover:border-sage hover:shadow-lift"
-                  }`}
-                >
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setSelectedPropertyId(property.id);
-                      setActiveReportId("");
-                    }}
-                    className="block w-full flex-1 text-left"
-                  >
-                    <span className="grid gap-3">
-                      <span className="overflow-hidden rounded-lg border border-line bg-white">
-                        {property.photoUrl ? (
-                          <img src={property.photoUrl} alt={property.name} className="aspect-[4/3] w-full object-cover" />
-                        ) : (
-                          <span className="grid aspect-[4/3] place-items-center text-xs font-extrabold text-slate-500">
-                            Home
-                          </span>
-                        )}
-                      </span>
-                      <span className="min-w-0">
-                        <strong className="block truncate text-ink">{property.name}</strong>
-                        <span className="mt-1 block truncate text-sm text-slate-600">{property.owner}</span>
-                        <span className="mt-2 inline-flex rounded-full border border-line bg-[#fbfcfb] px-2.5 py-1 text-xs font-extrabold text-slate-600">
-                          {count} inspection{count === 1 ? "" : "s"}
-                        </span>
-                      </span>
-                    </span>
-                  </button>
-                  <div className="mt-3 flex gap-2">
-                    <button
-                      type="button"
-                      onClick={() => openEditPropertyForm(property)}
-                      className="button-soft min-h-9 rounded-lg px-3 text-xs font-extrabold"
-                    >
-                      Edit
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => deleteSelectedProperty(property)}
-                      className="min-h-9 rounded-lg border border-[#e7cbc4] bg-[#fff8f6] px-3 text-xs font-extrabold text-[#9f352e] transition hover:bg-[#ffecea]"
-                    >
-                      Delete
-                    </button>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </aside>
-
         <section className="grid gap-5">
           <section className={`estate-panel rounded-lg p-5 ${activeExperience === "Property" ? "" : "hidden"}`}>
             <div className="mb-5 flex items-start justify-between gap-3">
               <div>
-                <p className="mb-2 text-xs font-extrabold uppercase tracking-[0.1em] text-clay">
+                <p className="mb-2 text-xs font-extrabold uppercase tracking-[0.1em] text-gold">
                   Property
                 </p>
-                <h2 className="text-xl font-extrabold text-ink">{selectedProperty?.name}</h2>
+                <h2 className="font-serif text-3xl font-semibold leading-tight text-ink">{selectedProperty?.name}</h2>
               </div>
               <div className="flex items-center gap-2">
-                <span className="rounded-full bg-[#e7eee9] px-3 py-2 text-xs font-extrabold text-sage-dark">
+                <span className="rounded-full border border-gold/35 bg-cream px-3 py-2 text-xs font-extrabold text-ink">
                   {selectedProperty?.status}
                 </span>
-                <button
-                  type="button"
-                  onClick={openAddPropertyForm}
-                  className="button-primary grid h-10 w-10 place-items-center rounded-lg text-xl font-extrabold leading-none xl:hidden"
-                  aria-label="Add property"
-                >
-                  +
-                </button>
+                {selectedProperty ? (
+                  <button
+                    type="button"
+                    onClick={() => openEditPropertyForm(selectedProperty)}
+                    className="button-soft min-h-10 rounded-lg px-4 text-sm font-extrabold"
+                  >
+                    Edit Property
+                  </button>
+                ) : null}
               </div>
             </div>
 
             {selectedProperty ? (
               <div className="grid gap-4">
-                {selectedProperty.photoUrl ? (
-                  <figure className="mx-auto w-full max-w-2xl overflow-hidden rounded-lg border border-line bg-white">
-                    <div className="bg-slate-100">
+                <div className="grid gap-4 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)] lg:items-start">
+                  {selectedProperty.photoUrl ? (
+                    <figure className="mx-auto w-full max-w-2xl overflow-hidden rounded-lg border border-gold/20 bg-[#252525] shadow-soft lg:mx-0">
                       <img
                         src={selectedProperty.photoUrl}
                         alt={selectedProperty.name}
                         className="aspect-[16/9] w-full object-cover"
                       />
-                    </div>
-                    <figcaption className="border-t border-line px-3 py-2 text-xs font-semibold text-slate-600">
+                      <figcaption className="border-t border-white/10 px-3 py-2 text-xs font-semibold text-[#d8d0c2]">
                       Property reference photo for inspector confirmation
-                    </figcaption>
-                  </figure>
-                ) : null}
-                <label className="grid gap-2 text-sm font-extrabold text-ink xl:hidden">
-                  Active property
-                  <select
-                    value={selectedPropertyId}
-                    onChange={(event) => {
-                      setSelectedPropertyId(event.target.value);
-                      setActiveReportId("");
-                      setShowVendorForm(false);
-                      setSelectedVendorId("");
-                      setSelectedMaintenanceIssueId("");
-                    }}
-                    className="field-shell rounded-lg p-3"
-                  >
-                    {properties.map((property) => (
-                      <option key={property.id} value={property.id}>
-                        {property.name}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <QuickContactButtons property={selectedProperty} />
-                <div className="divide-y divide-line rounded-lg border border-line bg-white sm:grid sm:grid-cols-2 sm:divide-x sm:divide-y-0 xl:grid-cols-4">
-                  <OwnerPortalDetail
-                    label="Inspections"
-                    value={`${selectedInspections.length}`}
-                  />
-                  <OwnerPortalDetail
-                    label="Open items"
-                    value={`${selectedMaintenanceIssues.filter((issue) => issue.status !== "Resolved").length}`}
-                    urgent={selectedMaintenanceIssues.some((issue) => issue.status !== "Resolved")}
-                  />
-                  <OwnerPortalDetail
-                    label="Vendors"
-                    value={`${selectedVendors.length}`}
-                  />
-                  <OwnerPortalDetail
-                    label="Next visit"
-                    value={selectedNextScheduleTask?.type || "None"}
-                  />
+                      </figcaption>
+                    </figure>
+                  ) : null}
+                  <div className="grid gap-4">
+                    <QuickContactButtons property={selectedProperty} />
+                    <div className="grid gap-2 rounded-lg border border-gold/15 bg-cream/80 p-3 shadow-soft">
+                      <ProfileItem label="Address" value={selectedProperty.address} />
+                      <ProfileItem label="Homeowner" value={selectedProperty.owner} />
+                      <ProfileItem label="Access Notes" value={selectedProperty.accessNotes || "No special access notes."} />
+                    </div>
+                  </div>
                 </div>
                 <div className="grid gap-3 md:grid-cols-2">
-                  <ProfileItem label="Homeowner" value={selectedProperty.owner} />
-                  <ProfileItem label="Address" value={selectedProperty.address} />
                   <ProfileItem label="Phone" value={selectedProperty.phone || "Not provided"} />
                   <ProfileItem label="Email" value={selectedProperty.email || "Not provided"} />
-                  <ProfileItem label="Access Notes" value={selectedProperty.accessNotes || "No special access notes."} />
+                  <ProfileItem label="Saved Visits" value={`${selectedInspections.length}`} />
+                  <ProfileItem label="Open Items" value={`${selectedMaintenanceIssues.filter((issue) => issue.status !== "Resolved").length}`} />
                 </div>
               </div>
             ) : null}
@@ -2094,10 +2005,10 @@ export default function InspectionWorkspace({
           <section className={`estate-panel rounded-lg p-5 ${activeExperience === "Property" ? "" : "hidden"}`}>
             <div className="mb-4 flex items-start justify-between gap-3">
               <div>
-                <p className="mb-2 text-xs font-extrabold uppercase tracking-[0.1em] text-clay">
+                <p className="mb-2 text-xs font-extrabold uppercase tracking-[0.1em] text-gold">
                   Vendors
                 </p>
-                <h2 className="text-xl font-extrabold text-ink">Property Contacts</h2>
+                <h2 className="font-serif text-2xl font-semibold leading-tight text-ink">Property Contacts</h2>
                 <p className="mt-1 text-sm leading-6 text-slate-600">
                   Keep key service providers tied to this home.
                 </p>
@@ -2108,7 +2019,7 @@ export default function InspectionWorkspace({
                   setVendorSaveMessage("");
                   setShowVendorForm((current) => !current);
                 }}
-                className="button-primary min-h-10 shrink-0 rounded-lg px-3 text-sm font-extrabold"
+                className="button-soft min-h-10 shrink-0 rounded-lg px-3 text-sm font-extrabold"
               >
                 {showVendorForm ? "Close Form" : "Add Vendor"}
               </button>
@@ -2116,7 +2027,7 @@ export default function InspectionWorkspace({
 
             <form
               id="vendor-form"
-              className={`mb-4 gap-3 rounded-lg border border-line bg-[#fbfcfb] p-4 ${showVendorForm ? "grid" : "hidden"}`}
+              className={`mb-4 gap-3 rounded-lg border border-gold/15 bg-cream/80 p-4 shadow-soft ${showVendorForm ? "grid" : "hidden"}`}
               onSubmit={saveVendor}
             >
               <div className="grid gap-2 sm:grid-cols-4">
@@ -2125,8 +2036,8 @@ export default function InspectionWorkspace({
                     key={type}
                     type="button"
                     onClick={() => setVendorForm((current) => ({ ...current, type }))}
-                    className={`min-h-10 rounded-lg border px-3 text-left text-sm font-extrabold transition hover:border-sage hover:shadow-lift ${
-                      vendorForm.type === type ? "border-sage bg-[#f3f8f4] text-sage-dark" : "border-line bg-white text-ink"
+                    className={`min-h-10 rounded-lg border px-3 text-left text-sm font-extrabold transition hover:border-gold/50 hover:shadow-lift ${
+                      vendorForm.type === type ? "border-gold bg-warning-soft text-ink" : "border-line bg-cream text-ink"
                     }`}
                   >
                     {type}
@@ -2202,7 +2113,7 @@ export default function InspectionWorkspace({
                 />
               </label>
               {vendorSaveMessage ? (
-                <div className="rounded-lg border border-line bg-white p-3 text-sm font-semibold text-slate-600">
+                <div className="rounded-lg border border-gold/20 bg-warning-soft/50 p-3 text-sm font-semibold text-slate-600">
                   {vendorSaveMessage}
                 </div>
               ) : null}
@@ -2216,7 +2127,7 @@ export default function InspectionWorkspace({
             </form>
             <div className="mt-4 grid gap-3">
               {selectedVendors.length ? (
-                <div className="overflow-hidden rounded-lg border border-line bg-white">
+                <div className="overflow-hidden rounded-lg border border-gold/15 bg-cream shadow-soft">
                   {selectedVendors.map((vendor) => (
                     <VendorListItem
                       key={vendor.id}
@@ -2226,29 +2137,34 @@ export default function InspectionWorkspace({
                   ))}
                 </div>
               ) : (
-                <div className="rounded-lg border border-line bg-white p-4 text-sm text-slate-600">
+                <div className="rounded-lg border border-gold/15 bg-cream/80 p-4 text-sm text-slate-600 shadow-soft">
                   No vendor contacts have been saved for this property yet.
                 </div>
               )}
             </div>
           </section>
 
-          <section className={`estate-panel no-print rounded-lg p-5 pb-28 xl:pb-5 ${activeExperience === "Inspection" ? "" : "hidden"}`}>
+          <section className={`estate-panel no-print rounded-lg p-5 pb-28 lg:pb-5 ${activeExperience === "Inspection" ? "" : "hidden"}`}>
             <div className="mb-5 flex items-start justify-between gap-3">
               <div>
                 <p className="mb-2 text-xs font-extrabold uppercase tracking-[0.1em] text-clay">
                   Inspection
                 </p>
-                <h2 className="text-xl font-extrabold text-ink">Start with inspection type</h2>
+                <h2 className="font-serif text-3xl font-semibold leading-tight text-ink">Inspection</h2>
               </div>
-              <span className="rounded-full bg-[#fff4d9] px-3 py-2 text-xs font-extrabold text-[#7b5426]">
+              <span className="rounded-full border border-gold/25 bg-warning-soft px-3 py-2 text-xs font-extrabold text-ink">
                 {formatDateTime(now)}
               </span>
             </div>
 
             <form id="inspection-form" className="grid gap-4" onSubmit={saveInspection}>
-              <fieldset className="grid gap-3 rounded-lg border border-sage bg-[#f3f8f4] p-4">
-                <legend className="px-2 font-extrabold">Inspection type</legend>
+              <fieldset className="grid gap-3 rounded-lg border border-gold/30 bg-warning-soft/70 p-4 shadow-soft">
+                <div className="border-b border-gold/20 pb-3">
+                  <div>
+                    <p className="text-xs font-extrabold uppercase tracking-[0.1em] text-gold">Step 1</p>
+                    <h3 className="font-serif text-xl font-semibold leading-tight text-ink">Inspection type</h3>
+                  </div>
+                </div>
                 <select
                   value={inspectionForm.inspectionType}
                   onChange={(event) =>
@@ -2258,7 +2174,7 @@ export default function InspectionWorkspace({
                       checklist: []
                     }))
                   }
-                  className="field-shell rounded-lg p-3 font-extrabold xl:hidden"
+                  className="field-shell rounded-lg p-3 font-extrabold lg:hidden"
                 >
                   {inspectionTemplates.map((template) => (
                     <option key={template.title} value={template.title}>
@@ -2266,10 +2182,10 @@ export default function InspectionWorkspace({
                     </option>
                   ))}
                 </select>
-                <p className="text-sm leading-6 text-slate-600 xl:hidden">
+                <p className="text-sm leading-6 text-slate-600 lg:hidden">
                   {activeInspectionTemplate.description}
                 </p>
-                <div className="hidden gap-3 sm:grid-cols-2 xl:grid xl:grid-cols-3">
+                <div className="hidden gap-3 sm:grid-cols-2 lg:grid lg:grid-cols-3">
                   {inspectionTemplates.map((template) => {
                     const active = inspectionForm.inspectionType === template.title;
 
@@ -2278,8 +2194,8 @@ export default function InspectionWorkspace({
                         key={template.title}
                         className={`grid cursor-pointer gap-2 rounded-lg border p-3 transition ${
                           active
-                            ? "border-sage bg-white shadow-[inset_0_0_0_1px_rgba(95,120,108,0.35)]"
-                            : "border-line bg-white/75 hover:border-sage hover:shadow-lift"
+                            ? "border-gold bg-cream shadow-[inset_0_0_0_1px_rgba(212,175,55,0.32)]"
+                            : "border-line bg-cream/75 hover:border-gold/50 hover:shadow-lift"
                         }`}
                       >
                         <span className="grid grid-cols-[22px_minmax(0,1fr)] gap-2">
@@ -2295,7 +2211,7 @@ export default function InspectionWorkspace({
                                 checklist: []
                               }))
                             }
-                            className="mt-1 accent-sage-dark"
+                            className="mt-1 accent-gold"
                           />
                           <span className="font-extrabold text-ink">{template.title}</span>
                         </span>
@@ -2306,8 +2222,13 @@ export default function InspectionWorkspace({
                 </div>
               </fieldset>
 
-              <fieldset className="grid gap-4 rounded-lg border border-line bg-white/70 p-4 md:grid-cols-2">
-                <legend className="px-2 font-extrabold">Visit details</legend>
+              <fieldset className="grid gap-4 rounded-lg border border-gold/20 bg-cream p-4 text-ink shadow-soft md:grid-cols-2">
+                <div className="border-b border-gold/20 pb-3 md:col-span-2">
+                  <div>
+                    <p className="text-xs font-extrabold uppercase tracking-[0.1em] text-gold">Step 2</p>
+                    <h3 className="font-serif text-xl font-semibold leading-tight text-ink">Visit details</h3>
+                  </div>
+                </div>
                 <label className="grid gap-2 text-sm font-extrabold text-ink">
                   Inspector name
                   <input
@@ -2316,12 +2237,12 @@ export default function InspectionWorkspace({
                     onChange={(event) =>
                       setInspectionForm((current) => ({ ...current, inspectorName: event.target.value }))
                     }
-                    className="field-shell rounded-lg p-3"
+                    className="field-shell rounded-lg border border-gold/35 bg-white p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.8)]"
                   />
                 </label>
                 <label className="grid gap-2 text-sm font-extrabold text-ink">
                   Interior temperature
-                  <div className="field-shell grid grid-cols-[minmax(0,1fr)_46px] overflow-hidden rounded-lg">
+                  <div className="field-shell grid max-w-[220px] grid-cols-[minmax(0,1fr)_34px] overflow-hidden rounded-lg border border-gold/35 bg-white shadow-[inset_0_1px_0_rgba(255,255,255,0.8)]">
                     <input
                       required
                       inputMode="decimal"
@@ -2333,17 +2254,22 @@ export default function InspectionWorkspace({
                           interiorTemperature: event.target.value
                         }))
                       }
-                      className="border-0 p-3 outline-none"
+                      className="border-0 bg-transparent p-3 text-ink outline-none"
                     />
-                    <span className="grid place-items-center font-extrabold text-slate-600">F</span>
+                    <span className="grid place-items-center border-l border-line font-extrabold text-muted">F</span>
                   </div>
                 </label>
               </fieldset>
 
-              <fieldset className="grid gap-4 rounded-lg border border-line bg-white/70 p-4">
-                <legend className="px-2 font-extrabold">Inspection checklist</legend>
-                <div className="flex flex-col gap-3 rounded-lg border border-line bg-[#fbfcfb] p-3 sm:flex-row sm:items-center sm:justify-between">
-                  <p className="text-sm font-semibold text-slate-600">
+              <fieldset className="grid gap-4 rounded-lg border border-gold/20 bg-cream p-4 text-ink shadow-soft">
+                <div className="border-b border-gold/20 pb-3">
+                  <div>
+                    <p className="text-xs font-extrabold uppercase tracking-[0.1em] text-gold">Step 3</p>
+                    <h3 className="font-serif text-xl font-semibold leading-tight text-ink">Inspection checklist</h3>
+                  </div>
+                </div>
+                <div className="flex flex-col gap-3 rounded-lg border border-gold/15 bg-cream/90 p-3 sm:flex-row sm:items-center sm:justify-between">
+                  <p className="text-sm font-semibold text-muted">
                     <span className="font-extrabold text-ink">
                       {inspectionForm.checklist.length}/{inspectionTotalChecks}
                     </span>{" "}
@@ -2360,7 +2286,7 @@ export default function InspectionWorkspace({
                     <button
                       type="button"
                       onClick={() => setInspectionForm((current) => ({ ...current, checklist: [] }))}
-                      className="min-h-10 rounded-lg border border-line bg-white px-4 text-sm font-extrabold text-ink transition hover:border-sage"
+                      className="min-h-10 rounded-lg border border-line bg-cream px-4 text-sm font-extrabold text-ink transition hover:border-gold/50"
                     >
                       Clear
                     </button>
@@ -2374,19 +2300,19 @@ export default function InspectionWorkspace({
                   <div
                     key={section.title}
                     className={`grid gap-3 rounded-lg border p-3 ${
-                      sectionComplete ? "border-[#c9ddd1] bg-[#f3f8f4]" : "border-line bg-white"
+                      sectionComplete ? "border-gold/35 bg-cream shadow-[inset_4px_0_0_#d4af37]" : "border-line bg-cream/80"
                     }`}
                   >
                     <div className="flex flex-wrap items-center justify-between gap-3">
-                      <h3 className="text-sm font-black uppercase tracking-[0.08em] text-clay">{section.title}</h3>
+                      <h3 className="text-sm font-black uppercase tracking-[0.08em] text-gold">{section.title}</h3>
                       <div className="flex shrink-0 items-center gap-2">
-                        <span className="rounded-full border border-line bg-white px-3 py-1 text-xs font-extrabold text-slate-600">
+                        <span className="rounded-full border border-line bg-cream px-3 py-1 text-xs font-extrabold text-slate-600">
                           {completedInSection}/{section.items.length}
                         </span>
                         <button
                           type="button"
                           onClick={() => setChecklistSection(section.items, !sectionComplete)}
-                          className="rounded-full border border-line bg-white px-3 py-1 text-xs font-extrabold text-ink transition hover:border-sage"
+                          className="rounded-full border border-line bg-cream px-3 py-1 text-xs font-extrabold text-ink transition hover:border-gold/50"
                         >
                           {sectionComplete ? "Clear" : "Select all"}
                         </button>
@@ -2396,13 +2322,13 @@ export default function InspectionWorkspace({
                       {section.items.map((item) => (
                         <label
                           key={item}
-                          className="grid min-h-11 min-w-0 grid-cols-[22px_minmax(0,1fr)] items-center gap-2 rounded-md px-2 font-semibold transition hover:bg-[#f6f8f6]"
+                          className="grid min-h-11 min-w-0 grid-cols-[22px_minmax(0,1fr)] items-center gap-2 rounded-md px-2 font-semibold text-ink transition hover:bg-cream/70"
                         >
                           <input
                             type="checkbox"
                             checked={inspectionForm.checklist.includes(item)}
                             onChange={() => toggleChecklistItem(item)}
-                            className="accent-sage-dark"
+                            className="accent-gold"
                           />
                           <span className="min-w-0 leading-5">{item}</span>
                         </label>
@@ -2413,22 +2339,22 @@ export default function InspectionWorkspace({
                 })}
               </fieldset>
 
-              <label className="grid min-h-24 content-center gap-2 rounded-lg border border-dashed border-sage bg-[#f8faf8] p-4 text-sm font-extrabold transition hover:bg-[#eef5ef] xl:hidden">
+              <label className="grid min-h-24 content-center gap-2 rounded-lg border border-dashed border-gold/40 bg-cream p-4 text-sm font-extrabold text-ink shadow-soft transition hover:border-gold lg:hidden">
                 Add inspection photos
                 <input
                   type="file"
                   accept="image/*"
                   multiple
                   onChange={(event) => addPhotoFiles(event.target.files)}
-                  className="w-full min-w-0 text-xs font-medium"
+                  className="w-full min-w-0 text-xs font-semibold text-muted file:mr-3 file:rounded-lg file:border-0 file:bg-[#252525] file:px-3 file:py-2 file:text-xs file:font-extrabold file:text-cream"
                 />
               </label>
 
-              <div className="hidden gap-4 md:grid-cols-3 xl:grid">
+              <div className="hidden gap-4 md:grid-cols-3 lg:grid">
                 {["Exterior photos", "Interior photos", "Issue photos"].map((label) => (
                   <label
                     key={label}
-                    className="grid min-h-28 content-center gap-2 rounded-lg border border-dashed border-sage bg-[#f8faf8] p-4 text-sm font-extrabold transition hover:bg-[#eef5ef]"
+                    className="grid min-h-28 content-center gap-2 rounded-lg border border-dashed border-gold/40 bg-cream p-4 text-sm font-extrabold text-ink shadow-soft transition hover:border-gold"
                   >
                     {label}
                     <input
@@ -2436,7 +2362,7 @@ export default function InspectionWorkspace({
                       accept="image/*"
                       multiple
                       onChange={(event) => addPhotoFiles(event.target.files)}
-                      className="w-full min-w-0 text-xs font-medium"
+                      className="w-full min-w-0 text-xs font-semibold text-muted file:mr-3 file:rounded-lg file:border-0 file:bg-[#252525] file:px-3 file:py-2 file:text-xs file:font-extrabold file:text-cream"
                     />
                   </label>
                 ))}
@@ -2468,7 +2394,7 @@ export default function InspectionWorkspace({
                 </div>
               ) : null}
 
-              <label className="grid gap-2 text-sm font-extrabold text-ink">
+              <label className="grid gap-2 rounded-lg border border-gold/15 bg-cream/80 p-4 text-sm font-extrabold text-ink shadow-soft">
                 Notes / issues found
                 <textarea
                   rows={5}
@@ -2479,8 +2405,10 @@ export default function InspectionWorkspace({
                 />
               </label>
 
-              <label className="hidden gap-2 text-sm font-extrabold text-ink xl:grid">
-                Executive summary
+              <label className="hidden gap-2 rounded-lg border border-gold/20 bg-cream p-4 text-sm font-extrabold text-ink shadow-soft lg:grid">
+                <span className="text-xs font-extrabold uppercase tracking-[0.1em] text-gold">
+                  Executive Summary
+                </span>
                 <textarea
                   rows={4}
                   value={inspectionForm.executiveSummary}
@@ -2488,18 +2416,20 @@ export default function InspectionWorkspace({
                     setInspectionForm((current) => ({ ...current, executiveSummary: event.target.value }))
                   }
                   placeholder="Approved owner-ready summary for the final report."
-                  className="field-shell rounded-lg p-3"
+                  className="field-shell rounded-lg bg-white p-3 text-ink placeholder:text-muted"
                 />
               </label>
 
-              <div className="hidden rounded-lg border border-line bg-[#fbfcfb] p-4 xl:block">
+              <div className="hidden rounded-lg border border-gold/20 bg-cream p-4 text-ink shadow-soft lg:block">
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                   <div>
-                    <p className="mb-1 text-xs font-extrabold uppercase tracking-[0.1em] text-clay">
+                    <p className="mb-1 text-xs font-extrabold uppercase tracking-[0.1em] text-gold">
                       Concierge Summary
                     </p>
-                    <h3 className="text-lg font-extrabold text-ink">Human-reviewed owner draft</h3>
-                    <p className="mt-1 text-sm leading-6 text-slate-600">
+                    <h3 className="font-serif text-2xl font-semibold leading-tight text-ink">
+                      Human-reviewed owner draft
+                    </h3>
+                    <p className="mt-2 text-sm font-semibold leading-6 text-ink">
                       Creates a private concierge-style draft from verified inspection details. Review before sharing.
                     </p>
                   </div>
@@ -2512,8 +2442,8 @@ export default function InspectionWorkspace({
                   </button>
                 </div>
                 {suggestedSummary ? (
-                  <div className="mt-4 rounded-lg border border-line bg-white p-4">
-                    <p className="text-sm leading-6 text-slate-700">{suggestedSummary}</p>
+                  <div className="mt-4 rounded-lg border border-gold/20 bg-cream/90 p-4">
+                    <p className="text-sm font-semibold leading-6 text-ink">{suggestedSummary}</p>
                     <button
                       type="button"
                       onClick={useSuggestedSummary}
@@ -2524,14 +2454,19 @@ export default function InspectionWorkspace({
                   </div>
                 ) : null}
                 {suggestedSummaryMessage ? (
-                  <p className="mt-3 text-sm font-semibold text-slate-600">{suggestedSummaryMessage}</p>
+                  <p className="mt-3 text-sm font-semibold text-ink">{suggestedSummaryMessage}</p>
                 ) : null}
               </div>
 
-              <div className="grid gap-4 rounded-lg border border-line bg-[#fbfcfb] p-4 md:grid-cols-[minmax(0,1fr)_160px] md:items-center">
+              <div className="grid gap-4 rounded-lg border border-gold/25 bg-cream p-4 text-ink shadow-soft md:grid-cols-[minmax(0,1fr)_160px] md:items-center">
                 <div>
-                  <strong className="block text-lg">Urgent issue?</strong>
-                  <span className="text-sm text-slate-600">
+                  <p className="mb-1 text-xs font-extrabold uppercase tracking-[0.1em] text-gold">
+                    Report Flag
+                  </p>
+                  <strong className="block font-serif text-2xl font-semibold leading-tight text-ink">
+                    Urgent issue?
+                  </strong>
+                  <span className="mt-2 block text-sm font-semibold leading-6 text-ink">
                     Flag reports that need immediate homeowner attention.
                   </span>
                 </div>
@@ -2539,14 +2474,20 @@ export default function InspectionWorkspace({
                   {(["No", "Yes"] as UrgentStatus[]).map((value) => (
                     <label
                       key={value}
-                      className="flex min-h-11 items-center justify-center gap-2 rounded-lg border border-line bg-white font-extrabold"
+                      className={`flex min-h-11 items-center justify-center gap-2 rounded-lg border font-extrabold transition ${
+                        inspectionForm.urgent === value
+                          ? value === "Yes"
+                            ? "border-[#e7cbc4] bg-[#fff8f6] text-[#9f352e]"
+                            : "border-gold bg-cream text-ink shadow-[inset_0_0_0_1px_rgba(212,175,55,0.32)]"
+                          : "border-line bg-white text-ink"
+                      }`}
                     >
                       <input
                         type="radio"
                         name="urgent"
                         checked={inspectionForm.urgent === value}
                         onChange={() => setInspectionForm((current) => ({ ...current, urgent: value }))}
-                        className="accent-sage-dark"
+                        className="accent-gold"
                       />
                       {value}
                     </label>
@@ -2554,62 +2495,13 @@ export default function InspectionWorkspace({
                 </div>
               </div>
 
-              <div className="grid gap-3 rounded-lg border border-line bg-[#fbfcfb] p-4 xl:hidden">
-                <div>
-                  <p className="text-xs font-extrabold uppercase tracking-[0.1em] text-clay">
-                    Report status
-                  </p>
-                  <p className="mt-1 text-sm font-semibold text-slate-700">
-                    {isSavingInspection
-                      ? "Generating the homeowner report now."
-                      : inspectionReady
-                        ? "Ready to generate homeowner report."
-                        : inspectionReadyMessage}
-                  </p>
-                  {inspectionSaveMessage ? (
-                    <p className="mt-3 rounded-lg border border-line bg-white p-3 text-sm font-semibold text-slate-600">
-                      {inspectionSaveMessage}
-                    </p>
-                  ) : null}
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <button
-                    type="button"
-                    onClick={() => setInspectionForm(emptyInspectionForm)}
-                    className="button-soft min-h-11 rounded-lg px-5 font-extrabold"
-                  >
-                    Clear
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => void saveInspection()}
-                    disabled={isSavingInspection}
-                    className="button-primary min-h-11 rounded-lg px-5 font-extrabold disabled:cursor-not-allowed disabled:opacity-60"
-                  >
-                    {isSavingInspection ? "Generating..." : "Generate Report"}
-                  </button>
-                </div>
-              </div>
-
-              <div className="hidden rounded-lg border border-line bg-[#fbfcfb] p-4 xl:block">
-                <p className="text-xs font-extrabold uppercase tracking-[0.1em] text-clay">
-                  Report status
+              {inspectionSaveMessage ? (
+                <p className="rounded-lg border border-gold/20 bg-cream p-3 text-sm font-semibold text-ink shadow-soft">
+                  {inspectionSaveMessage}
                 </p>
-                <p className="mt-1 text-sm font-semibold text-slate-700">
-                  {isSavingInspection
-                    ? "Generating the homeowner report now."
-                    : inspectionReady
-                      ? "Ready to generate homeowner report."
-                      : inspectionReadyMessage}
-                </p>
-                {inspectionSaveMessage ? (
-                  <p className="mt-3 rounded-lg border border-line bg-white p-3 text-sm font-semibold text-slate-600">
-                    {inspectionSaveMessage}
-                  </p>
-                ) : null}
-              </div>
+              ) : null}
 
-              <div className="hidden flex-wrap justify-end gap-3 xl:flex">
+              <div className="grid grid-cols-2 gap-3 lg:flex lg:flex-wrap lg:justify-end">
                 <button
                   type="button"
                   onClick={() => setInspectionForm(emptyInspectionForm)}
@@ -2621,7 +2513,7 @@ export default function InspectionWorkspace({
                   type="button"
                   onClick={() => void saveInspection()}
                   disabled={isSavingInspection}
-                  className="button-primary min-h-11 flex-1 rounded-lg px-5 font-extrabold disabled:cursor-not-allowed disabled:opacity-60 sm:flex-none"
+                  className="button-soft min-h-11 flex-1 rounded-lg px-5 font-extrabold disabled:cursor-not-allowed disabled:opacity-60 sm:flex-none"
                 >
                   {isSavingInspection ? "Generating..." : "Generate Report"}
                 </button>
@@ -2631,61 +2523,60 @@ export default function InspectionWorkspace({
         </section>
 
         <aside className={`estate-panel rounded-lg p-4 sm:p-5 ${activeExperience === "Reports" ? "" : "hidden"}`}>
-          <div className="mb-4">
+          <div className="mb-4 flex flex-col gap-3 rounded-lg border border-gold/15 bg-[#eae4d8] p-4 shadow-soft lg:flex-row lg:items-center lg:justify-between">
             <div>
               <p className="mb-2 text-xs font-extrabold uppercase tracking-[0.1em] text-clay">
-                Homeowner packet
+                Reports
               </p>
-              <h2 className="text-2xl font-extrabold text-ink">
-                Current Report
+              <h2 className="font-serif text-2xl font-semibold leading-tight text-ink">
+                Reports
               </h2>
-              <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">
-                Review the homeowner-ready packet before sharing or exporting.
-              </p>
             </div>
-          </div>
-
-          <ReportCard property={selectedProperty} inspection={activeReport} />
-
-          <div className="no-print mt-4 grid gap-3 rounded-lg border border-line bg-[#fbfcfb] p-3">
-            <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-              <div>
-                <p className="text-xs font-extrabold uppercase tracking-[0.1em] text-clay">
-                  Share and export
-                </p>
-                <p className="mt-1 text-sm leading-6 text-slate-600">
-                  Open the web report, download the PDF, or print the current view.
-                </p>
-              </div>
-              <div className="grid gap-2 sm:grid-cols-2 lg:min-w-[320px]">
+            <div className="flex flex-wrap gap-2 lg:justify-end">
+              <button
+                type="button"
+                onClick={() => void saveInspection()}
+                disabled={isSavingInspection}
+                className="button-soft min-h-11 rounded-lg px-4 text-sm font-extrabold disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {isSavingInspection ? "Generating..." : "Generate Report"}
+              </button>
               {activeReport ? (
                 <button
                   type="button"
                   onClick={() => setSelectedReportActionId(activeReport.id)}
-                  className="button-primary min-h-11 rounded-lg px-4 text-sm font-extrabold sm:col-span-2"
+                  className="button-soft min-h-11 rounded-lg px-4 text-sm font-extrabold"
                 >
-                  Share / Export Report
+                  Share / Export
                 </button>
               ) : null}
               <button
                 type="button"
                 onClick={() => window.print()}
-                className="button-soft min-h-11 rounded-lg px-4 text-sm font-extrabold sm:col-span-2"
+                className="button-soft min-h-11 rounded-lg px-4 text-sm font-extrabold"
               >
-                Print Current View
+                Print
               </button>
-              </div>
             </div>
           </div>
 
-          <div className="no-print mt-5">
-            <p className="mb-2 text-xs font-extrabold uppercase tracking-[0.1em] text-clay">
-              Visit History
-            </p>
-            <h2 className="mb-4 text-xl font-extrabold text-ink">
-              {selectedInspections.length} Saved Visit{selectedInspections.length === 1 ? "" : "s"}
-            </h2>
-            <div className="grid gap-3">
+          <ReportCard property={selectedProperty} inspection={activeReport} />
+
+          <div className="no-print mt-4 rounded-lg border border-gold/15 bg-[#eae4d8] p-4 shadow-soft">
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <div>
+                <p className="mb-1 text-xs font-extrabold uppercase tracking-[0.1em] text-clay">
+                  Visit history
+                </p>
+                <h2 className="font-serif text-xl font-semibold leading-tight text-ink">
+                  Saved reports
+                </h2>
+              </div>
+              <span className="rounded-full border border-gold/20 bg-cream px-3 py-1 text-xs font-extrabold text-ink">
+                {selectedInspections.length}
+              </span>
+            </div>
+            <div className="grid gap-2">
               {selectedInspections.length ? (
                 selectedInspections.map((inspection) => (
                   <button
@@ -2695,15 +2586,15 @@ export default function InspectionWorkspace({
                       setActiveReportId(inspection.id);
                       setSelectedReportActionId(inspection.id);
                     }}
-                    className={`rounded-lg border p-4 transition ${
+                    className={`rounded-lg border px-3 py-3 transition ${
                       activeReport?.id === inspection.id
-                        ? "border-sage bg-[#f3f8f4] shadow-[inset_4px_0_0_#5f786c]"
-                        : "border-line bg-white hover:border-sage hover:shadow-lift"
+                        ? "border-gold bg-warning-soft shadow-[inset_4px_0_0_#d4af37]"
+                        : "border-line bg-cream hover:border-gold/50 hover:shadow-lift"
                     }`}
                   >
                     <div className="grid w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-3 text-left">
                       <span className="min-w-0">
-                        <strong className="block truncate text-ink">{formatDateTime(inspection.timestamp)}</strong>
+                        <strong className="block truncate text-sm text-ink">{formatDateTime(inspection.timestamp)}</strong>
                         <span className="mt-1 block truncate text-sm font-semibold text-slate-600">
                           {getInspectionType(inspection.checklist)} / {inspection.inspectorName || "Inspector"}
                         </span>
@@ -2712,7 +2603,7 @@ export default function InspectionWorkspace({
                         className={`rounded-full border px-3 py-1 text-xs font-extrabold ${
                           inspection.urgent === "Yes"
                             ? "border-[#e7cbc4] bg-[#fff8f6] text-[#9f352e]"
-                            : "border-[#c9ddd1] bg-[#f3f8f4] text-sage-dark"
+                            : "border-gold/25 bg-warning-soft text-ink"
                         }`}
                       >
                         {reportConditionStatus(inspection).label}
@@ -2728,8 +2619,8 @@ export default function InspectionWorkspace({
         </aside>
 
         {selectedReportAction ? (
-          <div className="fixed inset-0 z-50 grid place-items-center bg-ink/45 p-4 backdrop-blur-sm">
-            <div className="max-h-[calc(100svh-2rem)] w-full max-w-xl overflow-y-auto rounded-lg bg-white p-5 shadow-[0_24px_80px_rgba(35,45,41,0.24)]">
+          <div className="estate-modal-backdrop">
+            <div className="estate-modal-panel max-h-[calc(100svh-2rem)] w-full max-w-xl overflow-y-auto p-5">
               <div className="mb-4 flex items-start justify-between gap-3 border-b border-line pb-4">
                 <div>
                   <span className="text-xs font-extrabold uppercase tracking-[0.1em] text-clay">
@@ -2764,7 +2655,7 @@ export default function InspectionWorkspace({
                   href={`/reports/${reportRouteId(selectedReportAction)}`}
                   target="_blank"
                   rel="noreferrer"
-                  className="button-primary grid min-h-11 place-items-center rounded-lg px-4 text-sm font-extrabold"
+                  className="button-soft grid min-h-11 place-items-center rounded-lg px-4 text-sm font-extrabold"
                 >
                   Open Web Report
                 </a>
@@ -2774,23 +2665,13 @@ export default function InspectionWorkspace({
                 >
                   Download PDF
                 </a>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setSelectedReportActionId("");
-                    draftOwnerUpdateFromReport(selectedReportAction);
-                  }}
-                  className="button-soft min-h-11 rounded-lg px-4 text-sm font-extrabold sm:col-span-2"
-                >
-                  Draft Owner Share Note
-                </button>
               </div>
             </div>
           </div>
         ) : null}
       </section>
 
-      <div className="pb-6 xl:pb-0">
+      <div className="pb-6 lg:pb-0">
         <FeedbackPanel
           form={feedbackForm}
           message={feedbackMessage}
@@ -2800,9 +2681,9 @@ export default function InspectionWorkspace({
         />
       </div>
 
-      <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-line bg-white/95 px-2 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-2 shadow-[0_-12px_32px_rgba(35,45,41,0.12)] backdrop-blur-xl xl:hidden">
+      <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-gold/30 bg-[#1f1f1f] pb-[env(safe-area-inset-bottom)] lg:hidden">
         <div
-          className="mx-auto grid max-w-[520px] gap-1"
+          className="grid w-full"
           style={{ gridTemplateColumns: `repeat(${mobileExperienceScreens.length}, minmax(0, 1fr))` }}
         >
           {mobileExperienceScreens.map((screen) => (
@@ -2810,10 +2691,10 @@ export default function InspectionWorkspace({
               key={screen}
               type="button"
               onClick={() => setActiveExperience(screen)}
-              className={`min-h-14 min-w-0 rounded-lg px-1 text-[0.68rem] font-extrabold leading-tight transition ${
+              className={`min-h-16 min-w-0 border-t-2 px-1 text-[0.68rem] font-extrabold leading-tight transition ${
                 activeExperience === screen
-                  ? "bg-ink text-white shadow-lift"
-                  : "text-slate-600 hover:bg-[#f4f6f4]"
+                  ? "border-gold bg-[#252525] text-gold"
+                  : "border-transparent bg-[#1f1f1f] text-[#d8d0c2] hover:border-gold/40 hover:bg-[#252525]"
               }`}
             >
               <span className="block truncate">{mobileScreenLabel(screen)}</span>
@@ -2823,8 +2704,8 @@ export default function InspectionWorkspace({
       </nav>
 
       {selectedVendor ? (
-        <div className="fixed inset-0 z-50 grid place-items-center bg-ink/45 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-lg rounded-lg bg-white p-5 shadow-estate">
+        <div className="estate-modal-backdrop">
+          <div className="estate-modal-panel w-full max-w-lg p-5">
             <div className="mb-4 flex items-start justify-between gap-4 border-b border-line pb-4">
               <div className="min-w-0">
                 <p className="mb-2 text-xs font-extrabold uppercase tracking-[0.1em] text-clay">
@@ -2865,8 +2746,8 @@ export default function InspectionWorkspace({
       ) : null}
 
       {selectedMaintenanceIssue ? (
-        <div className="fixed inset-0 z-50 grid place-items-center bg-ink/45 p-4 backdrop-blur-sm">
-          <div className="max-h-[calc(100svh-2rem)] w-full max-w-2xl overflow-y-auto rounded-lg bg-white p-5 shadow-estate">
+        <div className="estate-modal-backdrop">
+          <div className="estate-modal-panel max-h-[calc(100svh-2rem)] w-full max-w-2xl overflow-y-auto p-5">
             <div className="mb-4 flex items-start justify-between gap-4 border-b border-line pb-4">
               <div className="min-w-0">
                 <p className="mb-2 text-xs font-extrabold uppercase tracking-[0.1em] text-clay">
@@ -2918,9 +2799,9 @@ export default function InspectionWorkspace({
       ) : null}
 
       {showPropertyForm ? (
-        <div className="fixed inset-0 z-50 grid place-items-center bg-ink/45 p-4 backdrop-blur-sm">
+        <div className="estate-modal-backdrop">
           <form
-            className="grid max-h-[calc(100svh-2rem)] w-full max-w-xl gap-4 overflow-y-auto rounded-lg bg-white p-5 shadow-estate"
+            className="estate-modal-panel grid max-h-[calc(100svh-2rem)] w-full max-w-xl gap-4 overflow-y-auto p-5"
             onSubmit={saveProperty}
           >
             <div>
@@ -3001,7 +2882,7 @@ export default function InspectionWorkspace({
                 className="field-shell rounded-lg p-3"
               />
             </label>
-            <div className="sticky bottom-0 -mx-5 -mb-5 flex flex-wrap justify-end gap-3 border-t border-line bg-white p-5">
+            <div className="sticky bottom-0 -mx-5 -mb-5 flex flex-wrap justify-end gap-3 border-t border-gold/20 bg-cream/95 p-5 backdrop-blur">
               <button
                 type="button"
                 onClick={() => {
@@ -3031,8 +2912,8 @@ export default function InspectionWorkspace({
 
 function ProfileItem({ label, value }: { label: string; value: string }) {
   return (
-    <div className="min-h-[74px] rounded-lg border border-line bg-[#fbfcfb] p-4 shadow-[0_8px_20px_rgba(35,45,41,0.04)]">
-      <span className="mb-2 block text-xs font-extrabold uppercase text-slate-600">{label}</span>
+    <div className="min-h-[74px] rounded-lg border border-gold/20 bg-cream/80 p-4 shadow-soft">
+      <span className="mb-2 block text-xs font-extrabold uppercase tracking-[0.08em] text-muted">{label}</span>
       <strong className="text-ink">{value}</strong>
     </div>
   );
@@ -3050,11 +2931,11 @@ function PropertyPhotoPicker({
   return (
     <div className="grid gap-2 text-sm font-extrabold">
       Home photo
-      <div className="rounded-lg border border-line bg-[#fbfcfb] p-3">
+      <div className="rounded-lg border border-gold/20 bg-cream/80 p-3 shadow-soft">
         {photoUrl ? (
           <img src={photoUrl} alt="Selected home" className="mb-3 h-40 w-full rounded-lg border border-line bg-white object-cover" />
         ) : (
-          <div className="mb-3 grid h-32 place-items-center rounded-lg border border-dashed border-line bg-white text-sm font-semibold text-slate-500">
+          <div className="mb-3 grid h-32 place-items-center rounded-lg border border-dashed border-gold/30 bg-white/70 text-sm font-semibold text-slate-500">
             No home photo selected
           </div>
         )}
@@ -3086,6 +2967,50 @@ function PropertyPhotoPicker({
   );
 }
 
+function PropertyReferenceStrip({
+  activeExperience,
+  onViewProperty,
+  property
+}: {
+  activeExperience: ExperienceScreen;
+  onViewProperty: () => void;
+  property: Property;
+}) {
+  return (
+    <section className="mt-4 rounded-lg border border-gold/25 bg-[#eae4d8] p-3 shadow-soft">
+      <div className="grid gap-3 sm:grid-cols-[112px_minmax(0,1fr)_auto] sm:items-center">
+        <span className="overflow-hidden rounded-lg border border-gold/20 bg-[#252525] shadow-soft">
+          {property.photoUrl ? (
+            <img src={property.photoUrl} alt={property.name} className="aspect-[4/3] w-full object-cover" />
+          ) : (
+            <span className="grid aspect-[4/3] place-items-center text-xs font-extrabold text-[#d8d0c2]">
+              Home
+            </span>
+          )}
+        </span>
+        <div className="min-w-0">
+          <p className="mb-1 text-xs font-extrabold uppercase tracking-[0.1em] text-gold">
+            Active Property / {screenLabel(activeExperience)}
+          </p>
+          <h3 className="truncate font-serif text-2xl font-semibold leading-tight text-ink">
+            {property.name}
+          </h3>
+          <p className="mt-1 truncate text-sm font-semibold text-muted">{property.address}</p>
+        </div>
+        <button
+          type="button"
+          onClick={onViewProperty}
+          className={`button-soft min-h-10 rounded-lg px-4 text-sm font-extrabold ${
+            activeExperience === "Property" ? "pointer-events-none opacity-70" : ""
+          }`}
+        >
+          {activeExperience === "Property" ? "Viewing Property" : "View Property"}
+        </button>
+      </div>
+    </section>
+  );
+}
+
 function QuickContactButtons({ property }: { property: Property }) {
   async function copyAccessNotes() {
     const notes = property.accessNotes || "No access notes saved.";
@@ -3099,16 +3024,16 @@ function QuickContactButtons({ property }: { property: Property }) {
   }
 
   return (
-    <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+    <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
       {property.phone ? (
         <a
           href={`tel:${property.phone}`}
-          className="button-primary grid min-h-12 place-items-center rounded-lg px-4 text-sm font-extrabold"
+          className="button-soft grid min-h-12 place-items-center rounded-lg px-4 text-sm font-extrabold"
         >
           Call Homeowner
         </a>
       ) : (
-        <span className="grid min-h-12 place-items-center rounded-lg border border-line bg-[#fbfcfb] px-4 text-sm font-extrabold text-slate-500">
+      <span className="grid min-h-12 place-items-center rounded-lg border border-line bg-[#fbfcfb] px-4 text-sm font-extrabold text-slate-500">
           No Phone Saved
         </span>
       )}
@@ -3134,7 +3059,7 @@ function QuickContactButtons({ property }: { property: Property }) {
       <button
         type="button"
         onClick={copyAccessNotes}
-        className="grid min-h-12 place-items-center rounded-lg border border-line bg-[#fbfcfb] px-4 text-sm font-extrabold text-ink"
+        className="button-soft grid min-h-12 place-items-center rounded-lg px-4 text-sm font-extrabold"
       >
         Copy Access Notes
       </button>
@@ -3171,8 +3096,8 @@ function SelectedPhotoPreviewGrid({
   return (
     <div className="mt-3 grid gap-3 sm:grid-cols-2">
       {previews.map((preview) => (
-        <figure key={preview.url} className="overflow-hidden rounded-lg border border-line bg-white shadow-[0_8px_20px_rgba(35,45,41,0.04)]">
-          <img src={preview.url} alt={preview.name} className="h-56 w-full bg-slate-100 object-contain sm:h-64" />
+        <figure key={preview.url} className="overflow-hidden rounded-lg border border-line bg-cream shadow-soft">
+          <img src={preview.url} alt={preview.name} className="h-56 w-full bg-[#252525] object-contain sm:h-64" />
           <figcaption className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2 px-3 py-2">
             <span className="truncate text-xs font-semibold text-slate-600">{preview.name}</span>
             <button
@@ -3187,7 +3112,7 @@ function SelectedPhotoPreviewGrid({
         </figure>
       ))}
       {files.length > previews.length ? (
-        <div className="grid min-h-56 place-items-center rounded-lg border border-line bg-white p-4 text-center text-sm font-extrabold text-slate-600 sm:min-h-64">
+        <div className="grid min-h-56 place-items-center rounded-lg border border-line bg-cream p-4 text-center text-sm font-extrabold text-slate-600 sm:min-h-64">
           +{files.length - previews.length} more
         </div>
       ) : null}
@@ -3221,6 +3146,7 @@ function LuxuryExperiencePanel({
   saveOwnerUpdate,
   saveScheduleTask,
   saveVendor,
+  openAddPropertyForm,
   onSelectProperty,
   selectedInspections,
   selectedProperty,
@@ -3280,6 +3206,7 @@ function LuxuryExperiencePanel({
   saveOwnerUpdate: (event: FormEvent<HTMLFormElement>) => void;
   saveScheduleTask: (event: FormEvent<HTMLFormElement>) => void;
   saveVendor: (event: FormEvent<HTMLFormElement>) => void;
+  openAddPropertyForm: () => void;
   onSelectProperty: (propertyId: string) => void;
   selectedInspections: Inspection[];
   selectedProperty: Property | undefined;
@@ -3524,7 +3451,7 @@ function LuxuryExperiencePanel({
   return (
     <section className="no-print mb-5">
       {activeExperience !== "Dashboard" && activeExperience !== "Login" ? (
-        <div className="estate-panel mb-4 rounded-lg p-4 xl:hidden">
+        <div className="estate-panel mb-4 rounded-lg p-4 lg:hidden">
           <div className="flex items-center justify-between gap-3">
             <button
               type="button"
@@ -3557,7 +3484,7 @@ function LuxuryExperiencePanel({
               <p className="mb-2 text-xs font-extrabold uppercase tracking-[0.16em] text-clay">
                 Property Intelligence. Peace of Mind.
               </p>
-              <h2 className="text-3xl font-extrabold text-ink">EstateIQ Sign In</h2>
+              <h2 className="font-serif text-4xl font-semibold leading-tight text-ink">EstateIQ</h2>
             </div>
 
             <form className="grid gap-4">
@@ -3606,7 +3533,7 @@ function LuxuryExperiencePanel({
                 className={`mt-4 rounded-lg border p-4 ${
                   ownerAttentionCount > 0
                     ? "border-[#e7cbc4] bg-[#fff8f6]"
-                    : "border-[#c9ddd1] bg-[#f3f8f4]"
+                    : "border-gold/25 bg-warning-soft/60"
                 }`}
               >
                 <span className="text-xs font-extrabold uppercase tracking-[0.1em] text-slate-500">
@@ -3614,7 +3541,7 @@ function LuxuryExperiencePanel({
                 </span>
                 <strong
                   className={`mt-2 block text-2xl font-black ${
-                    ownerAttentionCount > 0 ? "text-[#9f352e]" : "text-sage-dark"
+                    ownerAttentionCount > 0 ? "text-[#9f352e]" : "text-gold"
                   }`}
                 >
                   {ownerPortalStatus}
@@ -3631,132 +3558,107 @@ function LuxuryExperiencePanel({
             </div>
           ) : (
             <>
-          <div className="estate-panel rounded-lg p-5 xl:hidden">
-            <div className="mb-4">
-              <div className="mb-2 flex items-center justify-between gap-3">
-                <span className="text-xs font-extrabold uppercase tracking-[0.1em] text-clay">
-                  Today’s properties
-                </span>
-                <span className="rounded-full border border-line bg-white px-3 py-1 text-xs font-extrabold text-slate-600">
-                  {properties.length}
-                </span>
-              </div>
-              <div className="overflow-hidden rounded-lg border border-line bg-white">
-                {properties.map((property) => {
-                  const issueSummary = propertyIssueSummary(property.id);
-
-                  return (
-                    <button
-                      key={property.id}
-                      type="button"
-                      onClick={() => {
-                        onSelectProperty(property.id);
-                        setActiveExperience("Inspection");
-                      }}
-                      className="grid min-h-16 w-full grid-cols-[72px_minmax(0,1fr)_auto] items-center gap-3 border-b border-line px-4 py-3 text-left transition last:border-b-0 hover:bg-[#f7faf7]"
-                    >
-                      <span className="overflow-hidden rounded-lg border border-line bg-[#fbfcfb]">
-                        {property.photoUrl ? (
-                          <img src={property.photoUrl} alt={property.name} className="aspect-[4/3] w-full object-cover" />
-                        ) : (
-                          <span className="grid aspect-[4/3] place-items-center text-[0.65rem] font-extrabold text-slate-500">
-                            Home
-                          </span>
-                        )}
-                      </span>
-                      <span className="min-w-0">
-                        <strong className="block truncate text-ink">{property.name}</strong>
-                        <span className="mt-1 block truncate text-sm font-semibold text-slate-600">
-                          {property.owner} / {property.status}
-                        </span>
-                      </span>
-                      <span className="flex items-center justify-end gap-2">
-                        <span className="rounded-full border border-line bg-[#fbfcfb] px-3 py-1 text-xs font-extrabold text-slate-600">
-                          Inspect
-                        </span>
-                        {issueSummary.openCount ? (
-                          <span
-                            className={`rounded-full border px-2.5 py-1 text-[0.68rem] font-extrabold ${
-                              issueSummary.urgentCount
-                                ? "border-[#e7cbc4] bg-[#fff8f6] text-[#9f352e]"
-                                : "border-[#ead2a8] bg-[#fff8ed] text-[#7b5426]"
-                            }`}
-                          >
-                            {issueSummary.urgentCount ? "Urgent" : `${issueSummary.openCount} issue${issueSummary.openCount === 1 ? "" : "s"}`}
-                          </span>
-                        ) : null}
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
-          </div>
-
-          <div className="hidden estate-panel rounded-lg p-5 xl:grid xl:grid-cols-[1.1fr_0.9fr] xl:gap-5">
-            <div>
-              <div className="mb-4 flex items-center justify-between gap-3">
+          <div className="estate-panel rounded-lg p-5">
+              <div className="mb-4 grid gap-3 sm:flex sm:items-center sm:justify-between">
                 <div>
                   <p className="mb-2 text-xs font-extrabold uppercase tracking-[0.12em] text-clay">
                     Home
                   </p>
-                  <h2 className="text-3xl font-extrabold text-ink">Today’s properties</h2>
+                  <h2 className="font-serif text-4xl font-semibold leading-tight text-ink">Today’s properties</h2>
                 </div>
-                <span className="rounded-full border border-line bg-white px-3 py-1 text-xs font-extrabold text-slate-600">
-                  {properties.length}
-                </span>
+                <button
+                  type="button"
+                  onClick={openAddPropertyForm}
+                  className="button-soft min-h-11 w-full rounded-lg px-4 text-sm font-extrabold sm:w-auto sm:shrink-0"
+                >
+                  Add New Property
+                </button>
               </div>
-              <div className="overflow-hidden rounded-lg border border-line bg-white">
+              <div className="grid gap-3 lg:grid-cols-2 xl:grid-cols-3">
                 {properties.map((property) => {
                   const issueSummary = propertyIssueSummary(property.id);
 
                   return (
-                    <button
+                    <article
                       key={property.id}
-                      type="button"
-                      onClick={() => {
-                        onSelectProperty(property.id);
-                        setActiveExperience("Inspection");
-                      }}
-                      className="grid min-h-16 w-full grid-cols-[72px_minmax(0,1fr)_auto] items-center gap-3 border-b border-line px-4 py-3 text-left transition last:border-b-0 hover:bg-[#f7faf7]"
+                      className={`motion-hover-lift overflow-hidden rounded-lg border bg-cream/90 shadow-soft transition ${
+                        selectedProperty?.id === property.id
+                          ? "border-gold shadow-[inset_4px_0_0_#d4af37]"
+                          : "border-gold/20 hover:border-gold/50 hover:shadow-lift"
+                      }`}
                     >
-                      <span className="overflow-hidden rounded-lg border border-line bg-[#fbfcfb]">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          onSelectProperty(property.id);
+                          setActiveExperience("Property");
+                        }}
+                        className="block w-full text-left"
+                      >
+                        <span className="block overflow-hidden border-b border-gold/15 bg-[#252525]">
                         {property.photoUrl ? (
-                          <img src={property.photoUrl} alt={property.name} className="aspect-[4/3] w-full object-cover" />
+                          <img src={property.photoUrl} alt={property.name} className="aspect-[5/3] w-full object-cover" />
                         ) : (
-                          <span className="grid aspect-[4/3] place-items-center text-[0.65rem] font-extrabold text-slate-500">
+                          <span className="grid aspect-[5/3] place-items-center text-xs font-extrabold text-[#d8d0c2]">
                             Home
                           </span>
                         )}
-                      </span>
-                      <span className="min-w-0">
-                        <strong className="block truncate text-ink">{property.name}</strong>
-                        <span className="mt-1 block truncate text-sm font-semibold text-slate-600">
-                          {property.owner} / {property.status}
                         </span>
-                      </span>
-                      <span className="flex items-center justify-end gap-2">
-                        <span className="rounded-full border border-line bg-[#fbfcfb] px-3 py-1 text-xs font-extrabold text-slate-600">
-                          Inspect
-                        </span>
-                        {issueSummary.openCount ? (
-                          <span
-                            className={`rounded-full border px-2.5 py-1 text-[0.68rem] font-extrabold ${
-                              issueSummary.urgentCount
-                                ? "border-[#e7cbc4] bg-[#fff8f6] text-[#9f352e]"
-                                : "border-[#ead2a8] bg-[#fff8ed] text-[#7b5426]"
-                            }`}
-                          >
-                            {issueSummary.urgentCount ? "Urgent" : `${issueSummary.openCount} issue${issueSummary.openCount === 1 ? "" : "s"}`}
+                        <span className="block p-3">
+                          <span className="flex items-start justify-between gap-3">
+                            <span className="min-w-0">
+                              <strong className="block truncate font-serif text-xl font-semibold leading-tight text-ink">
+                                {property.name}
+                              </strong>
+                              <span className="mt-1 block truncate text-sm font-semibold text-slate-600">
+                                {property.address}
+                              </span>
+                              <span className="mt-1 block truncate text-sm font-semibold text-slate-600">
+                                {property.owner} / {property.status}
+                              </span>
+                            </span>
+                            {issueSummary.openCount ? (
+                              <span
+                                className={`shrink-0 rounded-full border px-2.5 py-1 text-[0.68rem] font-extrabold ${
+                                  issueSummary.urgentCount
+                                    ? "border-[#e7cbc4] bg-[#fff8f6] text-[#9f352e]"
+                                    : "border-gold/25 bg-warning-soft text-ink"
+                                }`}
+                              >
+                                {issueSummary.urgentCount
+                                  ? "Urgent"
+                                  : `${issueSummary.openCount} issue${issueSummary.openCount === 1 ? "" : "s"}`}
+                              </span>
+                            ) : null}
                           </span>
-                        ) : null}
-                      </span>
-                    </button>
+                        </span>
+                      </button>
+                      <div className="grid gap-2 border-t border-gold/15 p-3 sm:grid-cols-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            onSelectProperty(property.id);
+                            setActiveExperience("Property");
+                          }}
+                          className="button-soft min-h-10 rounded-lg px-4 text-sm font-extrabold"
+                        >
+                          View Property
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            onSelectProperty(property.id);
+                            setActiveExperience("Inspection");
+                          }}
+                          className="button-soft min-h-10 rounded-lg px-4 text-sm font-extrabold"
+                        >
+                          Inspect
+                        </button>
+                      </div>
+                    </article>
                   );
                 })}
               </div>
-            </div>
           </div>
             </>
           )}
@@ -3765,125 +3667,125 @@ function LuxuryExperiencePanel({
 
       {activeExperience === "Schedule" ? (
         <>
-          <div className="grid gap-5 lg:grid-cols-[0.8fr_1.2fr]">
-            <ConceptCard eyebrow="Schedule work" title="Choose a task type">
-              <div className="mb-4 flex justify-end">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setScheduleTaskForm(emptyScheduleTaskForm);
-                    setShowScheduleForm(true);
-                  }}
-                  className="button-primary min-h-11 rounded-lg px-4 text-sm font-extrabold"
-                >
-                  Add Task
-                </button>
-              </div>
-              <div className="grid gap-2 sm:grid-cols-2">
-                {(["Home Watch", "Pre-Guest Arrival", "Post-Checkout", "Cleaner", "Vendor"] as ScheduleTaskType[]).map(
-                  (type) => (
-                    <button
-                      key={type}
-                      type="button"
-                      onClick={() => prepareScheduleTemplate(type)}
-                      className={`min-h-11 rounded-lg border px-4 text-left text-sm font-extrabold transition hover:border-sage hover:shadow-lift ${
-                        scheduleTaskForm.type === type ? "border-sage bg-[#f3f8f4] text-sage-dark" : "border-line bg-white text-ink"
-                      }`}
-                    >
-                      {type}
-                    </button>
-                  )
-                )}
-              </div>
-              {scheduleSaveMessage ? (
-                <div className="mt-4 rounded-lg border border-line bg-white p-3 text-sm font-semibold text-slate-600">
-                  {scheduleSaveMessage}
-                </div>
-              ) : null}
-            </ConceptCard>
-
-            <ConceptCard
-              eyebrow={`${scheduleTasks.length} scheduled item${scheduleTasks.length === 1 ? "" : "s"}`}
-              title="Scheduled work"
-            >
-              <div className="mb-4 hidden gap-3 xl:grid xl:grid-cols-3">
-                <MetricCard
-                  label="Active"
-                  value={`${activeScheduleTasks.length}`}
-                  detail="Scheduled or in progress"
-                  urgent={activeScheduleTasks.length > 0}
-                />
-                <MetricCard
-                  label="Complete"
-                  value={`${completedScheduleTasks.length}`}
-                  detail="Finished work"
-                />
-                <MetricCard
-                  label="Next"
-                  value={activeScheduleTasks[0] ? activeScheduleTasks[0].type : "None"}
-                  detail={activeScheduleTasks[0] ? formatDateTime(activeScheduleTasks[0].scheduledFor) : "No upcoming work"}
-                />
-              </div>
-              <div className="grid gap-3">
-                {scheduleTasks.length ? (
-                  scheduleTasks.map((task) => (
-                    <ScheduleTaskListItem
-                      key={task.id}
-                      task={task}
-                      onSelect={() => setSelectedScheduleTaskId(task.id)}
-                    />
-                  ))
-                ) : (
-                  <div className="rounded-lg border border-line bg-white p-4">
-                    <p className="text-sm leading-6 text-slate-600">
-                      No work has been scheduled for this property yet. Start with a common visit type, confirm the date,
-                      then save it to the property calendar.
+          <div className="grid gap-5">
+            <div className="grid gap-5 lg:grid-cols-[minmax(0,1.25fr)_minmax(280px,0.75fr)]">
+              <section className="rounded-lg border border-gold/25 bg-[#eae4d8] p-4 shadow-soft">
+                <div className="mb-4 flex flex-wrap items-start justify-between gap-3 border-b border-gold/20 pb-4">
+                  <div>
+                    <p className="mb-2 text-xs font-extrabold uppercase tracking-[0.1em] text-gold">
+                      Schedule
                     </p>
-                    <div className="mt-4 grid gap-2 sm:grid-cols-3">
+                    <h2 className="font-serif text-3xl font-semibold leading-tight text-ink">
+                      Schedule the next visit
+                    </h2>
+                    <p className="mt-2 max-w-2xl text-sm font-semibold leading-6 text-muted">
+                      Confirm the next home watch, vendor, cleaner, or arrival-prep appointment for {selectedProperty?.name || "this property"}.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setScheduleTaskForm(emptyScheduleTaskForm);
+                      setShowScheduleForm(true);
+                    }}
+                    className="button-soft min-h-11 rounded-lg px-4 text-sm font-extrabold"
+                  >
+                    Add Visit
+                  </button>
+                </div>
+                {activeScheduleTasks[0] ? (
+                  <div className="mb-4 rounded-lg border border-gold/20 bg-cream p-4 shadow-soft">
+                    <span className="text-xs font-extrabold uppercase tracking-[0.1em] text-gold">
+                      Next scheduled
+                    </span>
+                    <h3 className="mt-2 font-serif text-2xl font-semibold leading-tight text-ink">
+                      {activeScheduleTasks[0].title}
+                    </h3>
+                    <p className="mt-1 text-sm font-semibold leading-6 text-muted">
+                      {formatDateTime(activeScheduleTasks[0].scheduledFor)} / {activeScheduleTasks[0].assignedTo || "Unassigned"}
+                    </p>
+                  </div>
+                ) : null}
+                <div className="grid gap-3">
+                  {scheduleTasks.length ? (
+                    scheduleTasks.map((task) => (
+                      <ScheduleTaskListItem
+                        key={task.id}
+                        task={task}
+                        onSelect={() => setSelectedScheduleTaskId(task.id)}
+                      />
+                    ))
+                  ) : (
+                    <div className="rounded-lg border border-gold/15 bg-cream/80 p-4 shadow-soft">
+                      <p className="text-sm font-semibold leading-6 text-muted">
+                        No work has been scheduled for this property yet. Add the next visit to place it on the property calendar.
+                      </p>
                       <button
                         type="button"
                         onClick={() => prepareScheduleTemplate("Home Watch")}
-                        className="button-soft min-h-10 rounded-lg px-4 text-sm font-extrabold"
+                        className="button-soft mt-4 min-h-10 rounded-lg px-4 text-sm font-extrabold"
                       >
                         Plan Home Watch
                       </button>
-                      <button
-                        type="button"
-                        onClick={() => prepareScheduleTemplate("Pre-Guest Arrival")}
-                        className="button-soft min-h-10 rounded-lg px-4 text-sm font-extrabold"
-                      >
-                        Plan Arrival
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => prepareScheduleTemplate("Cleaner")}
-                        className="button-soft min-h-10 rounded-lg px-4 text-sm font-extrabold"
-                      >
-                        Plan Cleaner
-                      </button>
                     </div>
+                  )}
+                </div>
+              </section>
+
+              <section className="rounded-lg border border-gold/15 bg-[#eae4d8] p-4 shadow-soft">
+                <div className="mb-3">
+                  <p className="text-xs font-extrabold uppercase tracking-[0.1em] text-gold">
+                    Optional templates
+                  </p>
+                  <h3 className="mt-1 font-serif text-2xl font-semibold leading-tight text-ink">Start from a visit type</h3>
+                  <p className="mt-1 text-sm font-semibold leading-6 text-muted">
+                    Use one when you need to create a new visit quickly.
+                  </p>
+                </div>
+                <div className="grid gap-2">
+                  {(["Home Watch", "Pre-Guest Arrival", "Post-Checkout", "Cleaner", "Vendor"] as ScheduleTaskType[]).map(
+                    (type) => (
+                      <button
+                        key={type}
+                        type="button"
+                        onClick={() => prepareScheduleTemplate(type)}
+                        className={`min-h-11 rounded-lg border px-4 text-left text-sm font-extrabold transition hover:border-gold/50 hover:shadow-lift ${
+                          scheduleTaskForm.type === type ? "border-gold bg-cream text-ink shadow-[inset_4px_0_0_#d4af37]" : "border-gold/20 bg-cream text-ink"
+                        }`}
+                      >
+                        {type}
+                      </button>
+                    )
+                  )}
+                </div>
+                {scheduleSaveMessage ? (
+                  <div className="mt-4 rounded-lg border border-gold/20 bg-cream p-3 text-sm font-semibold text-ink">
+                    {scheduleSaveMessage}
                   </div>
-                )}
-              </div>
-            </ConceptCard>
+                ) : null}
+              </section>
+            </div>
           </div>
 
           {showScheduleForm ? (
-            <div className="fixed inset-0 z-50 grid place-items-center bg-ink/45 p-4 backdrop-blur-sm">
+            <div className="estate-modal-backdrop">
               <form
                 id="schedule-form"
-                className="grid max-h-[calc(100svh-2rem)] w-full max-w-2xl gap-3 overflow-y-auto rounded-lg bg-white p-5 shadow-[0_24px_80px_rgba(35,45,41,0.24)]"
+                className="estate-modal-panel grid max-h-[calc(100svh-2rem)] w-full max-w-2xl gap-3 overflow-y-auto p-5"
                 onSubmit={(event) => {
                   saveScheduleTask(event);
                   setShowScheduleForm(false);
                 }}
               >
-                <div className="mb-1 flex items-start justify-between gap-3 border-b border-line pb-4">
+                <div className="mb-1 flex items-start justify-between gap-3 border-b border-gold/20 pb-4">
                   <div>
                     <span className="text-xs font-extrabold uppercase tracking-[0.1em] text-clay">
                       Schedule work
                     </span>
-                    <h3 className="mt-1 text-2xl font-extrabold text-ink">Add task</h3>
+                    <h3 className="mt-1 font-serif text-3xl font-semibold leading-tight text-ink">Add scheduled work</h3>
+                    <p className="mt-1 text-sm font-semibold leading-6 text-slate-600">
+                      Confirm who is going, when they are expected, and any property-specific instructions.
+                    </p>
                   </div>
                   <button
                     type="button"
@@ -3990,14 +3892,14 @@ function LuxuryExperiencePanel({
           ) : null}
 
           {selectedScheduleTask ? (
-            <div className="fixed inset-0 z-50 grid place-items-center bg-ink/45 p-4 backdrop-blur-sm">
-              <div className="max-h-[calc(100svh-2rem)] w-full max-w-xl overflow-y-auto rounded-lg bg-white p-5 shadow-[0_24px_80px_rgba(35,45,41,0.24)]">
-                <div className="mb-4 flex items-start justify-between gap-3 border-b border-line pb-4">
+            <div className="estate-modal-backdrop">
+              <div className="estate-modal-panel max-h-[calc(100svh-2rem)] w-full max-w-xl overflow-y-auto p-5">
+                <div className="mb-4 flex items-start justify-between gap-3 border-b border-gold/20 pb-4">
                   <div>
                     <span className="text-xs font-extrabold uppercase tracking-[0.1em] text-clay">
                       Schedule detail
                     </span>
-                    <h3 className="mt-1 text-2xl font-extrabold text-ink">{selectedScheduleTask.title}</h3>
+                    <h3 className="mt-1 font-serif text-3xl font-semibold leading-tight text-ink">{selectedScheduleTask.title}</h3>
                   </div>
                   <button
                     type="button"
@@ -4023,62 +3925,49 @@ function LuxuryExperiencePanel({
 
       {activeExperience === "Maintenance" ? (
         <div className="grid gap-4">
-          <section className="rounded-lg border border-line bg-white p-4 shadow-[0_12px_34px_rgba(35,45,41,0.06)]">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-              <div>
-                <p className="mb-2 text-xs font-extrabold uppercase tracking-[0.1em] text-clay">
-                  Issues
-                </p>
-                <h2 className="text-xl font-extrabold text-ink">Repair work for {selectedProperty?.name || "this property"}</h2>
-                <p className="mt-1 text-sm leading-6 text-slate-600">
-                  Track open items, vendor follow-up, and owner-facing repair updates in one place.
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => {
-                  setMaintenanceIssueForm(emptyMaintenanceIssueForm);
-                  setMaintenanceRecommendation(null);
-                  setMaintenanceRecommendationMessage("");
-                  setMaintenanceSaveMessage("");
-                  setShowMaintenanceForm(true);
-                }}
-                className="button-primary min-h-11 rounded-lg px-4 text-sm font-extrabold"
-              >
-                Add Issue
-              </button>
-            </div>
-
-            <div className="mt-4 divide-y divide-line rounded-lg border border-line bg-[#fbfcfb] sm:grid sm:grid-cols-4 sm:divide-x sm:divide-y-0">
-              <OwnerPortalDetail label="Open" value={`${openMaintenanceCount}`} urgent={openMaintenanceCount > 0} />
-              <OwnerPortalDetail label="Urgent" value={`${urgentMaintenanceCount}`} urgent={urgentMaintenanceCount > 0} />
-              <OwnerPortalDetail label="Assigned" value={`${assignedMaintenanceCount}`} />
-              <OwnerPortalDetail label="Resolved" value={`${resolvedMaintenanceCount}`} />
-            </div>
-          </section>
-
-          <div className="grid gap-4 xl:grid-cols-[minmax(0,1.25fr)_minmax(280px,0.75fr)]">
-            <section className="rounded-lg border border-line bg-white p-4 shadow-[0_12px_34px_rgba(35,45,41,0.06)]">
-              <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+          <div className="grid gap-4 lg:grid-cols-[minmax(0,1.25fr)_minmax(280px,0.75fr)]">
+            <section className="rounded-lg border border-gold/25 bg-[#eae4d8] p-4 shadow-soft">
+              <div className="mb-4 flex flex-wrap items-start justify-between gap-3 border-b border-gold/20 pb-4">
                 <div>
-                  <p className="text-xs font-extrabold uppercase tracking-[0.1em] text-clay">
-                    Work queue
+                  <p className="mb-2 text-xs font-extrabold uppercase tracking-[0.1em] text-gold">
+                    Issues
                   </p>
-                  <h3 className="mt-1 text-lg font-extrabold text-ink">
-                    {openMaintenanceCount} open item{openMaintenanceCount === 1 ? "" : "s"}
+                  <h3 className="font-serif text-3xl font-semibold leading-tight text-ink">
+                    Issues
                   </h3>
                 </div>
-                {urgentMaintenanceCount ? (
-                  <span className="rounded-full border border-[#e7cbc4] bg-[#fff8f6] px-3 py-1 text-xs font-extrabold text-[#9f352e]">
-                    {urgentMaintenanceCount} urgent
-                  </span>
-                ) : (
-                  <span className="rounded-full border border-[#c9ddd1] bg-[#f3f8f4] px-3 py-1 text-xs font-extrabold text-sage-dark">
-                    No urgent items
-                  </span>
-                )}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMaintenanceIssueForm(emptyMaintenanceIssueForm);
+                    setMaintenanceRecommendation(null);
+                    setMaintenanceRecommendationMessage("");
+                    setMaintenanceSaveMessage("");
+                    setShowMaintenanceForm(true);
+                  }}
+                  className="button-soft min-h-11 rounded-lg px-4 text-sm font-extrabold"
+                >
+                  Add Issue
+                </button>
               </div>
-              <div className="overflow-hidden rounded-lg border border-line bg-white">
+              <div className="mb-4 flex flex-wrap gap-2">
+                <span className="rounded-full border border-gold/25 bg-cream px-3 py-1 text-xs font-extrabold text-ink">
+                  {openMaintenanceCount} open
+                </span>
+                <span
+                  className={`rounded-full border px-3 py-1 text-xs font-extrabold ${
+                    urgentMaintenanceCount > 0
+                      ? "border-[#e7cbc4] bg-[#fff8f6] text-[#9f352e]"
+                      : "border-gold/25 bg-cream text-ink"
+                  }`}
+                >
+                  {urgentMaintenanceCount} urgent
+                </span>
+                <span className="rounded-full border border-gold/25 bg-cream px-3 py-1 text-xs font-extrabold text-ink">
+                  {assignedMaintenanceCount} assigned
+                </span>
+              </div>
+              <div className="overflow-hidden rounded-lg border border-gold/15 bg-cream shadow-soft">
                 {maintenanceIssues.length ? (
                   maintenanceIssues.map((issue) => (
                     <MaintenanceIssueListItem
@@ -4113,12 +4002,15 @@ function LuxuryExperiencePanel({
               </div>
             </section>
 
-            <section className="rounded-lg border border-line bg-[#fbfcfb] p-4 shadow-[0_12px_34px_rgba(35,45,41,0.05)]">
+            <section className="rounded-lg border border-gold/15 bg-[#eae4d8] p-4 shadow-soft">
               <div className="mb-3">
-                <p className="text-xs font-extrabold uppercase tracking-[0.1em] text-clay">
-                  Quick starters
+                <p className="text-xs font-extrabold uppercase tracking-[0.1em] text-gold">
+                  Add from template
                 </p>
-                <h3 className="mt-1 text-lg font-extrabold text-ink">Common repair types</h3>
+                <h3 className="mt-1 font-serif text-2xl font-semibold leading-tight text-ink">New issue starters</h3>
+                <p className="mt-1 text-sm font-semibold leading-6 text-muted">
+                  Use only when the issue is not already in the work queue.
+                </p>
               </div>
               <div className="grid gap-2">
                 <button
@@ -4132,7 +4024,7 @@ function LuxuryExperiencePanel({
                       "Contact HVAC vendor for availability and update homeowner once service timing is confirmed."
                     )
                   }
-                  className="min-h-11 rounded-lg border border-line bg-white px-4 text-left text-sm font-extrabold transition hover:border-sage hover:shadow-lift"
+                  className="min-h-11 rounded-lg border border-gold/20 bg-cream px-4 text-left text-sm font-extrabold text-ink transition hover:border-gold/50 hover:shadow-lift"
                 >
                   HVAC Concern
                 </button>
@@ -4147,7 +4039,7 @@ function LuxuryExperiencePanel({
                       "Request pool vendor review and continue monitoring until service is complete."
                     )
                   }
-                  className="min-h-11 rounded-lg border border-line bg-white px-4 text-left text-sm font-extrabold transition hover:border-sage hover:shadow-lift"
+                  className="min-h-11 rounded-lg border border-gold/20 bg-cream px-4 text-left text-sm font-extrabold text-ink transition hover:border-gold/50 hover:shadow-lift"
                 >
                   Pool / Spa
                 </button>
@@ -4162,7 +4054,7 @@ function LuxuryExperiencePanel({
                       "Coordinate with landscape vendor and verify condition at the next property visit."
                     )
                   }
-                  className="min-h-11 rounded-lg border border-line bg-white px-4 text-left text-sm font-extrabold transition hover:border-sage hover:shadow-lift"
+                  className="min-h-11 rounded-lg border border-gold/20 bg-cream px-4 text-left text-sm font-extrabold text-ink transition hover:border-gold/50 hover:shadow-lift"
                 >
                   Landscape / Irrigation
                 </button>
@@ -4186,18 +4078,21 @@ function LuxuryExperiencePanel({
           </div>
 
             {showMaintenanceForm ? (
-              <div className="fixed inset-0 z-50 grid place-items-center bg-ink/45 p-4 backdrop-blur-sm">
+              <div className="estate-modal-backdrop">
                 <form
                   id="maintenance-form"
-                  className="grid max-h-[calc(100svh-2rem)] w-full max-w-2xl gap-3 overflow-y-auto rounded-lg bg-white p-5 shadow-estate"
+                  className="estate-modal-panel grid max-h-[calc(100svh-2rem)] w-full max-w-2xl gap-3 overflow-y-auto p-5"
                   onSubmit={saveMaintenanceIssue}
                 >
-              <div className="mb-1 flex items-start justify-between gap-4 border-b border-line pb-4">
+              <div className="mb-1 flex items-start justify-between gap-4 border-b border-gold/20 pb-4">
                 <div>
                   <p className="mb-2 text-xs font-extrabold uppercase tracking-[0.1em] text-clay">
                     New issue
                   </p>
-                  <h3 className="text-2xl font-extrabold text-ink">Create repair task</h3>
+                  <h3 className="font-serif text-3xl font-semibold leading-tight text-ink">Create repair task</h3>
+                  <p className="mt-1 text-sm font-semibold leading-6 text-slate-600">
+                    Capture the condition, assign the right vendor, and prepare the next homeowner-facing step.
+                  </p>
                 </div>
                 <button
                   type="button"
@@ -4275,7 +4170,7 @@ function LuxuryExperiencePanel({
                   onChange={(event) =>
                     setMaintenanceIssueForm((current) => ({ ...current, vendor: event.target.value }))
                   }
-                  className="field-shell rounded-lg p-3 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-500"
+                  className="field-shell rounded-lg p-3 disabled:cursor-not-allowed disabled:bg-cream/70 disabled:text-muted"
                 >
                   <option value="">
                     {selectedVendors.length ? "Select vendor or leave unassigned" : "No vendors saved for this property"}
@@ -4288,25 +4183,25 @@ function LuxuryExperiencePanel({
                 </select>
               </label>
               {!selectedVendors.length ? (
-                <div className="rounded-lg border border-line bg-white p-3 text-sm font-semibold text-slate-600">
+                <div className="rounded-lg border border-gold/15 bg-warning-soft/50 p-3 text-sm font-semibold text-slate-600">
                   Vendors are saved per property. Add a vendor to {selectedProperty?.name || "this property"} first, then
                   it will appear here.
                   <button
                     type="button"
                     onClick={() => setActiveExperience("Property")}
-                    className="mt-3 block min-h-10 rounded-lg border border-line bg-[#fbfcfb] px-4 text-sm font-extrabold text-ink transition hover:border-sage hover:shadow-lift"
+                    className="mt-3 block min-h-10 rounded-lg border border-line bg-cream px-4 text-sm font-extrabold text-ink transition hover:border-gold/50 hover:shadow-lift"
                   >
                     Add Vendor Contact
                   </button>
                 </div>
               ) : null}
-              <div className="rounded-lg border border-line bg-[#fbfcfb] p-4">
+              <div className="rounded-lg border border-gold/15 bg-cream/80 p-4 shadow-soft">
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                   <div>
-                    <p className="mb-1 text-xs font-extrabold uppercase tracking-[0.1em] text-clay">
+                    <p className="mb-1 text-xs font-extrabold uppercase tracking-[0.1em] text-gold">
                       Recommended Next Step
                     </p>
-                    <h3 className="text-lg font-extrabold text-ink">Issue guidance</h3>
+                    <h3 className="font-serif text-2xl font-semibold leading-tight text-ink">Issue guidance</h3>
                     <p className="mt-1 text-sm leading-6 text-slate-600">
                       Suggests priority, vendor type, and owner-facing wording for review.
                     </p>
@@ -4320,14 +4215,14 @@ function LuxuryExperiencePanel({
                   </button>
                 </div>
                 {maintenanceRecommendation ? (
-                  <div className="mt-4 grid gap-3 rounded-lg border border-line bg-white p-4">
+                  <div className="mt-4 grid gap-3 rounded-lg border border-gold/15 bg-white/60 p-4">
                     <div className="grid gap-3 sm:grid-cols-2">
                       <DetailStrip label="Priority" value={maintenanceRecommendation.priority} />
                       <DetailStrip label="Vendor Type" value={maintenanceRecommendation.vendorType} />
                     </div>
                     <DetailStrip label="Next Step" value={maintenanceRecommendation.nextStep} />
-                    <div className="rounded-lg border border-line bg-[#fbfcfb] p-3">
-                      <span className="block text-xs font-extrabold uppercase tracking-[0.08em] text-slate-500">
+                    <div className="rounded-lg border border-gold/15 bg-cream/80 p-3">
+                      <span className="block text-xs font-extrabold uppercase tracking-[0.08em] text-gold">
                         Owner-facing note
                       </span>
                       <p className="mt-2 text-sm leading-6 text-slate-700">
@@ -4358,7 +4253,7 @@ function LuxuryExperiencePanel({
                   placeholder="Call vendor, request estimate, monitor next visit..."
                 />
               </label>
-              <label className="grid min-h-28 content-center gap-2 rounded-lg border border-dashed border-sage bg-[#f8faf8] p-4 text-sm font-extrabold transition hover:bg-[#eef5ef]">
+              <label className="grid min-h-28 content-center gap-2 rounded-lg border border-dashed border-gold/40 bg-warning-soft/60 p-4 text-sm font-extrabold shadow-soft transition hover:bg-warning-soft">
                 Damage photos
                 <input
                   type="file"
@@ -4395,7 +4290,7 @@ function LuxuryExperiencePanel({
                 </div>
               ) : null}
               {maintenanceSaveMessage ? (
-                <div className="rounded-lg border border-line bg-white p-3 text-sm font-semibold text-slate-600">
+                <div className="rounded-lg border border-gold/20 bg-warning-soft/50 p-3 text-sm font-semibold text-slate-600">
                   {maintenanceSaveMessage}
                 </div>
               ) : null}
@@ -4414,40 +4309,43 @@ function LuxuryExperiencePanel({
 
       {activeExperience === "Owner Portal" ? (
         <div className="grid gap-5">
-          <div className="grid gap-5 lg:grid-cols-[1fr_0.9fr]">
+          <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(320px,0.85fr)]">
             <ConceptCard eyebrow="Owner portal" title={selectedProperty ? selectedProperty.name : "Property overview"}>
-              <div
-                className={`rounded-lg border p-4 ${
-                  ownerAttentionCount > 0
-                    ? "border-[#e7cbc4] bg-[#fff8f6]"
-                    : "border-[#c9ddd1] bg-[#f3f8f4]"
-                }`}
-              >
-                <span className="text-xs font-extrabold uppercase tracking-[0.1em] text-slate-500">
+              <div className="grid gap-4 lg:grid-cols-[180px_minmax(0,1fr)] lg:items-center">
+                {selectedProperty?.photoUrl ? (
+                  <img
+                    src={selectedProperty.photoUrl}
+                    alt={selectedProperty.name}
+                    className="aspect-[4/3] w-full rounded-lg border border-gold/20 bg-[#252525] object-cover shadow-soft"
+                  />
+                ) : null}
+                <div
+                  className={`rounded-lg border p-4 shadow-soft ${
+                    ownerAttentionCount > 0
+                      ? "border-[#e7cbc4] bg-[#fff8f6]"
+                      : "border-gold/25 bg-cream/85"
+                  }`}
+                >
+                <span className="text-xs font-extrabold uppercase tracking-[0.1em] text-gold">
                   Current property status
                 </span>
                 <strong
-                  className={`mt-2 block text-2xl font-black sm:text-3xl ${
-                    ownerAttentionCount > 0 ? "text-[#9f352e]" : "text-sage-dark"
+                  className={`mt-2 block font-serif text-3xl font-semibold leading-tight ${
+                    ownerAttentionCount > 0 ? "text-[#9f352e]" : "text-ink"
                   }`}
                 >
                   {ownerPortalStatus}
                 </strong>
                 <p className="mt-2 text-sm leading-6 text-slate-700">{ownerPortalDetail}</p>
               </div>
-
-              <div className="mt-4 divide-y divide-line rounded-lg border border-line bg-white sm:grid sm:grid-cols-3 sm:divide-x sm:divide-y-0">
-                <OwnerPortalDetail label="Last visit" value={recentReport ? formatDateTime(recentReport.timestamp) : "Pending"} />
-                <OwnerPortalDetail label="Open items" value={`${openMaintenanceCount}`} urgent={openMaintenanceCount > 0} />
-                <OwnerPortalDetail label="Updates" value={`${sharedOwnerUpdates.length}`} />
               </div>
             </ConceptCard>
 
-            <ConceptCard eyebrow="Latest report" title="Homeowner packet">
+            <ConceptCard eyebrow="Latest report" title="Homeowner report">
               {recentReport ? (
-                <div className="grid gap-4">
-                  <div className="rounded-lg border border-line bg-white p-4">
-                    <span className="text-xs font-extrabold uppercase tracking-[0.08em] text-clay">
+                <div className="grid gap-3">
+                  <div className="rounded-lg border border-gold/15 bg-cream/85 p-4 shadow-soft">
+                    <span className="text-xs font-extrabold uppercase tracking-[0.08em] text-gold">
                       {getInspectionType(recentReport.checklist)}
                     </span>
                     <p className="mt-2 text-sm font-semibold text-slate-600">
@@ -4460,7 +4358,7 @@ function LuxuryExperiencePanel({
                       href={`/reports/${ownerReportRouteId(recentReport)}`}
                       target="_blank"
                       rel="noreferrer"
-                      className="button-primary grid min-h-11 place-items-center rounded-lg px-4 text-sm font-extrabold"
+                      className="button-soft grid min-h-11 place-items-center rounded-lg px-4 text-sm font-extrabold"
                     >
                       Open Report
                     </a>
@@ -4473,130 +4371,82 @@ function LuxuryExperiencePanel({
                   </div>
                 </div>
               ) : (
-                <div className="rounded-lg border border-line bg-white p-4 text-sm leading-6 text-slate-600">
+                <div className="rounded-lg border border-gold/15 bg-cream/80 p-4 text-sm leading-6 text-slate-600 shadow-soft">
                   No homeowner report is ready yet.
                 </div>
               )}
-
-              <div className="mt-4 rounded-lg border border-line bg-[#fbfcfb] p-4">
-                <span className="text-xs font-extrabold uppercase tracking-[0.08em] text-clay">
-                  Latest shared update
-                </span>
-                <p className="mt-2 text-sm leading-6 text-slate-700">
-                  {latestSharedOwnerUpdate?.message ||
-                    "No update has been shared with the homeowner yet."}
-                </p>
-              </div>
             </ConceptCard>
           </div>
 
-          <div className={`grid gap-5 ${activeRole === "Homeowner" ? "" : "lg:grid-cols-[0.9fr_1.1fr]"}`}>
-            {activeRole !== "Homeowner" ? (
-              <ConceptCard eyebrow="Owner update" title="Prepare homeowner note">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setOwnerUpdateForm(emptyOwnerUpdateForm);
-                    setShowOwnerUpdateForm(true);
-                  }}
-                  className="button-primary mb-4 min-h-11 w-full rounded-lg px-4 text-sm font-extrabold"
-                >
-                  Draft Update
-                </button>
-                <div className="mb-4 grid gap-3 sm:grid-cols-2">
-                  <button
-                    type="button"
-                    onClick={draftLatestInspectionOwnerUpdate}
-                    className="button-soft min-h-11 rounded-lg px-4 text-sm font-extrabold"
-                  >
-                    Draft Inspection Update
-                  </button>
-                  <button
-                    type="button"
-                    onClick={draftMaintenanceOwnerUpdate}
-                    className="button-soft min-h-11 rounded-lg px-4 text-sm font-extrabold"
-                  >
-                    Draft Maintenance Update
-                  </button>
+          <ConceptCard eyebrow="Owner updates" title="Recent notes">
+            <div className="grid gap-3">
+              {latestSharedOwnerUpdate ? (
+                <div className="rounded-lg border border-gold/15 bg-cream/85 p-4 shadow-soft">
+                  <span className="text-xs font-extrabold uppercase tracking-[0.08em] text-gold">
+                    Latest shared update
+                  </span>
+                  <p className="mt-2 text-sm leading-6 text-slate-700">{latestSharedOwnerUpdate.message}</p>
                 </div>
-                {ownerUpdateSaveMessage ? (
-                  <div className="rounded-lg border border-line bg-white p-3 text-sm font-semibold text-slate-600">
-                    {ownerUpdateSaveMessage}
-                  </div>
-                ) : null}
-              </ConceptCard>
-            ) : null}
+              ) : (
+                <div className="rounded-lg border border-gold/15 bg-cream/85 p-4 text-sm leading-6 text-slate-600 shadow-soft">
+                  No updates have been shared with the homeowner yet.
+                </div>
+              )}
 
-            <ConceptCard eyebrow="Homeowner view" title="Shared service record">
-              <div className="grid gap-3">
-                {sharedOwnerUpdates.length ? (
-                  sharedOwnerUpdates.map((update) => (
+              {sharedOwnerUpdates.length > 1 ? (
+                <div className="grid gap-2">
+                  {sharedOwnerUpdates.slice(1, 4).map((update) => (
                     <OwnerUpdateListItem
                       key={update.id}
                       update={update}
                       onSelect={() => setSelectedOwnerUpdateId(update.id)}
                     />
-                  ))
-                ) : (
-                  <div className="rounded-lg border border-line bg-white p-4">
-                    <p className="text-sm leading-6 text-slate-600">
-                      No updates have been shared with the homeowner yet. Draft a polished first update, review the
-                      wording, then change visibility to Shared when it is ready.
-                    </p>
-                    {activeRole !== "Homeowner" ? (
-                      <div className="mt-4 grid gap-2 sm:grid-cols-2">
-                        <button
-                          type="button"
-                          onClick={draftLatestInspectionOwnerUpdate}
-                          className="button-soft min-h-10 rounded-lg px-4 text-sm font-extrabold"
-                        >
-                          Draft Inspection Update
-                        </button>
-                        <button
-                          type="button"
-                          onClick={draftMaintenanceOwnerUpdate}
-                          className="button-soft min-h-10 rounded-lg px-4 text-sm font-extrabold"
-                        >
-                          Draft Maintenance Update
-                        </button>
-                      </div>
-                    ) : null}
-                  </div>
-                )}
-              </div>
-              {activeRole !== "Homeowner" && internalOwnerUpdates.length ? (
-                <div className="mt-5 rounded-lg border border-line bg-[#fbfcfb] p-4">
-                  <span className="block text-xs font-extrabold uppercase tracking-[0.1em] text-clay">
-                    Internal queue
-                  </span>
-                  <div className="mt-3 grid gap-2">
-                    {internalOwnerUpdates.slice(0, 3).map((update) => (
-                      <button
-                        key={update.id}
-                        type="button"
-                        onClick={() => setSelectedOwnerUpdateId(update.id)}
-                        className="flex items-start justify-between gap-3 rounded-lg border border-line bg-white p-3 text-left transition hover:border-sage hover:shadow-lift"
-                      >
-                        <div className="min-w-0">
-                          <strong className="block text-sm text-ink">{update.title}</strong>
-                          <span className="text-xs font-semibold text-slate-500">{update.category}</span>
-                        </div>
-                        <span className="rounded-full border border-line bg-[#fbfcfb] px-3 py-1 text-xs font-extrabold text-slate-600">
-                          {update.status}
-                        </span>
-                      </button>
-                    ))}
-                  </div>
+                  ))}
                 </div>
               ) : null}
-            </ConceptCard>
-          </div>
+
+              {activeRole !== "Homeowner" ? (
+                <div className="grid gap-2 border-t border-gold/15 pt-3 sm:grid-cols-3">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setOwnerUpdateForm(emptyOwnerUpdateForm);
+                      setShowOwnerUpdateForm(true);
+                    }}
+                    className="button-soft min-h-10 rounded-lg px-4 text-sm font-extrabold"
+                  >
+                    Draft Update
+                  </button>
+                  <button
+                    type="button"
+                    onClick={draftLatestInspectionOwnerUpdate}
+                    className="button-soft min-h-10 rounded-lg px-4 text-sm font-extrabold"
+                  >
+                    Draft Report Note
+                  </button>
+                  <button
+                    type="button"
+                    onClick={draftMaintenanceOwnerUpdate}
+                    className="button-soft min-h-10 rounded-lg px-4 text-sm font-extrabold"
+                  >
+                    Maintenance Note
+                  </button>
+                </div>
+              ) : null}
+
+                {ownerUpdateSaveMessage ? (
+                  <div className="rounded-lg border border-gold/20 bg-warning-soft/50 p-3 text-sm font-semibold text-slate-600">
+                    {ownerUpdateSaveMessage}
+                  </div>
+                ) : null}
+              </div>
+          </ConceptCard>
 
           {showOwnerUpdateForm && activeRole !== "Homeowner" ? (
-            <div className="fixed inset-0 z-50 grid place-items-center bg-ink/45 p-4 backdrop-blur-sm">
+            <div className="estate-modal-backdrop">
               <form
                 id="owner-update-form"
-                className="grid max-h-[calc(100svh-2rem)] w-full max-w-2xl gap-3 overflow-y-auto rounded-lg bg-white p-5 shadow-[0_24px_80px_rgba(35,45,41,0.24)]"
+                className="estate-modal-panel grid max-h-[calc(100svh-2rem)] w-full max-w-2xl gap-3 overflow-y-auto p-5"
                 onSubmit={(event) => {
                   saveOwnerUpdate(event);
                   setShowOwnerUpdateForm(false);
@@ -4676,7 +4526,7 @@ function LuxuryExperiencePanel({
                 <button
                   type="submit"
                   disabled={isSavingOwnerUpdate}
-                  className="button-primary min-h-12 rounded-lg px-5 font-extrabold disabled:cursor-not-allowed disabled:opacity-60"
+                  className="button-soft min-h-12 rounded-lg px-5 font-extrabold disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   {isSavingOwnerUpdate ? "Saving..." : "Save Update"}
                 </button>
@@ -4685,8 +4535,8 @@ function LuxuryExperiencePanel({
           ) : null}
 
           {selectedOwnerUpdate ? (
-            <div className="fixed inset-0 z-50 grid place-items-center bg-ink/45 p-4 backdrop-blur-sm">
-              <div className="max-h-[calc(100svh-2rem)] w-full max-w-xl overflow-y-auto rounded-lg bg-white p-5 shadow-[0_24px_80px_rgba(35,45,41,0.24)]">
+            <div className="estate-modal-backdrop">
+              <div className="estate-modal-panel max-h-[calc(100svh-2rem)] w-full max-w-xl overflow-y-auto p-5">
                 <div className="mb-4 flex items-start justify-between gap-3 border-b border-line pb-4">
                   <div>
                     <span className="text-xs font-extrabold uppercase tracking-[0.1em] text-clay">
@@ -4740,7 +4590,7 @@ function PilotAdminConsole({
             <p className="mb-2 text-xs font-extrabold uppercase tracking-[0.12em] text-clay">
               Internal admin
             </p>
-            <h2 className="text-3xl font-extrabold text-ink">Pilot customer console</h2>
+            <h2 className="font-serif text-4xl font-semibold leading-tight text-ink">Pilot customer console</h2>
             <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
               Monitor pilot accounts, usage, feedback, feature flags, and system readiness without exposing real
               homeowner data during demos.
@@ -4750,7 +4600,7 @@ function PilotAdminConsole({
             Refresh
           </button>
         </div>
-        <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <MetricCard label="Pilot orgs" value={`${organizations.length}`} detail="Accounts configured" />
           <MetricCard label="Users" value={`${users.length}`} detail="Pilot seats" />
           <MetricCard label="Sessions" value={`${pilotUsageSummary?.uniqueSessions ?? 0}`} detail="Tracked browsers" />
@@ -4758,7 +4608,7 @@ function PilotAdminConsole({
         </div>
       </div>
 
-      <div className="grid gap-5 xl:grid-cols-[1fr_1fr]">
+      <div className="grid gap-5 lg:grid-cols-[1fr_1fr]">
         <ConceptCard eyebrow="Product analytics" title="Usage signals">
           <div className="grid gap-3 sm:grid-cols-2">
             <MetricCard label="Logins" value={`${pilotUsageSummary?.loginFrequency ?? 0}`} detail="Role sign-ins" />
@@ -4777,7 +4627,7 @@ function PilotAdminConsole({
         <ConceptCard eyebrow="Pilot customers" title="Organizations and users">
           <div className="grid gap-3">
             {organizations.map((organization) => (
-              <div key={organization.id} className="rounded-lg border border-line bg-white p-4">
+              <div key={organization.id} className="rounded-lg border border-gold/15 bg-cream/80 p-4 shadow-soft">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
                     <strong className="block text-ink">{organization.name}</strong>
@@ -4785,7 +4635,7 @@ function PilotAdminConsole({
                       {organization.contactName} / expires {formatDateTime(organization.expiresAt)}
                     </span>
                   </div>
-                  <span className="rounded-full border border-line bg-[#fbfcfb] px-3 py-1 text-xs font-extrabold text-slate-600">
+                  <span className="rounded-full border border-gold/20 bg-warning-soft px-3 py-1 text-xs font-extrabold text-ink">
                     {organization.status}
                   </span>
                 </div>
@@ -4800,23 +4650,23 @@ function PilotAdminConsole({
                   <button
                     type="button"
                     onClick={() => window.alert("Pilot impersonation is audit-only in this MVP. Use demo role buttons for safe walkthroughs.")}
-                    className="min-h-10 rounded-lg border border-line bg-white px-4 text-sm font-extrabold text-ink"
+                    className="min-h-10 rounded-lg border border-gold/20 bg-cream px-4 text-sm font-extrabold text-ink transition hover:border-gold/50"
                   >
                     Safe Impersonation
                   </button>
                 </div>
               </div>
             ))}
-            <div className="rounded-lg border border-line bg-[#fbfcfb] p-4">
+            <div className="rounded-lg border border-gold/15 bg-cream/80 p-4 shadow-soft">
               <span className="block text-xs font-extrabold uppercase tracking-[0.08em] text-clay">Pilot users</span>
               <div className="mt-3 grid gap-2">
                 {users.map((user) => (
-                  <div key={user.id} className="flex items-center justify-between gap-3 rounded-lg border border-line bg-white p-3">
+                  <div key={user.id} className="flex items-center justify-between gap-3 rounded-lg border border-gold/15 bg-white/60 p-3">
                     <div>
                       <strong className="block text-sm text-ink">{user.name}</strong>
                       <span className="text-xs font-semibold text-slate-500">{user.email}</span>
                     </div>
-                    <span className="rounded-full bg-[#e7eee9] px-3 py-1 text-xs font-extrabold text-sage-dark">
+                    <span className="rounded-full border border-gold/25 bg-warning-soft px-3 py-1 text-xs font-extrabold text-ink">
                       {user.role}
                     </span>
                   </div>
@@ -4827,7 +4677,7 @@ function PilotAdminConsole({
         </ConceptCard>
       </div>
 
-      <div className="grid gap-5 xl:grid-cols-[0.9fr_1.1fr]">
+      <div className="grid gap-5 lg:grid-cols-[0.9fr_1.1fr]">
         <ConceptCard eyebrow="Feature flags" title="Controlled pilot features">
           <div className="grid gap-3">
             {flags.map((flag) => (
@@ -4835,11 +4685,11 @@ function PilotAdminConsole({
                 key={flag.id}
                 type="button"
                 onClick={() => toggleFeatureFlag(flag.id)}
-                className="grid gap-2 rounded-lg border border-line bg-white p-4 text-left transition hover:border-sage"
+                className="grid gap-2 rounded-lg border border-line bg-cream p-4 text-left transition hover:border-gold/50"
               >
                 <span className="flex items-start justify-between gap-3">
                   <strong className="text-ink">{flag.label}</strong>
-                  <span className={`rounded-full px-3 py-1 text-xs font-extrabold ${flag.enabled ? "bg-[#e7eee9] text-sage-dark" : "bg-slate-100 text-slate-500"}`}>
+                  <span className={`rounded-full px-3 py-1 text-xs font-extrabold ${flag.enabled ? "border border-gold/25 bg-warning-soft text-ink" : "border border-line bg-cream/80 text-muted"}`}>
                     {flag.enabled ? "On" : "Off"}
                   </span>
                 </span>
@@ -4853,13 +4703,13 @@ function PilotAdminConsole({
           <div className="grid gap-3">
             {feedbackItems.length ? (
               feedbackItems.slice(0, 6).map((item) => (
-                <div key={item.id} className="rounded-lg border border-line bg-white p-4">
+                <div key={item.id} className="rounded-lg border border-gold/15 bg-cream/80 p-4 shadow-soft">
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div>
                       <strong className="text-ink">{item.type}</strong>
                       <span className="ml-2 text-sm font-semibold text-slate-500">{item.role} / {item.screen}</span>
                     </div>
-                    <span className="rounded-full border border-line bg-[#fbfcfb] px-3 py-1 text-xs font-extrabold text-slate-600">
+                    <span className="rounded-full border border-gold/20 bg-warning-soft px-3 py-1 text-xs font-extrabold text-ink">
                       {item.sentiment}
                     </span>
                   </div>
@@ -4867,7 +4717,7 @@ function PilotAdminConsole({
                 </div>
               ))
             ) : (
-              <div className="rounded-lg border border-line bg-white p-4 text-sm text-slate-600">
+              <div className="rounded-lg border border-gold/15 bg-cream/80 p-4 text-sm text-slate-600 shadow-soft">
                 No pilot feedback has been captured yet.
               </div>
             )}
@@ -4913,17 +4763,17 @@ function FeedbackPanel({
         <button
           type="button"
           onClick={() => setShowFeedbackForm(true)}
-          className="button-primary min-h-10 rounded-lg px-4 text-sm font-extrabold"
+          className="button-soft min-h-10 rounded-lg px-4 text-sm font-extrabold"
         >
           Share Feedback
         </button>
       </div>
-      {message ? <p className="mt-3 rounded-lg border border-line bg-white p-3 text-sm font-semibold text-slate-600">{message}</p> : null}
+      {message ? <p className="mt-3 rounded-lg border border-gold/20 bg-warning-soft/50 p-3 text-sm font-semibold text-slate-600">{message}</p> : null}
 
       {showFeedbackForm ? (
-        <div className="fixed inset-0 z-50 grid place-items-center bg-ink/45 p-4 backdrop-blur-sm">
+        <div className="estate-modal-backdrop">
           <form
-            className="grid max-h-[calc(100svh-2rem)] w-full max-w-2xl gap-3 overflow-y-auto rounded-lg bg-white p-5 shadow-[0_24px_80px_rgba(35,45,41,0.24)]"
+            className="estate-modal-panel grid max-h-[calc(100svh-2rem)] w-full max-w-2xl gap-3 overflow-y-auto p-5"
             onSubmit={(event) => {
               saveFeedback(event);
               setShowFeedbackForm(false);
@@ -5027,12 +4877,12 @@ function RankedList({
   empty: string;
 }) {
   return (
-    <div className="rounded-lg border border-line bg-[#fbfcfb] p-4">
+    <div className="rounded-lg border border-gold/15 bg-cream/80 p-4 shadow-soft">
       <strong className="block text-sm text-ink">{title}</strong>
       <div className="mt-3 grid gap-2">
         {items.length ? (
           items.map((item) => (
-            <div key={item.label} className="flex items-center justify-between gap-3 rounded-lg bg-white px-3 py-2 text-sm">
+            <div key={item.label} className="flex items-center justify-between gap-3 rounded-lg border border-line bg-white/70 px-3 py-2 text-sm">
               <span className="font-semibold text-slate-700">{item.label}</span>
               <span className="font-black text-ink">{item.count}</span>
             </div>
@@ -5055,9 +4905,9 @@ function ConceptCard({
   title: string;
 }) {
   return (
-    <article className="estate-panel rounded-lg p-5">
+    <article className="estate-panel motion-reveal rounded-lg p-5">
       <p className="mb-2 text-xs font-extrabold uppercase tracking-[0.12em] text-clay">{eyebrow}</p>
-      <h3 className="mb-4 text-2xl font-extrabold text-ink">{title}</h3>
+      <h3 className="mb-4 font-serif text-3xl font-semibold leading-tight text-ink">{title}</h3>
       {children}
     </article>
   );
@@ -5078,8 +4928,8 @@ function MobileActionButton({
     <button
       type="button"
       onClick={onClick}
-      className={`grid min-h-20 grid-cols-[minmax(0,1fr)_36px] items-center gap-3 rounded-lg border p-4 text-left transition active:scale-[0.99] ${
-        urgent ? "border-[#e7cbc4] bg-[#fff8f6]" : "border-line bg-white"
+      className={`motion-hover-lift grid min-h-20 grid-cols-[minmax(0,1fr)_36px] items-center gap-3 rounded-lg border p-4 text-left transition active:scale-[0.99] ${
+        urgent ? "border-[#e7cbc4] bg-[#fff8f6]" : "border-gold/20 bg-cream/90"
       }`}
     >
       <span>
@@ -5088,7 +4938,7 @@ function MobileActionButton({
         </strong>
         <span className="mt-1 block text-sm font-semibold text-slate-600">{detail}</span>
       </span>
-      <span className="grid h-9 w-9 place-items-center rounded-full bg-ink text-lg font-extrabold text-white">
+      <span className="grid h-9 w-9 place-items-center rounded-full bg-[linear-gradient(135deg,#f2d98a,#d4af37)] text-lg font-extrabold text-ink shadow-button">
         {">"}
       </span>
     </button>
@@ -5105,7 +4955,7 @@ function MobileStatusTile({
   value: string;
 }) {
   return (
-    <div className={`min-h-20 rounded-lg border p-3 ${urgent ? "border-[#e7cbc4] bg-[#fff8f6]" : "border-line bg-white"}`}>
+    <div className={`min-h-20 rounded-lg border p-3 shadow-soft ${urgent ? "border-[#e7cbc4] bg-[#fff8f6]" : "border-gold/20 bg-cream/80"}`}>
       <span className="block text-[0.68rem] font-extrabold uppercase tracking-[0.08em] text-slate-500">
         {label}
       </span>
@@ -5128,9 +4978,9 @@ function MetricCard({
   value: string;
 }) {
   return (
-    <div className={`rounded-lg border p-4 ${urgent ? "border-[#e7cbc4] bg-[#fff8f6]" : "border-line bg-white"}`}>
-      <span className="text-xs font-extrabold uppercase tracking-[0.08em] text-slate-500">{label}</span>
-      <strong className={`mt-2 block text-3xl font-extrabold ${urgent ? "text-[#9f352e]" : "text-ink"}`}>{value}</strong>
+    <div className={`rounded-lg border p-4 shadow-soft ${urgent ? "border-[#e7cbc4] bg-[#fff8f6]" : "border-gold/20 bg-cream/80"}`}>
+      <span className="text-xs font-extrabold uppercase tracking-[0.08em] text-muted">{label}</span>
+      <strong className={`mt-2 block font-serif text-3xl font-semibold ${urgent ? "text-[#9f352e]" : "text-ink"}`}>{value}</strong>
       <span className="mt-1 block text-sm text-slate-600">{detail}</span>
     </div>
   );
@@ -5139,7 +4989,7 @@ function MetricCard({
 function OwnerUpdateListItem({ update, onSelect }: { update: OwnerUpdate; onSelect: () => void }) {
   const statusClass =
     update.status === "Shared"
-      ? "border-[#c9ddd1] bg-[#f3f8f4] text-sage-dark"
+      ? "border-gold/25 bg-warning-soft text-ink"
       : update.status === "Archived"
         ? "border-line bg-[#fbfcfb] text-slate-600"
         : "border-[#ead2a8] bg-[#fff8ed] text-[#7b5426]";
@@ -5148,7 +4998,7 @@ function OwnerUpdateListItem({ update, onSelect }: { update: OwnerUpdate; onSele
     <button
       type="button"
       onClick={onSelect}
-      className={`grid min-h-16 w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-lg border p-4 text-left transition hover:border-sage hover:shadow-lift ${statusClass}`}
+      className={`grid min-h-16 w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-lg border p-4 text-left transition hover:border-gold/50 hover:shadow-lift ${statusClass}`}
     >
       <span className="min-w-0">
         <strong className="block truncate text-ink">{update.title}</strong>
@@ -5165,9 +5015,9 @@ function OwnerUpdateListItem({ update, onSelect }: { update: OwnerUpdate; onSele
 
 function OwnerPortalDetail({ label, value, urgent = false }: { label: string; value: string; urgent?: boolean }) {
   return (
-    <div className="grid gap-1 p-3">
-      <span className="text-xs font-extrabold uppercase tracking-[0.08em] text-slate-500">{label}</span>
-      <strong className={`text-sm font-extrabold ${urgent ? "text-[#9f352e]" : "text-ink"}`}>{value}</strong>
+    <div className={`grid gap-1 rounded-lg border p-3 shadow-soft ${urgent ? "border-[#e7cbc4] bg-[#fff8f6]" : "border-gold/15 bg-cream/80"}`}>
+      <span className="text-xs font-extrabold uppercase tracking-[0.08em] text-gold">{label}</span>
+      <strong className={`font-serif text-xl font-semibold leading-tight ${urgent ? "text-[#9f352e]" : "text-ink"}`}>{value}</strong>
     </div>
   );
 }
@@ -5175,7 +5025,7 @@ function OwnerPortalDetail({ label, value, urgent = false }: { label: string; va
 function OwnerUpdateCard({ update }: { update: OwnerUpdate }) {
   const statusClass =
     update.status === "Shared"
-      ? "border-[#c9ddd1] bg-[#f3f8f4] text-sage-dark"
+      ? "border-gold/25 bg-warning-soft text-ink"
       : update.status === "Archived"
         ? "border-line bg-[#fbfcfb] text-slate-600"
         : "border-[#ead2a8] bg-[#fff8ed] text-[#7b5426]";
@@ -5204,19 +5054,19 @@ function OwnerUpdateCard({ update }: { update: OwnerUpdate }) {
 function ScheduleTaskListItem({ task, onSelect }: { task: ScheduleTask; onSelect: () => void }) {
   const statusClass =
     task.status === "Complete"
-      ? "border-[#c9ddd1] bg-[#f3f8f4] text-sage-dark"
+      ? "border-gold/25 bg-warning-soft text-ink"
       : task.status === "Skipped"
         ? "border-[#e7cbc4] bg-[#fff8f6] text-[#9f352e]"
-        : "border-line bg-white text-ink";
+        : "border-line bg-cream text-ink";
 
   return (
     <button
       type="button"
       onClick={onSelect}
-      className={`grid min-h-16 w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-lg border p-4 text-left transition hover:border-sage hover:shadow-lift ${statusClass}`}
+      className={`grid min-h-16 w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-lg border p-4 text-left transition hover:border-gold/50 hover:shadow-lift ${statusClass}`}
     >
       <span className="min-w-0">
-        <strong className="block truncate text-ink">{task.title}</strong>
+        <strong className="block truncate font-serif text-lg font-semibold leading-tight text-ink">{task.title}</strong>
         <span className="mt-1 block truncate text-sm font-semibold text-slate-600">
           {task.type} / {formatDateTime(task.scheduledFor)}
         </span>
@@ -5241,19 +5091,19 @@ function ScheduleTaskCard({
 }) {
   const statusClass =
     task.status === "Complete"
-      ? "border-[#c9ddd1] bg-[#f3f8f4] text-sage-dark"
+      ? "border-gold/25 bg-warning-soft text-ink"
       : task.status === "Skipped"
         ? "border-[#e7cbc4] bg-[#fff8f6] text-[#9f352e]"
-        : "border-line bg-white text-ink";
+        : "border-line bg-cream text-ink";
 
   return (
-    <article className={`rounded-lg border p-4 ${statusClass}`}>
+    <article className={`rounded-lg border p-4 shadow-soft ${statusClass}`}>
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <span className="text-xs font-extrabold uppercase tracking-[0.08em] opacity-75">
             {task.type}
           </span>
-          <h4 className="mt-1 text-lg font-extrabold">{task.title}</h4>
+          <h4 className="mt-1 font-serif text-2xl font-semibold leading-tight">{task.title}</h4>
           {propertyName ? <span className="mt-1 block text-sm opacity-75">{propertyName}</span> : null}
         </div>
         <span className="rounded-full border border-current/20 px-3 py-1 text-xs font-extrabold">
@@ -5293,15 +5143,15 @@ function VendorListItem({ vendor, onSelect }: { vendor: VendorContact; onSelect:
     <button
       type="button"
       onClick={onSelect}
-      className="grid min-h-16 w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-3 border-b border-line px-4 py-3 text-left transition last:border-b-0 hover:bg-[#f7faf7]"
+      className="grid min-h-16 w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-3 border-b border-gold/15 bg-cream px-4 py-3 text-left transition last:border-b-0 hover:bg-warning-soft/45"
     >
       <span className="min-w-0">
-        <strong className="block truncate text-ink">{vendor.name}</strong>
+        <strong className="block truncate font-serif text-lg font-semibold leading-tight text-ink">{vendor.name}</strong>
         <span className="mt-1 block truncate text-sm font-semibold text-slate-600">
           {vendor.type}{vendor.contactName ? ` / ${vendor.contactName}` : ""}
         </span>
       </span>
-      <span className="rounded-full border border-line bg-[#fbfcfb] px-3 py-1 text-xs font-extrabold text-slate-600">
+      <span className="rounded-full border border-gold/20 bg-white/65 px-3 py-1 text-xs font-extrabold text-slate-600">
         View
       </span>
     </button>
@@ -5315,14 +5165,14 @@ function MaintenanceIssueListItem({ issue, onSelect }: { issue: MaintenanceIssue
     <button
       type="button"
       onClick={onSelect}
-      className="grid min-h-16 w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-3 border-b border-line bg-white px-4 py-3 text-left transition last:border-b-0 hover:bg-[#f7faf7]"
+      className="grid min-h-16 w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-3 border-b border-gold/15 bg-cream px-4 py-3 text-left transition last:border-b-0 hover:bg-warning-soft/45"
     >
       <span className="min-w-0">
         <span className="mb-1 flex flex-wrap items-center gap-2">
-          <strong className="truncate text-ink">{issue.title}</strong>
+          <strong className="truncate font-serif text-lg font-semibold leading-tight text-ink">{issue.title}</strong>
           <span
-            className={`rounded-full px-2 py-0.5 text-[0.68rem] font-extrabold ${
-              urgent ? "bg-[#fff8f6] text-[#9f352e]" : "bg-[#eef5ef] text-sage-dark"
+            className={`rounded-full border px-2 py-0.5 text-[0.68rem] font-extrabold ${
+              urgent ? "border-[#e7cbc4] bg-[#fff8f6] text-[#9f352e]" : "border-gold/20 bg-warning-soft text-ink"
             }`}
           >
             {issue.priority}
@@ -5332,7 +5182,7 @@ function MaintenanceIssueListItem({ issue, onSelect }: { issue: MaintenanceIssue
           {issue.status}{issue.vendor ? ` / ${issue.vendor}` : " / Unassigned"}
         </span>
       </span>
-      <span className="rounded-full border border-line bg-[#fbfcfb] px-3 py-1 text-xs font-extrabold text-slate-600">
+      <span className="rounded-full border border-gold/20 bg-white/65 px-3 py-1 text-xs font-extrabold text-slate-600">
         View
       </span>
     </button>
@@ -5425,7 +5275,7 @@ function MaintenanceIssueCard({
       {assignedVendor?.phone ? (
         <a
           href={`tel:${assignedVendor.phone}`}
-          className="button-primary mt-4 grid min-h-11 place-items-center rounded-lg px-4 text-sm font-extrabold xl:hidden"
+          className="button-primary mt-4 grid min-h-11 place-items-center rounded-lg px-4 text-sm font-extrabold lg:hidden"
         >
           Call {assignedVendor.name}
         </a>
@@ -5437,9 +5287,9 @@ function MaintenanceIssueCard({
               key={photo.id}
               href={photo.url}
               target="_blank"
-              className="overflow-hidden rounded-lg border border-line bg-white"
+              className="overflow-hidden rounded-lg border border-line bg-[#252525]"
             >
-              <img src={photo.url} alt={photo.name} className="h-28 w-full bg-slate-100 object-cover" />
+              <img src={photo.url} alt={photo.name} className="h-28 w-full bg-[#252525] object-cover" />
             </a>
           ))}
         </div>
@@ -5627,8 +5477,8 @@ function MaintenanceIssueCard({
 
 function DetailStrip({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-lg border border-line bg-white p-3">
-      <span className="block text-xs font-extrabold uppercase tracking-[0.08em] text-slate-500">{label}</span>
+    <div className="rounded-lg border border-gold/15 bg-cream/80 p-3 shadow-soft">
+      <span className="block text-xs font-extrabold uppercase tracking-[0.08em] text-gold">{label}</span>
       <strong className="mt-1 block text-ink">{value}</strong>
     </div>
   );
@@ -5643,7 +5493,7 @@ function ReportCard({
 }) {
   if (!property || !inspection) {
     return (
-      <article className="grid min-h-52 place-items-center rounded-lg border border-line bg-white p-5 text-center text-slate-600">
+      <article className="grid min-h-52 place-items-center rounded-lg border border-gold/15 bg-cream/80 p-5 text-center text-slate-600 shadow-soft">
         <p>Generate an inspection report to create a clean homeowner summary.</p>
       </article>
     );
@@ -5652,13 +5502,13 @@ function ReportCard({
   const status = reportConditionStatus(inspection);
 
   return (
-    <article className="rounded-lg border border-line bg-white p-4">
+    <article className="rounded-lg border border-gold/15 bg-cream p-4 shadow-soft">
       <div className="mb-4 grid gap-3 border-b border-line pb-4 lg:grid-cols-[minmax(0,1fr)_220px] lg:items-start">
         <div className="min-w-0">
           <p className="mb-2 text-xs font-extrabold uppercase tracking-[0.1em] text-clay">
-            Homeowner Packet
+            Current report
           </p>
-          <h3 className="text-2xl font-extrabold text-ink">{property.name}</h3>
+          <h3 className="font-serif text-3xl font-semibold leading-tight text-ink">{property.name}</h3>
           <p className="mt-2 text-sm text-slate-600">
             {property.owner} / {property.address}
           </p>
@@ -5666,7 +5516,7 @@ function ReportCard({
             className={`mt-3 inline-flex rounded-lg border px-4 py-2 text-sm font-extrabold ${
               status.tone === "urgent"
                 ? "border-[#e7cbc4] bg-[#fff8f6] text-[#9f352e]"
-                : "border-[#c9ddd1] bg-[#f3f8f4] text-sage-dark"
+                : "border-gold/25 bg-warning-soft text-ink"
             }`}
           >
             {status.label}
@@ -5676,24 +5526,32 @@ function ReportCard({
           <img
             src={property.photoUrl}
             alt={property.name}
-            className="aspect-[4/3] w-full rounded-lg border border-line bg-slate-100 object-cover"
+            className="aspect-[4/3] w-full rounded-lg border border-line bg-[#252525] object-cover"
           />
         ) : null}
       </div>
-      <p className="mb-4 rounded-lg border border-line bg-[#fbfcfb] p-3 text-sm leading-6 text-slate-700">
-        {status.description}
-      </p>
-      <div className="mb-4 grid gap-2 sm:grid-cols-2">
-        <ReportRow label="Date" value={formatDateTime(inspection.timestamp)} />
-        <ReportRow label="Type" value={getInspectionType(inspection.checklist)} />
-        <ReportRow label="Inspector" value={inspection.inspectorName} />
-        <ReportRow label="Temperature" value={`${inspection.interiorTemperature} F`} />
-        <ReportRow
-          label="Urgent"
-          value={inspection.urgent}
-          valueClassName={inspection.urgent === "Yes" ? "text-[#b93f35] font-black" : ""}
-        />
-        <ReportRow label="Photos" value={`${inspection.photos.length} uploaded`} />
+      <div className="mb-4 overflow-hidden rounded-lg border border-gold/20 bg-[#eae4d8] text-ink shadow-soft">
+        <div className="grid gap-0 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)]">
+          <section className="border-b border-gold/20 p-4 lg:border-b-0 lg:border-r">
+            <span className="type-eyebrow text-gold">Property Status</span>
+            <strong className="mt-2 block font-serif text-2xl font-semibold leading-tight text-ink">
+              {status.label}
+            </strong>
+            <p className="mt-2 text-sm leading-6 text-slate-700">{status.description}</p>
+          </section>
+          <div className="grid grid-cols-2 gap-px bg-gold/15">
+            <ReportRow label="Date" value={formatDateTime(inspection.timestamp)} />
+            <ReportRow label="Type" value={getInspectionType(inspection.checklist)} />
+            <ReportRow label="Inspector" value={inspection.inspectorName} />
+            <ReportRow label="Temp" value={`${inspection.interiorTemperature} F`} />
+            <ReportRow
+              label="Urgent"
+              value={inspection.urgent}
+              valueClassName={inspection.urgent === "Yes" ? "text-[#f0b7ae] font-black" : ""}
+            />
+            <ReportRow label="Photos" value={`${inspection.photos.length}`} />
+          </div>
+        </div>
       </div>
 
       {inspection.executiveSummary ? (
@@ -5708,16 +5566,16 @@ function ReportCard({
         <div className="grid gap-3 lg:grid-cols-2">
           {groupChecklistItems(inspection.checklist).map((section) =>
             section.items.length ? (
-              <section key={section.title} className="rounded-lg border border-line bg-[#fbfcfb] p-3">
+              <section key={section.title} className="rounded-lg border border-gold/15 bg-white/55 p-3">
                 <div className="mb-2 flex items-center justify-between gap-3">
                   <h5 className="text-xs font-black uppercase tracking-[0.08em] text-clay">{section.title}</h5>
-                  <span className="rounded-full border border-line bg-white px-2 py-1 text-xs font-extrabold text-slate-600">
+                  <span className="rounded-full border border-line bg-cream px-2 py-1 text-xs font-extrabold text-slate-600">
                     {section.items.length}
                   </span>
                 </div>
                 <ul className="grid gap-1.5">
                   {section.items.map((item) => (
-                    <li key={item} className="rounded-md bg-white px-2.5 py-2 text-sm leading-5 text-slate-700">
+                    <li key={item} className="rounded-md bg-cream/80 px-2.5 py-2 text-sm leading-5 text-slate-700">
                       {item}
                     </li>
                   ))}
@@ -5749,9 +5607,9 @@ function ReportCard({
                 target="_blank"
                 rel="noreferrer"
                 title={photo.name}
-                className="group overflow-hidden rounded-lg border border-line bg-white transition hover:border-sage hover:shadow-lift"
+                className="group overflow-hidden rounded-lg border border-line bg-cream transition hover:border-gold/50 hover:shadow-lift"
               >
-                <img src={photo.url} alt={photo.name} className="aspect-square w-full bg-slate-100 object-cover" />
+                <img src={photo.url} alt={photo.name} className="aspect-square w-full bg-[#252525] object-cover" />
                 <span className="block truncate px-2 py-1 text-[0.68rem] font-semibold text-slate-600">
                   {photo.name}
                 </span>
@@ -5774,9 +5632,9 @@ function ReportRow({
   valueClassName?: string;
 }) {
   return (
-    <div className="rounded-lg border border-line bg-[#fbfcfb] p-3">
-      <span className="block text-xs font-extrabold uppercase tracking-[0.08em] text-slate-500">{label}</span>
-      <strong className={`mt-1 block break-words text-sm ${valueClassName}`}>{value}</strong>
+    <div className="bg-cream p-3">
+      <span className="block text-xs font-extrabold uppercase tracking-[0.08em] text-gold">{label}</span>
+      <strong className={`mt-1 block break-words text-sm text-ink ${valueClassName}`}>{value}</strong>
     </div>
   );
 }
@@ -5824,7 +5682,7 @@ function PropertyInput({
   placeholder?: string;
 }) {
   return (
-    <label className="grid gap-2 text-sm font-extrabold">
+    <label className="grid gap-2 text-sm font-extrabold text-ink">
       {label}
       <input
         type={type}
@@ -5834,7 +5692,7 @@ function PropertyInput({
         placeholder={placeholder}
         value={value}
         onChange={(event) => onChange(event.target.value)}
-        className="field-shell rounded-lg p-3"
+        className="field-shell rounded-lg p-3 shadow-soft"
       />
     </label>
   );

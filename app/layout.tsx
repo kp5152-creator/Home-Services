@@ -16,12 +16,12 @@ export const metadata: Metadata = {
   appleWebApp: {
     capable: true,
     title: "EstateIQ",
-    statusBarStyle: "default"
+    statusBarStyle: "black-translucent"
   }
 };
 
 export const viewport: Viewport = {
-  themeColor: "#40584d"
+  themeColor: "#1F1F1F"
 };
 
 export default function RootLayout({

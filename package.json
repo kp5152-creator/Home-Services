@@ -4,12 +4,15 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
+    "dev:demo": "next dev --hostname 0.0.0.0 --port 3030",
+    "dev:clean": "rm -rf .next && next dev --hostname 0.0.0.0 --port 3030",
     "build": "next build",
+    "build:check": "rm -rf .next-build-check && NEXT_DIST_DIR=.next-build-check next build",
     "start": "next start",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
     "demo:check": "node scripts/check-local-demo.mjs",
-    "verify": "npm run build && npm run typecheck"
+    "verify": "npm run typecheck && npm run build:check"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.106.1",

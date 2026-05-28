@@ -27,19 +27,20 @@ const workflow = [
 
 export default function Home() {
   return (
-    <main className="min-h-screen overflow-hidden bg-paper text-ink">
-      <section className="relative min-h-[86svh] overflow-hidden bg-ink text-white">
+    <main className="min-h-screen overflow-hidden bg-paper text-cream">
+      <section className="relative min-h-[88svh] overflow-hidden bg-ink text-white">
         <Image
-          src="/estateiq-hero.png"
+          src="/demo-home-front-4.webp"
           alt="Luxury desert estate illuminated at twilight"
           fill
           priority
           className="object-cover object-center"
           sizes="100vw"
         />
-        <div className="absolute inset-0 bg-ink/58" />
+        <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(15,15,15,0.88),rgba(31,31,31,0.58)_48%,rgba(31,31,31,0.26))]" />
+        <div className="absolute inset-x-0 bottom-0 h-44 bg-gradient-to-t from-[#1f1f1f] to-transparent" />
 
-        <div className="relative mx-auto flex min-h-[86svh] w-full max-w-7xl flex-col px-4 py-5 sm:px-6 lg:px-8">
+        <div className="relative mx-auto flex min-h-[88svh] w-full max-w-7xl flex-col px-4 py-5 sm:px-6 lg:px-8">
           <header className="flex items-center justify-between gap-4">
             <a href="/" className="block shrink-0" aria-label="EstateIQ home">
               <Image
@@ -47,11 +48,11 @@ export default function Home() {
                 alt="EstateIQ"
                 width={672}
                 height={448}
-                className="h-16 w-auto sm:h-20"
+                className="h-16 w-auto drop-shadow-[0_10px_28px_rgba(0,0,0,0.45)] sm:h-20"
                 priority
               />
             </a>
-            <nav className="hidden items-center gap-6 text-sm font-bold text-white/76 sm:flex">
+            <nav className="hidden items-center gap-6 text-sm font-bold text-white/74 sm:flex">
               <a href="#platform" className="transition hover:text-white">
                 Platform
               </a>
@@ -62,23 +63,23 @@ export default function Home() {
                 Demo
               </a>
             </nav>
-            <ButtonLink href="/demo" variant="ghost" className="!border-white/20 !bg-white/10 !text-white hover:!bg-white/20">
+            <ButtonLink href="/demo?demo=admin" variant="ghost" className="!border-gold/40 !bg-white/10 !text-white hover:!border-gold hover:!bg-white/16">
               Open Demo
             </ButtonLink>
           </header>
 
           <div className="flex flex-1 items-center py-16 sm:py-20">
             <div className="max-w-3xl">
-              <p className="type-eyebrow text-[#d7a15e]">Luxury property operations</p>
-              <h1 className="mt-4 max-w-3xl text-4xl font-extrabold leading-[1.06] tracking-normal text-white sm:text-6xl">
-                Estate management clarity for homes that require precision.
+              <p className="type-eyebrow text-gold">Luxury property intelligence</p>
+              <h1 className="mt-4 max-w-3xl font-serif text-5xl font-semibold leading-[0.98] tracking-normal text-white sm:text-7xl">
+                EstateIQ
               </h1>
               <p className="mt-5 max-w-2xl text-base leading-7 text-white/78 sm:text-lg">
-                EstateIQ brings inspections, maintenance issues, vendors, schedules, owner updates, and refined reports
-                into one calm operating system for premium properties.
+                A calm concierge operating system for premium properties, bringing inspections, maintenance issues,
+                vendors, schedules, owner updates, and refined reports into one trusted record.
               </p>
               <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-                <ButtonLink href="/demo" size="lg">
+                <ButtonLink href="/demo?demo=admin" size="lg">
                   View Live Demo
                 </ButtonLink>
                 <ButtonLink
@@ -95,12 +96,13 @@ export default function Home() {
         </div>
       </section>
 
-      <section id="platform" className="bg-paper px-4 py-10 sm:px-6 lg:px-8">
+      <section id="platform" className="bg-paper px-4 py-14 sm:px-6 lg:px-8">
         <div className="mx-auto grid max-w-7xl gap-6 lg:grid-cols-[0.9fr_1.1fr] lg:items-end">
           <SectionHeading
             eyebrow="Estate command center"
             title="Built for the details owners never want to chase."
             description="A clean shared record for the people responsible for keeping a property ready, documented, and protected."
+            className="[&_.type-body]:text-[#d8d0c2] [&_.type-title]:text-cream"
           />
           <div className="grid gap-3 sm:grid-cols-3">
             <StatCard label="Demo report" value="3 pages" detail="Homeowner-friendly PDF" />
@@ -111,27 +113,28 @@ export default function Home() {
 
         <div className="mx-auto mt-8 grid max-w-7xl gap-4 md:grid-cols-3">
           {operatingPillars.map((pillar) => (
-            <Panel key={pillar.title} tone="paper" className="p-5">
-              <h3 className="text-lg font-extrabold text-ink">{pillar.title}</h3>
+            <Panel key={pillar.title} className="p-5">
+              <h3 className="font-serif text-2xl font-semibold leading-tight text-ink">{pillar.title}</h3>
               <p className="mt-3 text-sm leading-6 text-slate-600">{pillar.description}</p>
             </Panel>
           ))}
         </div>
       </section>
 
-      <section id="reports" className="bg-cream px-4 py-10 sm:px-6 lg:px-8">
+      <section id="reports" className="bg-[#252525] px-4 py-14 sm:px-6 lg:px-8">
         <div className="mx-auto grid max-w-7xl gap-8 lg:grid-cols-[1fr_1.1fr] lg:items-center">
           <div>
             <SectionHeading
               eyebrow="Owner communication"
               title="Reports that read like a trusted estate manager wrote them."
               description="Concise summaries, visible condition context, urgent items, photos, and PDF export stay focused on what the homeowner needs to know."
+              className="[&_.type-body]:text-[#d8d0c2] [&_.type-title]:text-cream"
             />
             <div className="mt-6 flex flex-wrap gap-2">
               {audiences.map((audience) => (
                 <span
                   key={audience}
-                  className="rounded-estate border border-line bg-white px-3 py-2 text-xs font-extrabold text-charcoal"
+                  className="rounded-estate border border-gold/25 bg-white/8 px-3 py-2 text-xs font-extrabold text-cream"
                 >
                   {audience}
                 </span>
@@ -143,9 +146,9 @@ export default function Home() {
             <div className="flex items-start justify-between gap-4 border-b border-line pb-4">
               <div>
                 <p className="type-eyebrow">Cielo Vista Estate</p>
-                <h3 className="mt-2 text-xl font-extrabold text-ink">Home Watch Summary</h3>
+                <h3 className="mt-2 font-serif text-2xl font-semibold leading-tight text-ink">Home Watch Summary</h3>
               </div>
-              <span className="rounded-estate bg-success-soft px-3 py-2 text-xs font-extrabold text-sage-dark">
+              <span className="rounded-estate bg-success-soft px-3 py-2 text-xs font-extrabold text-ink">
                 Stable
               </span>
             </div>
@@ -161,24 +164,24 @@ export default function Home() {
         </div>
       </section>
 
-      <section id="demo" className="bg-ink px-4 py-10 text-white sm:px-6 lg:px-8">
+      <section id="demo" className="bg-ink px-4 py-14 text-white sm:px-6 lg:px-8">
         <div className="mx-auto grid max-w-7xl gap-8 lg:grid-cols-[1fr_1fr] lg:items-center">
           <div>
-            <p className="type-eyebrow text-[#d7a15e]">MVP workflow</p>
-            <h2 className="mt-3 text-3xl font-extrabold leading-tight text-white sm:text-4xl">
+            <p className="type-eyebrow text-gold">Concierge workflow</p>
+            <h2 className="mt-3 font-serif text-4xl font-semibold leading-tight text-white sm:text-5xl">
               From site visit to owner packet without losing the thread.
             </h2>
           </div>
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
             {workflow.map((step, index) => (
-              <div key={step} className="rounded-estate border border-white/12 bg-white/8 p-4">
+              <div key={step} className="rounded-estate border border-gold/20 bg-white/8 p-4 shadow-soft backdrop-blur">
                 <span className="text-xs font-extrabold text-white/48">0{index + 1}</span>
                 <p className="mt-6 text-sm font-extrabold text-white">{step}</p>
               </div>
             ))}
           </div>
           <div className="lg:col-span-2">
-            <ButtonLink href="/demo" size="lg">
+            <ButtonLink href="/demo?demo=admin" size="lg">
               Enter EstateIQ Demo
             </ButtonLink>
           </div>
