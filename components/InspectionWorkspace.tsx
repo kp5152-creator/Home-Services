@@ -46,6 +46,7 @@ type NewPropertyForm = {
   phone: string;
   email: string;
   accessNotes: string;
+  photoUrl: string;
 };
 
 type MaintenanceIssueForm = {
@@ -168,7 +169,8 @@ const emptyPropertyForm: NewPropertyForm = {
   zip: "",
   phone: "",
   email: "",
-  accessNotes: ""
+  accessNotes: "",
+  photoUrl: ""
 };
 
 const emptyMaintenanceIssueForm: MaintenanceIssueForm = {
@@ -809,6 +811,7 @@ export default function InspectionWorkspace({
         phone: propertyForm.phone,
         email: propertyForm.email,
         accessNotes: propertyForm.accessNotes,
+        photoUrl: propertyForm.photoUrl,
         status: "Active"
       };
 
@@ -1588,6 +1591,12 @@ export default function InspectionWorkspace({
               onChange={(value) => setPropertyForm((current) => ({ ...current, address: value }))}
               required
             />
+            <PropertyInput
+              label="Home photo URL"
+              value={propertyForm.photoUrl}
+              onChange={(value) => setPropertyForm((current) => ({ ...current, photoUrl: value }))}
+              placeholder="/demo-exterior.jpg"
+            />
             <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_110px_130px]">
               <PropertyInput
                 label="City"
@@ -1750,7 +1759,7 @@ export default function InspectionWorkspace({
             >
               Continue to {screenLabel(nextFlowScreen)}
             </button>
-          ) : (
+          ) : activeExperience !== "Reports" ? (
             <button
               type="button"
               onClick={() => setActiveExperience("Property")}
@@ -1758,7 +1767,7 @@ export default function InspectionWorkspace({
             >
               Start New Property Flow
             </button>
-          )}
+          ) : null}
         </div>
       </section>
 
@@ -1872,10 +1881,23 @@ export default function InspectionWorkspace({
                     }}
                     className="block w-full text-left"
                   >
-                    <strong className="block text-ink">{property.name}</strong>
-                    <span className="mt-1 block text-sm text-slate-600">{property.owner}</span>
-                    <span className="mt-1 block text-sm text-slate-600">
-                      {count} saved inspection{count === 1 ? "" : "s"}
+                    <span className="grid grid-cols-[56px_minmax(0,1fr)] gap-3">
+                      <span className="overflow-hidden rounded-lg border border-line bg-white">
+                        {property.photoUrl ? (
+                          <img src={property.photoUrl} alt={property.name} className="aspect-square w-full object-cover" />
+                        ) : (
+                          <span className="grid aspect-square place-items-center text-xs font-extrabold text-slate-500">
+                            Home
+                          </span>
+                        )}
+                      </span>
+                      <span className="min-w-0">
+                        <strong className="block truncate text-ink">{property.name}</strong>
+                        <span className="mt-1 block truncate text-sm text-slate-600">{property.owner}</span>
+                        <span className="mt-1 block text-sm text-slate-600">
+                          {count} saved inspection{count === 1 ? "" : "s"}
+                        </span>
+                      </span>
                     </span>
                   </button>
                   <button
@@ -1920,6 +1942,18 @@ export default function InspectionWorkspace({
 
             {selectedProperty ? (
               <div className="grid gap-4">
+                {selectedProperty.photoUrl ? (
+                  <figure className="overflow-hidden rounded-lg border border-line bg-white">
+                    <img
+                      src={selectedProperty.photoUrl}
+                      alt={selectedProperty.name}
+                      className="h-48 w-full object-cover sm:h-64"
+                    />
+                    <figcaption className="border-t border-line px-3 py-2 text-xs font-semibold text-slate-600">
+                      Property reference photo for inspector confirmation
+                    </figcaption>
+                  </figure>
+                ) : null}
                 <label className="grid gap-2 text-sm font-extrabold text-ink xl:hidden">
                   Active property
                   <select
@@ -2556,27 +2590,41 @@ export default function InspectionWorkspace({
           </section>
         </section>
 
-        <aside className={`estate-panel rounded-lg p-5 ${activeExperience === "Reports" ? "" : "hidden"}`}>
-          <div className="mb-5 flex flex-col gap-4 border-b border-line pb-5 lg:flex-row lg:items-start lg:justify-between">
+        <aside className={`estate-panel rounded-lg p-4 sm:p-5 ${activeExperience === "Reports" ? "" : "hidden"}`}>
+          <div className="mb-4">
             <div>
               <p className="mb-2 text-xs font-extrabold uppercase tracking-[0.1em] text-clay">
-                Report center
+                Homeowner packet
               </p>
               <h2 className="text-2xl font-extrabold text-ink">
-                Homeowner Packet Hub
+                Current Report
               </h2>
               <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">
-                Review the latest visit, open the clean homeowner report, or download a PDF packet for sharing.
+                Review the homeowner-ready packet before sharing or exporting.
               </p>
             </div>
-            <div className="no-print grid gap-2 sm:grid-cols-2 lg:min-w-[320px]">
+          </div>
+
+          <ReportCard property={selectedProperty} inspection={activeReport} />
+
+          <div className="no-print mt-4 grid gap-3 rounded-lg border border-line bg-[#fbfcfb] p-3">
+            <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+              <div>
+                <p className="text-xs font-extrabold uppercase tracking-[0.1em] text-clay">
+                  Share and export
+                </p>
+                <p className="mt-1 text-sm leading-6 text-slate-600">
+                  Open the web report, download the PDF, or print the current view.
+                </p>
+              </div>
+              <div className="grid gap-2 sm:grid-cols-2 lg:min-w-[320px]">
               {activeReport ? (
                 <button
                   type="button"
                   onClick={() => setSelectedReportActionId(activeReport.id)}
                   className="button-primary min-h-11 rounded-lg px-4 text-sm font-extrabold sm:col-span-2"
                 >
-                  Report Actions
+                  Share / Export Report
                 </button>
               ) : null}
               <button
@@ -2586,38 +2634,11 @@ export default function InspectionWorkspace({
               >
                 Print Current View
               </button>
+              </div>
             </div>
           </div>
 
-          {activeReport ? (
-            <div className="no-print mb-5 hidden gap-3 sm:grid-cols-2 xl:grid xl:grid-cols-4">
-              <MetricCard
-                label="Packet status"
-                value={activeReport.urgent === "Yes" ? "Attention" : "Ready"}
-                detail={activeReport.urgent === "Yes" ? "Review recommended" : "Ready for homeowner"}
-                urgent={activeReport.urgent === "Yes"}
-              />
-              <MetricCard
-                label="Inspection date"
-                value={formatDateTime(activeReport.timestamp)}
-                detail={getInspectionType(activeReport.checklist)}
-              />
-              <MetricCard
-                label="Photos"
-                value={`${activeReport.photos.length}`}
-                detail="Included in report"
-              />
-              <MetricCard
-                label="Completed checks"
-                value={`${visibleChecklistItems(activeReport.checklist).length}`}
-                detail="Documented items"
-              />
-            </div>
-          ) : null}
-
-          <ReportCard property={selectedProperty} inspection={activeReport} />
-
-          <div className="no-print mt-7">
+          <div className="no-print mt-5">
             <p className="mb-2 text-xs font-extrabold uppercase tracking-[0.1em] text-clay">
               Visit History
             </p>
@@ -2890,6 +2911,12 @@ export default function InspectionWorkspace({
               value={propertyForm.address}
               onChange={(value) => setPropertyForm((current) => ({ ...current, address: value }))}
               required
+            />
+            <PropertyInput
+              label="Home photo URL"
+              value={propertyForm.photoUrl}
+              onChange={(value) => setPropertyForm((current) => ({ ...current, photoUrl: value }))}
+              placeholder="/demo-exterior.jpg"
             />
             <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_110px_130px]">
               <PropertyInput
@@ -3199,6 +3226,7 @@ function LuxuryExperiencePanel({
   const recentReport = selectedInspections[0];
   const sharedOwnerUpdates = ownerUpdates.filter((update) => update.status === "Shared");
   const internalOwnerUpdates = ownerUpdates.filter((update) => update.status !== "Shared");
+  const latestSharedOwnerUpdate = sharedOwnerUpdates[0];
   const [showOwnerUpdateForm, setShowOwnerUpdateForm] = useState(false);
   const [selectedOwnerUpdateId, setSelectedOwnerUpdateId] = useState("");
   const selectedOwnerUpdate = ownerUpdates.find((update) => update.id === selectedOwnerUpdateId) ?? null;
@@ -3214,6 +3242,10 @@ function LuxuryExperiencePanel({
       ? "The latest inspection has been completed and is ready for homeowner review."
       : "Complete an inspection to create the first homeowner summary.");
   const activeMaintenanceIssues = maintenanceIssues.filter((issue) => issue.status !== "Resolved").slice(0, 3);
+  const ownerReportRouteId = (inspection: Inspection) =>
+    inspection.id.startsWith("demo-inspection-") && !demoDatabase.inspections.some((item) => item.id === inspection.id)
+      ? demoDatabase.inspections[0]?.id ?? inspection.id
+      : inspection.id;
   const baseDashboardAction =
     ownerAttentionCount > 0
       ? {
@@ -3492,6 +3524,43 @@ function LuxuryExperiencePanel({
 
       {activeExperience === "Dashboard" ? (
         <div className="grid gap-5">
+          {activeRole === "Homeowner" ? (
+            <div className="estate-panel rounded-lg p-5">
+              <p className="mb-2 text-xs font-extrabold uppercase tracking-[0.12em] text-clay">
+                Home
+              </p>
+              <h2 className="text-2xl font-extrabold text-ink">
+                {selectedProperty ? selectedProperty.name : "Your property"}
+              </h2>
+              <div
+                className={`mt-4 rounded-lg border p-4 ${
+                  ownerAttentionCount > 0
+                    ? "border-[#e7cbc4] bg-[#fff8f6]"
+                    : "border-[#c9ddd1] bg-[#f3f8f4]"
+                }`}
+              >
+                <span className="text-xs font-extrabold uppercase tracking-[0.1em] text-slate-500">
+                  Current status
+                </span>
+                <strong
+                  className={`mt-2 block text-2xl font-black ${
+                    ownerAttentionCount > 0 ? "text-[#9f352e]" : "text-sage-dark"
+                  }`}
+                >
+                  {ownerPortalStatus}
+                </strong>
+                <p className="mt-2 text-sm leading-6 text-slate-700">{ownerPortalDetail}</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setActiveExperience("Owner Portal")}
+                className="button-primary mt-4 min-h-11 w-full rounded-lg px-4 text-sm font-extrabold"
+              >
+                View Owner Portal
+              </button>
+            </div>
+          ) : (
+            <>
           <div className="estate-panel rounded-lg p-5 xl:hidden">
             <div className="mb-4">
               <div className="mb-2 flex items-center justify-between gap-3">
@@ -3512,8 +3581,17 @@ function LuxuryExperiencePanel({
                         onSelectProperty(property.id);
                         setActiveExperience("Inspection");
                       }}
-                      className="grid min-h-16 w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-3 border-b border-line px-4 py-3 text-left transition last:border-b-0 hover:bg-[#f7faf7]"
+                      className="grid min-h-16 w-full grid-cols-[48px_minmax(0,1fr)_auto] items-center gap-3 border-b border-line px-4 py-3 text-left transition last:border-b-0 hover:bg-[#f7faf7]"
                     >
+                      <span className="overflow-hidden rounded-lg border border-line bg-[#fbfcfb]">
+                        {property.photoUrl ? (
+                          <img src={property.photoUrl} alt={property.name} className="aspect-square w-full object-cover" />
+                        ) : (
+                          <span className="grid aspect-square place-items-center text-[0.65rem] font-extrabold text-slate-500">
+                            Home
+                          </span>
+                        )}
+                      </span>
                       <span className="min-w-0">
                         <strong className="block truncate text-ink">{property.name}</strong>
                         <span className="mt-1 block truncate text-sm font-semibold text-slate-600">
@@ -3597,8 +3675,17 @@ function LuxuryExperiencePanel({
                       onSelectProperty(property.id);
                       setActiveExperience("Inspection");
                     }}
-                    className="grid min-h-16 w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-3 border-b border-line px-4 py-3 text-left transition last:border-b-0 hover:bg-[#f7faf7]"
+                    className="grid min-h-16 w-full grid-cols-[48px_minmax(0,1fr)_auto] items-center gap-3 border-b border-line px-4 py-3 text-left transition last:border-b-0 hover:bg-[#f7faf7]"
                   >
+                    <span className="overflow-hidden rounded-lg border border-line bg-[#fbfcfb]">
+                      {property.photoUrl ? (
+                        <img src={property.photoUrl} alt={property.name} className="aspect-square w-full object-cover" />
+                      ) : (
+                        <span className="grid aspect-square place-items-center text-[0.65rem] font-extrabold text-slate-500">
+                          Home
+                        </span>
+                      )}
+                    </span>
                     <span className="min-w-0">
                       <strong className="block truncate text-ink">{property.name}</strong>
                       <span className="mt-1 block truncate text-sm font-semibold text-slate-600">
@@ -3659,6 +3746,8 @@ function LuxuryExperiencePanel({
               </div>
             </div>
           </div>
+            </>
+          )}
         </div>
       ) : null}
 
@@ -4307,8 +4396,8 @@ function LuxuryExperiencePanel({
 
       {activeExperience === "Owner Portal" ? (
         <div className="grid gap-5">
-          <div className="grid gap-5 lg:grid-cols-[1.1fr_0.9fr]">
-            <ConceptCard eyebrow="Owner portal" title="Peace of mind at a glance">
+          <div className="grid gap-5 lg:grid-cols-[1fr_0.9fr]">
+            <ConceptCard eyebrow="Owner portal" title={selectedProperty ? selectedProperty.name : "Property overview"}>
               <div
                 className={`rounded-lg border p-4 ${
                   ownerAttentionCount > 0
@@ -4319,74 +4408,66 @@ function LuxuryExperiencePanel({
                 <span className="text-xs font-extrabold uppercase tracking-[0.1em] text-slate-500">
                   Current property status
                 </span>
-                <div className="mt-2 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-                  <div>
-                    <strong
-                      className={`block text-3xl font-black ${
-                        ownerAttentionCount > 0 ? "text-[#9f352e]" : "text-sage-dark"
-                      }`}
-                    >
-                      {ownerPortalStatus}
-                    </strong>
-                    <p className="mt-2 text-sm leading-6 text-slate-700">{ownerPortalDetail}</p>
-                  </div>
-                  {recentReport ? (
-                    <a
-                      href={`/reports/${recentReport.id}`}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="button-primary min-h-11 rounded-lg px-4 py-3 text-center text-sm font-extrabold"
-                    >
-                      Open Latest Report
-                    </a>
-                  ) : null}
-                </div>
+                <strong
+                  className={`mt-2 block text-2xl font-black sm:text-3xl ${
+                    ownerAttentionCount > 0 ? "text-[#9f352e]" : "text-sage-dark"
+                  }`}
+                >
+                  {ownerPortalStatus}
+                </strong>
+                <p className="mt-2 text-sm leading-6 text-slate-700">{ownerPortalDetail}</p>
               </div>
 
-              <div className="mt-4 grid gap-3 sm:grid-cols-3">
-                <MetricCard
-                  label="Last visit"
-                  value={recentReport ? formatDateTime(recentReport.timestamp) : "Pending"}
-                  detail="Inspection record"
-                />
-                <MetricCard
-                  label="Open items"
-                  value={`${openMaintenanceCount}`}
-                  detail="Issue visibility"
-                  urgent={openMaintenanceCount > 0}
-                />
-                <MetricCard
-                  label="Owner updates"
-                  value={`${sharedOwnerUpdates.length}`}
-                  detail="Shared with homeowner"
-                />
+              <div className="mt-4 divide-y divide-line rounded-lg border border-line bg-white sm:grid sm:grid-cols-3 sm:divide-x sm:divide-y-0">
+                <OwnerPortalDetail label="Last visit" value={recentReport ? formatDateTime(recentReport.timestamp) : "Pending"} />
+                <OwnerPortalDetail label="Open items" value={`${openMaintenanceCount}`} urgent={openMaintenanceCount > 0} />
+                <OwnerPortalDetail label="Updates" value={`${sharedOwnerUpdates.length}`} />
               </div>
             </ConceptCard>
 
-            <ConceptCard eyebrow="Latest summary" title="Homeowner briefing">
-              <div className="rounded-lg border border-line bg-white p-4">
-                <p className="text-base leading-7 text-slate-700">{latestExecutiveSummary}</p>
-              </div>
-              <div className="mt-4 grid gap-3">
-                {activeMaintenanceIssues.length ? (
-                  activeMaintenanceIssues.map((issue) => (
-                    <div key={issue.id} className="rounded-lg border border-line bg-[#fbfcfb] p-3">
-                      <div className="flex flex-wrap items-start justify-between gap-2">
-                        <strong className="text-ink">{issue.title}</strong>
-                        <span className="rounded-full border border-line bg-white px-3 py-1 text-xs font-extrabold text-slate-600">
-                          {issue.priority}
-                        </span>
-                      </div>
-                      <p className="mt-2 text-sm leading-6 text-slate-600">
-                        {issue.nextStep || issue.description || "Repair tracking is active for this item."}
-                      </p>
-                    </div>
-                  ))
-                ) : (
-                  <div className="rounded-lg border border-line bg-[#fbfcfb] p-4 text-sm text-slate-600">
-                    No open maintenance items are currently visible for this property.
+            <ConceptCard eyebrow="Latest report" title="Homeowner packet">
+              {recentReport ? (
+                <div className="grid gap-4">
+                  <div className="rounded-lg border border-line bg-white p-4">
+                    <span className="text-xs font-extrabold uppercase tracking-[0.08em] text-clay">
+                      {getInspectionType(recentReport.checklist)}
+                    </span>
+                    <p className="mt-2 text-sm font-semibold text-slate-600">
+                      {formatDateTime(recentReport.timestamp)} / {recentReport.inspectorName || "Inspector"}
+                    </p>
+                    <p className="mt-3 text-sm leading-6 text-slate-700">{latestExecutiveSummary}</p>
                   </div>
-                )}
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    <a
+                      href={`/reports/${ownerReportRouteId(recentReport)}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="button-primary grid min-h-11 place-items-center rounded-lg px-4 text-sm font-extrabold"
+                    >
+                      Open Report
+                    </a>
+                    <a
+                      href={`/api/reports/${ownerReportRouteId(recentReport)}`}
+                      className="button-soft grid min-h-11 place-items-center rounded-lg px-4 text-sm font-extrabold"
+                    >
+                      Download PDF
+                    </a>
+                  </div>
+                </div>
+              ) : (
+                <div className="rounded-lg border border-line bg-white p-4 text-sm leading-6 text-slate-600">
+                  No homeowner report is ready yet.
+                </div>
+              )}
+
+              <div className="mt-4 rounded-lg border border-line bg-[#fbfcfb] p-4">
+                <span className="text-xs font-extrabold uppercase tracking-[0.08em] text-clay">
+                  Latest shared update
+                </span>
+                <p className="mt-2 text-sm leading-6 text-slate-700">
+                  {latestSharedOwnerUpdate?.message ||
+                    "No update has been shared with the homeowner yet."}
+                </p>
               </div>
             </ConceptCard>
           </div>
@@ -5083,6 +5164,15 @@ function OwnerUpdateListItem({ update, onSelect }: { update: OwnerUpdate; onSele
   );
 }
 
+function OwnerPortalDetail({ label, value, urgent = false }: { label: string; value: string; urgent?: boolean }) {
+  return (
+    <div className="grid gap-1 p-3">
+      <span className="text-xs font-extrabold uppercase tracking-[0.08em] text-slate-500">{label}</span>
+      <strong className={`text-sm font-extrabold ${urgent ? "text-[#9f352e]" : "text-ink"}`}>{value}</strong>
+    </div>
+  );
+}
+
 function OwnerUpdateCard({ update }: { update: OwnerUpdate }) {
   const statusClass =
     update.status === "Shared"
@@ -5554,7 +5644,7 @@ function ReportCard({
 }) {
   if (!property || !inspection) {
     return (
-      <article className="grid min-h-[420px] place-items-center rounded-lg border border-line bg-white p-5 text-center text-slate-600">
+      <article className="grid min-h-52 place-items-center rounded-lg border border-line bg-white p-5 text-center text-slate-600">
         <p>Generate an inspection report to create a clean homeowner summary.</p>
       </article>
     );
@@ -5563,9 +5653,9 @@ function ReportCard({
   const status = reportConditionStatus(inspection);
 
   return (
-    <article className="min-h-[420px] rounded-lg border border-line bg-gradient-to-b from-white to-[#fbfcfb] p-5 shadow-[0_12px_28px_rgba(35,45,41,0.05)]">
-      <div className="mb-5 flex flex-col gap-4 border-b border-line pb-5 sm:flex-row sm:items-start sm:justify-between">
-        <div>
+    <article className="rounded-lg border border-line bg-white p-4">
+      <div className="mb-4 grid gap-3 border-b border-line pb-4 lg:grid-cols-[minmax(0,1fr)_220px] lg:items-start">
+        <div className="min-w-0">
           <p className="mb-2 text-xs font-extrabold uppercase tracking-[0.1em] text-clay">
             Homeowner Packet
           </p>
@@ -5573,30 +5663,39 @@ function ReportCard({
           <p className="mt-2 text-sm text-slate-600">
             {property.owner} / {property.address}
           </p>
+          <div
+            className={`mt-3 inline-flex rounded-lg border px-4 py-2 text-sm font-extrabold ${
+              status.tone === "urgent"
+                ? "border-[#e7cbc4] bg-[#fff8f6] text-[#9f352e]"
+                : "border-[#c9ddd1] bg-[#f3f8f4] text-sage-dark"
+            }`}
+          >
+            {status.label}
+          </div>
         </div>
-        <div
-          className={`rounded-lg border px-4 py-3 text-sm font-extrabold ${
-            status.tone === "urgent"
-              ? "border-[#e7cbc4] bg-[#fff8f6] text-[#9f352e]"
-              : "border-[#c9ddd1] bg-[#f3f8f4] text-sage-dark"
-          }`}
-        >
-          {status.label}
-        </div>
+        {property.photoUrl ? (
+          <img
+            src={property.photoUrl}
+            alt={property.name}
+            className="h-36 w-full rounded-lg border border-line bg-slate-100 object-cover"
+          />
+        ) : null}
       </div>
-      <p className="mb-5 rounded-lg border border-line bg-white p-4 text-sm leading-6 text-slate-700">
+      <p className="mb-4 rounded-lg border border-line bg-[#fbfcfb] p-3 text-sm leading-6 text-slate-700">
         {status.description}
       </p>
-      <ReportRow label="Date" value={formatDateTime(inspection.timestamp)} />
-      <ReportRow label="Inspection Type" value={getInspectionType(inspection.checklist)} />
-      <ReportRow label="Inspector" value={inspection.inspectorName} />
-      <ReportRow label="Temperature" value={`${inspection.interiorTemperature} F`} />
-      <ReportRow
-        label="Urgent"
-        value={inspection.urgent}
-        valueClassName={inspection.urgent === "Yes" ? "text-[#b93f35] font-black" : ""}
-      />
-      <ReportRow label="Photos" value={`${inspection.photos.length} uploaded`} />
+      <div className="mb-4 grid gap-2 sm:grid-cols-2">
+        <ReportRow label="Date" value={formatDateTime(inspection.timestamp)} />
+        <ReportRow label="Type" value={getInspectionType(inspection.checklist)} />
+        <ReportRow label="Inspector" value={inspection.inspectorName} />
+        <ReportRow label="Temperature" value={`${inspection.interiorTemperature} F`} />
+        <ReportRow
+          label="Urgent"
+          value={inspection.urgent}
+          valueClassName={inspection.urgent === "Yes" ? "text-[#b93f35] font-black" : ""}
+        />
+        <ReportRow label="Photos" value={`${inspection.photos.length} uploaded`} />
+      </div>
 
       {inspection.executiveSummary ? (
         <>
@@ -5607,14 +5706,21 @@ function ReportCard({
 
       <h4 className="mb-2 mt-5 text-sm font-extrabold uppercase">Completed Checks</h4>
       {visibleChecklistItems(inspection.checklist).length ? (
-        <div className="grid gap-4">
+        <div className="grid gap-3 lg:grid-cols-2">
           {groupChecklistItems(inspection.checklist).map((section) =>
             section.items.length ? (
-              <section key={section.title}>
-                <h5 className="mb-2 text-xs font-black uppercase tracking-[0.08em] text-clay">{section.title}</h5>
-                <ul className="list-disc space-y-2 pl-5">
+              <section key={section.title} className="rounded-lg border border-line bg-[#fbfcfb] p-3">
+                <div className="mb-2 flex items-center justify-between gap-3">
+                  <h5 className="text-xs font-black uppercase tracking-[0.08em] text-clay">{section.title}</h5>
+                  <span className="rounded-full border border-line bg-white px-2 py-1 text-xs font-extrabold text-slate-600">
+                    {section.items.length}
+                  </span>
+                </div>
+                <ul className="grid gap-1.5">
                   {section.items.map((item) => (
-                    <li key={item}>{item}</li>
+                    <li key={item} className="rounded-md bg-white px-2.5 py-2 text-sm leading-5 text-slate-700">
+                      {item}
+                    </li>
                   ))}
                 </ul>
               </section>
@@ -5630,17 +5736,26 @@ function ReportCard({
 
       {inspection.photos.length ? (
         <>
-          <h4 className="mb-2 mt-5 text-sm font-extrabold uppercase">Photos</h4>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="mb-2 mt-5 flex items-center justify-between gap-3">
+            <h4 className="text-sm font-extrabold uppercase">Photos</h4>
+            <span className="rounded-full border border-line bg-[#fbfcfb] px-3 py-1 text-xs font-extrabold text-slate-600">
+              {inspection.photos.length}
+            </span>
+          </div>
+          <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 lg:grid-cols-6">
             {inspection.photos.map((photo) => (
               <a
                 key={photo.id}
                 href={photo.url}
                 target="_blank"
-                className="overflow-hidden rounded-lg border border-line bg-white transition hover:border-sage"
+                rel="noreferrer"
+                title={photo.name}
+                className="group overflow-hidden rounded-lg border border-line bg-white transition hover:border-sage hover:shadow-lift"
               >
-                <img src={photo.url} alt={photo.name} className="h-48 w-full bg-slate-100 object-contain" />
-                <span className="block truncate px-2 py-1 text-xs text-slate-600">{photo.name}</span>
+                <img src={photo.url} alt={photo.name} className="aspect-square w-full bg-slate-100 object-cover" />
+                <span className="block truncate px-2 py-1 text-[0.68rem] font-semibold text-slate-600">
+                  {photo.name}
+                </span>
               </a>
             ))}
           </div>
@@ -5660,9 +5775,9 @@ function ReportRow({
   valueClassName?: string;
 }) {
   return (
-    <div className="grid grid-cols-[110px_minmax(0,1fr)] gap-3 border-b border-[#eef2ef] py-3">
-      <span className="font-extrabold text-slate-600">{label}</span>
-      <strong className={`break-words ${valueClassName}`}>{value}</strong>
+    <div className="rounded-lg border border-line bg-[#fbfcfb] p-3">
+      <span className="block text-xs font-extrabold uppercase tracking-[0.08em] text-slate-500">{label}</span>
+      <strong className={`mt-1 block break-words text-sm ${valueClassName}`}>{value}</strong>
     </div>
   );
 }
@@ -5699,13 +5814,15 @@ function PropertyInput({
   value,
   onChange,
   type = "text",
-  required = false
+  required = false,
+  placeholder = ""
 }: {
   label: string;
   value: string;
   onChange: (value: string) => void;
   type?: string;
   required?: boolean;
+  placeholder?: string;
 }) {
   return (
     <label className="grid gap-2 text-sm font-extrabold">
@@ -5715,6 +5832,7 @@ function PropertyInput({
         inputMode={type === "tel" ? "tel" : undefined}
         maxLength={type === "tel" ? 14 : undefined}
         required={required}
+        placeholder={placeholder}
         value={value}
         onChange={(event) => onChange(event.target.value)}
         className="field-shell rounded-lg p-3"

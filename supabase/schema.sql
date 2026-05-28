@@ -7,8 +7,12 @@ create table if not exists public.properties (
   phone text,
   email text,
   access_notes text,
+  photo_url text,
   status text not null default 'Active'
 );
+
+alter table public.properties
+add column if not exists photo_url text;
 
 create table if not exists public.inspections (
   id text primary key,

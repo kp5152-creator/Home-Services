@@ -24,7 +24,8 @@ export default async function handler(request: NextApiRequest, response: NextApi
         address,
         phone: String(request.body.phone ?? ""),
         email: String(request.body.email ?? ""),
-        accessNotes: String(request.body.accessNotes ?? "")
+        accessNotes: String(request.body.accessNotes ?? ""),
+        photoUrl: String(request.body.photoUrl ?? "")
       });
 
       response.status(201).json(property);

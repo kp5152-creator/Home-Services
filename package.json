@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
+    "demo:check": "node scripts/check-local-demo.mjs",
     "verify": "npm run build && npm run typecheck"
   },
   "dependencies": {

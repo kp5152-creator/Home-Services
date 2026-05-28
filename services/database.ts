@@ -439,6 +439,7 @@ async function readSupabaseDatabase(): Promise<Database> {
       phone: property.phone ?? "",
       email: property.email ?? "",
       accessNotes: property.access_notes ?? "",
+      photoUrl: property.photo_url ?? "",
       status: property.status
     })),
     inspections: (inspections ?? []).map((inspection) => ({
@@ -529,6 +530,7 @@ async function addSupabaseProperty(property: Omit<Property, "id" | "status">) {
     phone: newProperty.phone,
     email: newProperty.email,
     access_notes: newProperty.accessNotes,
+    photo_url: newProperty.photoUrl ?? "",
     status: newProperty.status
   });
 

@@ -50,6 +50,14 @@ export default async function ReportPage({
           description={`${property.name} / ${property.owner} · ${property.address}`}
         />
 
+        {property.photoUrl ? (
+          <img
+            src={property.photoUrl}
+            alt={property.name}
+            className="mt-6 h-56 w-full rounded-lg border border-line bg-slate-100 object-cover"
+          />
+        ) : null}
+
         <Panel
           className={`mt-6 border p-4 ${
             status.tone === "urgent"

@@ -65,6 +65,7 @@ export type Property = {
   phone: string;
   email: string;
   accessNotes: string;
+  photoUrl?: string;
   status: "Active" | "Seasonal";
 };
 
