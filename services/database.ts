@@ -83,6 +83,30 @@ export async function addProperty(property: Omit<Property, "id" | "status">) {
   return newProperty;
 }
 
+export async function updateProperty(propertyId: string, updates: Omit<Property, "id" | "status">) {
+  if (hasSupabaseConfig()) {
+    return updateSupabaseProperty(propertyId, updates);
+  }
+
+  const database = await readDatabase();
+  const existingProperty = database.properties.find((property) => property.id === propertyId);
+
+  if (!existingProperty) {
+    return null;
+  }
+
+  const updatedProperty: Property = {
+    ...existingProperty,
+    ...updates
+  };
+
+  database.properties = database.properties.map((property) =>
+    property.id === propertyId ? updatedProperty : property
+  );
+  await writeDatabase(database);
+  return updatedProperty;
+}
+
 export async function addInspection(
   inspection: Omit<Inspection, "id" | "timestamp" | "photos"> & {
     photos: PhotoUpload[] | InspectionPhoto[];
@@ -536,6 +560,39 @@ async function addSupabaseProperty(property: Omit<Property, "id" | "status">) {
 
   if (error) throw error;
   return newProperty;
+}
+
+async function updateSupabaseProperty(propertyId: string, updates: Omit<Property, "id" | "status">) {
+  const supabase = supabaseAdmin();
+  const { data, error } = await supabase
+    .from("properties")
+    .update({
+      name: updates.name,
+      owner: updates.owner,
+      address: updates.address,
+      phone: updates.phone,
+      email: updates.email,
+      access_notes: updates.accessNotes,
+      photo_url: updates.photoUrl ?? ""
+    })
+    .eq("id", propertyId)
+    .select("*")
+    .single();
+
+  if (error) throw error;
+  if (!data) return null;
+
+  return {
+    id: data.id,
+    name: data.name,
+    owner: data.owner,
+    address: data.address,
+    phone: data.phone ?? "",
+    email: data.email ?? "",
+    accessNotes: data.access_notes ?? "",
+    photoUrl: data.photo_url ?? "",
+    status: data.status
+  } satisfies Property;
 }
 
 async function addSupabaseInspection(

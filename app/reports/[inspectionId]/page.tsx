@@ -51,11 +51,13 @@ export default async function ReportPage({
         />
 
         {property.photoUrl ? (
-          <img
-            src={property.photoUrl}
-            alt={property.name}
-            className="mt-6 h-56 w-full rounded-lg border border-line bg-slate-100 object-cover"
-          />
+          <figure className="mx-auto mt-6 w-full max-w-2xl overflow-hidden rounded-lg border border-line bg-slate-100">
+            <img
+              src={property.photoUrl}
+              alt={property.name}
+              className="aspect-[16/9] w-full object-cover"
+            />
+          </figure>
         ) : null}
 
         <Panel

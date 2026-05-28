@@ -17,7 +17,7 @@ export const demoDatabase: Database = {
       address: "74200 Desert Crest Drive, La Quinta CA 92253",
       phone: "(760) 555-0198",
       email: "sample.owner@example.com",
-      photoUrl: "/demo-exterior.jpg",
+      photoUrl: "/demo-home-front-1.webp",
       accessNotes:
         "Demo access only. Standard access notes are available for the inspection team. No real client access codes or security details are stored in this sample."
     },
@@ -29,7 +29,7 @@ export const demoDatabase: Database = {
       address: "78110 Palms Ridge Lane, Indian Wells CA 92210",
       phone: "(760) 555-0126",
       email: "villa.owner@example.com",
-      photoUrl: "/demo-pool.jpg",
+      photoUrl: "/demo-home-front-2.webp",
       accessNotes:
         "Demo access only. Inspector should verify exterior gates, courtyard lighting, pool equipment, and package area."
     },
@@ -41,7 +41,7 @@ export const demoDatabase: Database = {
       address: "53340 Canyon Vista Road, Palm Desert CA 92260",
       phone: "(760) 555-0173",
       email: "retreat.owner@example.com",
-      photoUrl: "/demo-entry.png",
+      photoUrl: "/demo-home-front-3.webp",
       accessNotes:
         "Demo access only. Focus on hillside drainage, garage entry, HVAC operation, and rear patio condition."
     },
@@ -53,7 +53,7 @@ export const demoDatabase: Database = {
       address: "45815 Sagebrush Court, Rancho Mirage CA 92270",
       phone: "(760) 555-0162",
       email: "casita.owner@example.com",
-      photoUrl: "/estateiq-hero.png",
+      photoUrl: "/demo-home-front-4.webp",
       accessNotes:
         "Demo access only. Check guest-ready presentation, thermostat, plumbing fixtures, and private courtyard."
     }
