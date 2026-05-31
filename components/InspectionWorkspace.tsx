@@ -59,6 +59,13 @@ type MaintenanceIssueForm = {
   photoFiles: File[];
 };
 
+type InspectionPhotoCategory = "Exterior" | "Interior" | "Issues";
+
+type CategorizedPhotoFile = {
+  file: File;
+  category: InspectionPhotoCategory;
+};
+
 type MaintenanceRecommendation = {
   priority: MaintenancePriority;
   vendorType: VendorType;
@@ -107,7 +114,7 @@ type InspectionForm = {
   executiveSummary: string;
   notes: string;
   urgent: UrgentStatus;
-  photoFiles: File[];
+  photoFiles: CategorizedPhotoFile[];
 };
 
 type ExperienceScreen =
@@ -377,10 +384,12 @@ function loadImage(url: string) {
 
 export default function InspectionWorkspace({
   initialDatabase,
-  initialDemoRole
+  initialDemoRole,
+  initialRole
 }: {
   initialDatabase: Database;
   initialDemoRole?: AppRole;
+  initialRole?: AppRole;
 }) {
   const [properties, setProperties] = useState<Property[]>(initialDatabase.properties);
   const [inspections, setInspections] = useState<Inspection[]>(initialDatabase.inspections);
@@ -432,6 +441,7 @@ export default function InspectionWorkspace({
   const [activeRole, setActiveRole] = useState<AppRole>("Admin");
   const [demoMode, setDemoMode] = useState(false);
   const [hasAppliedInitialDemoRole, setHasAppliedInitialDemoRole] = useState(false);
+  const [hasAppliedInitialRole, setHasAppliedInitialRole] = useState(false);
   const [darkMode, setDarkMode] = useState(false);
   const [now] = useState(() => new Date());
   const visibleExperienceScreens = roleExperienceScreens(activeRole);
@@ -471,6 +481,13 @@ export default function InspectionWorkspace({
     setHasAppliedInitialDemoRole(true);
     loadDemoMode(initialDemoRole);
   }, [hasAppliedInitialDemoRole, initialDemoRole]);
+
+  useEffect(() => {
+    if (!initialRole || initialDemoRole || hasAppliedInitialRole) return;
+
+    setHasAppliedInitialRole(true);
+    enterRole(initialRole);
+  }, [hasAppliedInitialRole, initialDemoRole, initialRole]);
 
   const selectedInspections = useMemo(
     () => inspections.filter((inspection) => inspection.propertyId === selectedProperty?.id),
@@ -722,7 +739,15 @@ export default function InspectionWorkspace({
     let photos: Awaited<ReturnType<typeof fileToPhotoUpload>>[];
 
     try {
-      photos = await Promise.all(inspectionForm.photoFiles.map(fileToPhotoUpload));
+      photos = await Promise.all(
+        inspectionForm.photoFiles.map(async ({ category, file }) => {
+          const photo = await fileToPhotoUpload(file);
+          return {
+            ...photo,
+            name: `${category}__${photo.name}`
+          };
+        })
+      );
     } catch {
       setInspectionSaveMessage("One or more photos could not be processed. Please try JPEG or PNG photos.");
       setIsSavingInspection(false);
@@ -843,6 +868,11 @@ export default function InspectionWorkspace({
     ]
       .filter(Boolean)
       .join(", ");
+    const savedAddress =
+      fullAddress ||
+      (editingPropertyId
+        ? properties.find((property) => property.id === editingPropertyId)?.address ?? ""
+        : "");
 
     if (demoMode) {
       if (editingPropertyId) {
@@ -858,7 +888,7 @@ export default function InspectionWorkspace({
           ...updatedProperty,
           name: propertyForm.name || updatedProperty.name,
           owner: propertyForm.owner || updatedProperty.owner,
-          address: fullAddress || updatedProperty.address,
+          address: savedAddress || updatedProperty.address,
           phone: propertyForm.phone,
           email: propertyForm.email,
           accessNotes: propertyForm.accessNotes,
@@ -882,7 +912,7 @@ export default function InspectionWorkspace({
         id: `demo-property-${Date.now()}`,
         name: propertyForm.name || "Demo Property",
         owner: propertyForm.owner || "Sample Homeowner",
-        address: fullAddress || "Coachella Valley, CA",
+        address: savedAddress || "Coachella Valley, CA",
         phone: propertyForm.phone,
         email: propertyForm.email,
         accessNotes: propertyForm.accessNotes,
@@ -911,7 +941,7 @@ export default function InspectionWorkspace({
         body: JSON.stringify({
           ...propertyForm,
           id: editingPropertyId,
-          address: fullAddress
+          address: savedAddress
         })
       });
 
@@ -1404,10 +1434,18 @@ export default function InspectionWorkspace({
     setMaintenanceRecommendationMessage("Recommendation applied. You can edit before saving.");
   }
 
-  function addPhotoFiles(files: FileList | null) {
+  function addPhotoFiles(files: FileList | null, category: InspectionPhotoCategory = "Exterior") {
     setInspectionForm((current) => ({
       ...current,
-      photoFiles: files ? [...current.photoFiles, ...Array.from(files)] : current.photoFiles
+      photoFiles: files
+        ? [
+            ...current.photoFiles,
+            ...Array.from(files).map((file) => ({
+              file,
+              category
+            }))
+          ]
+        : current.photoFiles
     }));
   }
 
@@ -1589,7 +1627,7 @@ export default function InspectionWorkspace({
               <button
                 key={role}
                 type="button"
-                onClick={() => setActiveRole(role)}
+                onClick={() => enterRole(role)}
                 className={`rounded-lg border p-3 text-left transition ${
                   activeRole === role
                     ? "border-gold bg-warning-soft shadow-[inset_4px_0_0_#d4af37]"
@@ -1686,11 +1724,6 @@ export default function InspectionWorkspace({
               onChange={(value) => setPropertyForm((current) => ({ ...current, address: value }))}
               required
             />
-            <PropertyPhotoPicker
-              photoUrl={propertyForm.photoUrl}
-              onUpload={uploadPropertyPhoto}
-              onClear={() => setPropertyForm((current) => ({ ...current, photoUrl: "" }))}
-            />
             <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_110px_130px]">
               <PropertyInput
                 label="City"
@@ -1736,10 +1769,15 @@ export default function InspectionWorkspace({
                 placeholder="Gate code, alarm notes, preferred entry, parking, vendor access..."
               />
             </label>
+            <PropertyPhotoPicker
+              photoUrl={propertyForm.photoUrl}
+              onUpload={uploadPropertyPhoto}
+              onClear={() => setPropertyForm((current) => ({ ...current, photoUrl: "" }))}
+            />
             <button
               type="submit"
               disabled={isSavingProperty}
-              className="button-primary min-h-12 rounded-lg px-5 font-extrabold disabled:cursor-not-allowed disabled:opacity-60"
+              className="button-soft min-h-12 rounded-lg px-5 font-extrabold disabled:cursor-not-allowed disabled:opacity-60"
             >
               {isSavingProperty ? "Saving..." : "Create Property"}
             </button>
@@ -1898,6 +1936,7 @@ export default function InspectionWorkspace({
         selectedInspections={selectedInspections}
         selectedProperty={selectedProperty}
         openAddPropertyForm={openAddPropertyForm}
+        openEditPropertyForm={openEditPropertyForm}
         onSelectProperty={(propertyId) => {
           setSelectedPropertyId(propertyId);
           setActiveReportId("");
@@ -2351,7 +2390,11 @@ export default function InspectionWorkspace({
               </label>
 
               <div className="hidden gap-4 md:grid-cols-3 lg:grid">
-                {["Exterior photos", "Interior photos", "Issue photos"].map((label) => (
+                {[
+                  ["Exterior", "Exterior photos"],
+                  ["Interior", "Interior photos"],
+                  ["Issues", "Issue photos"]
+                ].map(([category, label]) => (
                   <label
                     key={label}
                     className="grid min-h-28 content-center gap-2 rounded-lg border border-dashed border-gold/40 bg-cream p-4 text-sm font-extrabold text-ink shadow-soft transition hover:border-gold"
@@ -2361,7 +2404,7 @@ export default function InspectionWorkspace({
                       type="file"
                       accept="image/*"
                       multiple
-                      onChange={(event) => addPhotoFiles(event.target.files)}
+                      onChange={(event) => addPhotoFiles(event.target.files, category as InspectionPhotoCategory)}
                       className="w-full min-w-0 text-xs font-semibold text-muted file:mr-3 file:rounded-lg file:border-0 file:bg-[#252525] file:px-3 file:py-2 file:text-xs file:font-extrabold file:text-cream"
                     />
                   </label>
@@ -2383,7 +2426,7 @@ export default function InspectionWorkspace({
                     </button>
                   </div>
                   <SelectedPhotoPreviewGrid
-                    files={inspectionForm.photoFiles}
+                    files={inspectionForm.photoFiles.map((photoFile) => photoFile.file)}
                     onRemove={(removeIndex) =>
                       setInspectionForm((current) => ({
                         ...current,
@@ -2533,14 +2576,6 @@ export default function InspectionWorkspace({
               </h2>
             </div>
             <div className="flex flex-wrap gap-2 lg:justify-end">
-              <button
-                type="button"
-                onClick={() => void saveInspection()}
-                disabled={isSavingInspection}
-                className="button-soft min-h-11 rounded-lg px-4 text-sm font-extrabold disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                {isSavingInspection ? "Generating..." : "Generate Report"}
-              </button>
               {activeReport ? (
                 <button
                   type="button"
@@ -2561,6 +2596,27 @@ export default function InspectionWorkspace({
           </div>
 
           <ReportCard property={selectedProperty} inspection={activeReport} />
+
+          {activeReport ? (
+            <div className="no-print mt-4 grid gap-2 rounded-lg border border-gold/15 bg-[#eae4d8] p-4 shadow-soft sm:grid-cols-2">
+              <a
+                href={`/reports/${reportRouteId(activeReport)}`}
+                target="_blank"
+                rel="noreferrer"
+                className="button-soft grid min-h-11 place-items-center rounded-lg px-4 text-sm font-extrabold"
+              >
+                Open Web Report
+              </a>
+              <a
+                href={`/api/reports/${reportRouteId(activeReport)}`}
+                target="_blank"
+                rel="noreferrer"
+                className="button-soft grid min-h-11 place-items-center rounded-lg px-4 text-sm font-extrabold"
+              >
+                Download PDF
+              </a>
+            </div>
+          ) : null}
 
           <div className="no-print mt-4 rounded-lg border border-gold/15 bg-[#eae4d8] p-4 shadow-soft">
             <div className="mb-3 flex items-center justify-between gap-3">
@@ -2661,6 +2717,8 @@ export default function InspectionWorkspace({
                 </a>
                 <a
                   href={`/api/reports/${reportRouteId(selectedReportAction)}`}
+                  target="_blank"
+                  rel="noreferrer"
                   className="button-soft grid min-h-11 place-items-center rounded-lg px-4 text-sm font-extrabold"
                 >
                   Download PDF
@@ -2835,23 +2893,18 @@ export default function InspectionWorkspace({
               onChange={(value) => setPropertyForm((current) => ({ ...current, address: value }))}
               required
             />
-            <PropertyPhotoPicker
-              photoUrl={propertyForm.photoUrl}
-              onUpload={uploadPropertyPhoto}
-              onClear={() => setPropertyForm((current) => ({ ...current, photoUrl: "" }))}
-            />
             <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_110px_130px]">
               <PropertyInput
                 label="City"
                 value={propertyForm.city}
                 onChange={(value) => setPropertyForm((current) => ({ ...current, city: value }))}
-                required
+                required={!editingPropertyId}
               />
               <PropertyInput
                 label="State"
                 value={propertyForm.state}
                 onChange={(value) => setPropertyForm((current) => ({ ...current, state: value.toUpperCase() }))}
-                required
+                required={!editingPropertyId}
               />
               <PropertyInput
                 label="ZIP"
@@ -2882,6 +2935,11 @@ export default function InspectionWorkspace({
                 className="field-shell rounded-lg p-3"
               />
             </label>
+            <PropertyPhotoPicker
+              photoUrl={propertyForm.photoUrl}
+              onUpload={uploadPropertyPhoto}
+              onClear={() => setPropertyForm((current) => ({ ...current, photoUrl: "" }))}
+            />
             <div className="sticky bottom-0 -mx-5 -mb-5 flex flex-wrap justify-end gap-3 border-t border-gold/20 bg-cream/95 p-5 backdrop-blur">
               <button
                 type="button"
@@ -2898,7 +2956,7 @@ export default function InspectionWorkspace({
               <button
                 type="submit"
                 disabled={isSavingProperty}
-                className="button-primary min-h-11 flex-1 rounded-lg px-5 font-extrabold disabled:cursor-not-allowed disabled:opacity-60 sm:flex-none"
+                className="button-soft min-h-11 flex-1 rounded-lg px-5 font-extrabold disabled:cursor-not-allowed disabled:opacity-60 sm:flex-none"
               >
                 {isSavingProperty ? "Saving..." : editingPropertyId ? "Update Property" : "Save Property"}
               </button>
@@ -2940,7 +2998,7 @@ function PropertyPhotoPicker({
           </div>
         )}
         <div className="flex flex-wrap gap-2">
-          <label className="button-primary grid min-h-10 cursor-pointer place-items-center rounded-lg px-4 text-sm font-extrabold">
+          <label className="button-soft grid min-h-10 cursor-pointer place-items-center rounded-lg px-4 text-sm font-extrabold">
             Browse Photo
             <input
               type="file"
@@ -3147,6 +3205,7 @@ function LuxuryExperiencePanel({
   saveScheduleTask,
   saveVendor,
   openAddPropertyForm,
+  openEditPropertyForm,
   onSelectProperty,
   selectedInspections,
   selectedProperty,
@@ -3207,6 +3266,7 @@ function LuxuryExperiencePanel({
   saveScheduleTask: (event: FormEvent<HTMLFormElement>) => void;
   saveVendor: (event: FormEvent<HTMLFormElement>) => void;
   openAddPropertyForm: () => void;
+  openEditPropertyForm: (property: Property) => void;
   onSelectProperty: (propertyId: string) => void;
   selectedInspections: Inspection[];
   selectedProperty: Property | undefined;
@@ -3633,7 +3693,7 @@ function LuxuryExperiencePanel({
                           </span>
                         </span>
                       </button>
-                      <div className="grid gap-2 border-t border-gold/15 p-3 sm:grid-cols-2">
+                      <div className="grid gap-2 border-t border-gold/15 p-3 sm:grid-cols-3">
                         <button
                           type="button"
                           onClick={() => {
@@ -3643,6 +3703,16 @@ function LuxuryExperiencePanel({
                           className="button-soft min-h-10 rounded-lg px-4 text-sm font-extrabold"
                         >
                           View Property
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            onSelectProperty(property.id);
+                            openEditPropertyForm(property);
+                          }}
+                          className="button-soft min-h-10 rounded-lg px-4 text-sm font-extrabold"
+                        >
+                          Edit
                         </button>
                         <button
                           type="button"
@@ -4364,6 +4434,8 @@ function LuxuryExperiencePanel({
                     </a>
                     <a
                       href={`/api/reports/${ownerReportRouteId(recentReport)}`}
+                      target="_blank"
+                      rel="noreferrer"
                       className="button-soft grid min-h-11 place-items-center rounded-lg px-4 text-sm font-extrabold"
                     >
                       Download PDF

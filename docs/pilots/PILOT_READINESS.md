@@ -106,15 +106,15 @@ The project now has a clearer structure:
 
 Core documentation exists:
 
-- PROJECT_STRUCTURE.md
-- DESIGN_SYSTEM.md
+- docs/architecture/PROJECT_STRUCTURE.md
+- docs/product/DESIGN_SYSTEM.md
 - AGENTS.md
-- AI_OPERATING_MANUAL.md
-- MANUAL_TESTING_CHECKLIST.md
+- docs/product/AI_OPERATING_MANUAL.md
+- docs/pilots/MANUAL_TESTING_CHECKLIST.md
 
 ## What Needs Testing Before Real Customers
 
-Run MANUAL_TESTING_CHECKLIST.md before each customer-facing pilot session.
+Run docs/pilots/MANUAL_TESTING_CHECKLIST.md before each customer-facing pilot session.
 
 Priority test areas:
 

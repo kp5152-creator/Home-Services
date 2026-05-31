@@ -18,6 +18,19 @@ function resolveInitialDemoRole(params: { demo?: string; role?: string } | undef
   return "Admin";
 }
 
+function resolveInitialRole(params: { demo?: string; role?: string } | undefined): AppRole | undefined {
+  const demo = params?.demo?.toLowerCase();
+  const role = params?.role?.toLowerCase();
+
+  if (demo) return undefined;
+
+  if (role === "admin") return "Admin";
+  if (role === "inspector") return "Inspector";
+  if (role === "homeowner") return "Homeowner";
+
+  return undefined;
+}
+
 export default async function DemoPage({
   searchParams
 }: {
@@ -26,6 +39,7 @@ export default async function DemoPage({
   const database = await readDatabase();
   const params = await searchParams;
   const initialDemoRole = resolveInitialDemoRole(params);
+  const initialRole = resolveInitialRole(params);
 
-  return <InspectionWorkspace initialDatabase={database} initialDemoRole={initialDemoRole} />;
+  return <InspectionWorkspace initialDatabase={database} initialDemoRole={initialDemoRole} initialRole={initialRole} />;
 }

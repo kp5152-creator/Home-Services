@@ -1,6 +1,14 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import { addProperty, deleteProperty, readDatabase, updateProperty } from "@/services/database";
 
+export const config = {
+  api: {
+    bodyParser: {
+      sizeLimit: "25mb"
+    }
+  }
+};
+
 export default async function handler(request: NextApiRequest, response: NextApiResponse) {
   if (request.method === "GET") {
     response.status(200).json(await readDatabase());

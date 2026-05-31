@@ -42,10 +42,11 @@ export async function writeInspectionReportPdf(
       asset: await loadReportPhoto(inspection.id, photo)
     }))
   );
+  const propertyPhoto = await loadPropertyPhoto(property.photoUrl);
 
-  drawCoverPage(doc, property, inspection, status, photoAssets[0]?.asset?.buffer);
-  drawSummaryPage(doc, property, inspection, status);
-  drawInspectionRecordPage(doc, inspection, photoAssets);
+  drawCoverPage(doc, property, inspection, status, propertyPhoto?.buffer ?? photoAssets[0]?.asset?.buffer);
+  drawDetailsPage(doc, inspection, status);
+  drawPhotoPages(doc, photoAssets);
   addFooters(doc, property);
 
   doc.end();
@@ -60,6 +61,25 @@ async function loadReportPhoto(inspectionId: string, photo: InspectionPhoto) {
   return readPhotoAsset(inspectionId, filename);
 }
 
+async function loadPropertyPhoto(photoUrl: string | undefined) {
+  if (!photoUrl) return null;
+
+  if (photoUrl.startsWith("data:image/")) {
+    const base64 = photoUrl.split(",").pop();
+    return base64 ? { buffer: Buffer.from(base64, "base64") } : null;
+  }
+
+  if (photoUrl.startsWith("/") && !photoUrl.startsWith("/api/")) {
+    try {
+      return { buffer: await fs.readFile(path.join(process.cwd(), "public", photoUrl.replace(/^\/+/, ""))) };
+    } catch {
+      return null;
+    }
+  }
+
+  return null;
+}
+
 function drawCoverPage(
   doc: PDFKit.PDFDocument,
   property: Property,
@@ -67,133 +87,150 @@ function drawCoverPage(
   status: ReturnType<typeof reportConditionStatus>,
   coverImage?: Buffer
 ) {
-  drawPageBackground(doc);
-
+  doc.rect(0, 0, 612, 792).fill(palette.ink);
   if (coverImage) {
     doc.save();
-    doc.roundedRect(48, 42, 516, 250, 14).clip();
-    doc.image(coverImage, 48, 42, { fit: [516, 250], align: "center", valign: "center" });
-    doc.rect(48, 42, 516, 250).fillOpacity(0.1).fill(palette.ink);
+    doc.rect(0, 0, 612, 470).clip();
+    doc.image(coverImage, 0, 0, { cover: [612, 470], align: "center", valign: "center" });
     doc.restore();
   } else {
-    doc.roundedRect(48, 42, 516, 250, 14).fill(palette.sand);
+    doc.rect(0, 0, 612, 470).fill(palette.charcoal);
   }
 
-  doc.roundedRect(48, 42, 516, 250, 14).lineWidth(1).strokeColor(palette.line).stroke();
-  doc.font("Helvetica").fontSize(9).fillColor(palette.gold).text("PRIVATE ESTATEIQ HOME WATCH", 54, 324, {
+  doc.rect(0, 0, 612, 470).fillOpacity(0.62).fill(palette.ink);
+  doc.rect(0, 278, 612, 192).fillOpacity(0.34).fill(palette.ink);
+  doc.fillOpacity(1);
+  doc.rect(0, 470, 612, 322).fill(palette.cream);
+  doc.rect(0, 468, 612, 2).fill(palette.gold);
+
+  doc.font("Helvetica").fontSize(8).fillColor(palette.gold).text("ESTATEIQ", 54, 58, {
+    characterSpacing: 2.4
+  });
+  doc.font("Times-Bold").fontSize(44).fillColor(palette.white).text("Homeowner Visit", 54, 94, {
+    width: 420,
+    lineGap: -2
+  });
+  doc.font("Times-Bold").fontSize(44).fillColor(palette.white).text("Summary", 54, 144, {
+    width: 420
+  });
+  doc.font("Helvetica").fontSize(10.5).fillColor("#EAE4D8").text(
+    "A concise property condition record prepared for homeowner review.",
+    56,
+    212,
+    { width: 310, lineGap: 3 }
+  );
+
+  doc.moveTo(54, 292).lineTo(392, 292).lineWidth(0.7).strokeColor(palette.gold).stroke();
+  doc.font("Times-Bold").fontSize(24).fillColor(palette.white).text(property.name, 54, 320, { width: 420 });
+  doc.font("Helvetica").fontSize(10).fillColor("#EAE4D8").text(`${property.owner} / ${property.address}`, 54, 354, {
+    width: 420,
+    lineGap: 3
+  });
+
+  drawCoverStatusBand(doc, inspection, status);
+
+  doc.font("Helvetica").fontSize(8).fillColor(palette.gold).text("PRIVATE ESTATEIQ HOME WATCH", 54, 706, {
     characterSpacing: 2.4,
     align: "center",
     width: 504
   });
-  doc.font("Times-Bold").fontSize(36).fillColor(palette.ink).text("Homeowner Packet", 70, 350, {
-    align: "center",
-    width: 472
-  });
-  doc.font("Helvetica").fontSize(12).fillColor(palette.muted).text(
-    "Prepared for confident ownership, clear communication, and white-glove estate oversight.",
-    94,
-    398,
-    { align: "center", width: 424, lineGap: 3 }
-  );
-
-  drawStatusPill(doc, status.label, status.tone === "urgent" ? palette.urgent : palette.gold, 218, 438, 176);
-  doc.roundedRect(74, 494, 464, 122, 12).fill(palette.white).strokeColor(palette.line).stroke();
-  doc.moveTo(98, 548).lineTo(514, 548).lineWidth(0.4).strokeColor(palette.sand).stroke();
-  doc.moveTo(298, 512).lineTo(298, 600).lineWidth(0.4).strokeColor(palette.sand).stroke();
-  writeCoverMeta(doc, "Property", property.name, 98, 518);
-  writeCoverMeta(doc, "Homeowner", property.owner, 98, 558);
-  writeCoverMeta(doc, "Inspection", getInspectionType(inspection.checklist), 322, 518);
-  writeCoverMeta(doc, "Completed", formatDateTime(inspection.timestamp), 322, 558);
-
-  doc.font("Helvetica").fontSize(9).fillColor(palette.muted).text(property.address, 74, 654, {
-    align: "center",
-    width: 464
-  });
-  doc.moveTo(220, 688).lineTo(392, 688).lineWidth(0.8).strokeColor(palette.gold).stroke();
-  doc.fontSize(9).fillColor(palette.gold).text("INSPECT  |  REPORT  |  PROTECT", 74, 704, {
+  doc.fontSize(9).fillColor(palette.gold).text("INSPECT  |  REPORT  |  PROTECT", 74, 724, {
     align: "center",
     width: 464,
     characterSpacing: 1.6
   });
 }
 
-function drawSummaryPage(
+function drawCoverStatusBand(
   doc: PDFKit.PDFDocument,
-  property: Property,
+  inspection: Inspection,
+  status: ReturnType<typeof reportConditionStatus>
+) {
+  const y = 492;
+  doc.roundedRect(54, y, 504, 176, 12).fill(palette.charcoal).strokeColor(palette.line).stroke();
+  doc.rect(54, y, 504, 4).fill(palette.gold);
+  doc.moveTo(296, y).lineTo(296, y + 176).lineWidth(0.45).strokeColor("#4A4437").stroke();
+  doc.moveTo(316, y + 88).lineTo(538, y + 88).lineWidth(0.45).strokeColor("#4A4437").stroke();
+  doc.moveTo(426, y).lineTo(426, y + 176).lineWidth(0.45).strokeColor("#4A4437").stroke();
+
+  doc.font("Helvetica").fontSize(8).fillColor(palette.gold).text("PROPERTY STATUS", 78, y + 28, {
+    characterSpacing: 1.2
+  });
+  doc.font("Times-Bold").fontSize(22).fillColor(palette.white).text(status.label, 78, y + 52, { width: 188 });
+  doc.font("Helvetica").fontSize(9.5).fillColor("#EAE4D8").text(status.description, 78, y + 86, {
+    width: 188,
+    lineGap: 3
+  });
+
+  writeCoverMetric(doc, "Date", formatDateTime(inspection.timestamp), 316, y + 26, 90);
+  writeCoverMetric(doc, "Type", getInspectionType(inspection.checklist), 446, y + 26, 90);
+  writeCoverMetric(doc, "Inspector", inspection.inspectorName || "Inspector", 316, y + 114, 90);
+  writeCoverMetric(doc, "Photos", String(inspection.photos.length), 446, y + 114, 90);
+}
+
+function drawDetailsPage(
+  doc: PDFKit.PDFDocument,
   inspection: Inspection,
   status: ReturnType<typeof reportConditionStatus>
 ) {
   doc.addPage();
   drawPageBackground(doc);
-  drawSectionHeader(doc, "Homeowner Summary", "Concierge notes and visit context", 54, 48);
+  drawSectionHeader(doc, "Visit Summary", "Concierge notes, inspection checks, and field notes", 54, 48);
 
-  doc.roundedRect(54, 112, 504, 232, 14).fill(palette.white).strokeColor(palette.line).stroke();
+  doc.roundedRect(54, 112, 504, 166, 14).fill(palette.white).strokeColor(palette.line).stroke();
   doc.rect(54, 112, 504, 5).fill(palette.gold);
-  doc.font("Helvetica").fontSize(9).fillColor(palette.gold).text("CONCIERGE NOTE", 78, 142, {
+  doc.font("Helvetica").fontSize(8).fillColor(palette.gold).text("CONCIERGE NOTE", 78, 138, {
     characterSpacing: 1.4
   });
-  doc.font("Times-Bold").fontSize(22).fillColor(palette.ink).text("What the homeowner needs to know", 78, 164, {
+  doc.font("Times-Bold").fontSize(20).fillColor(palette.ink).text("What the homeowner needs to know", 78, 158, {
     width: 456
   });
   doc.font("Helvetica").fontSize(10.5).fillColor(palette.charcoal).text(
     inspection.executiveSummary || "The property inspection has been completed and is ready for homeowner review.",
     78,
-    206,
-    { width: 456, lineGap: 5 }
+    194,
+    { width: 456, lineGap: 4, height: 62, ellipsis: true }
   );
 
-  doc.roundedRect(54, 372, 242, 142, 12).fill(palette.sand).strokeColor(palette.line).stroke();
-  doc.font("Helvetica").fontSize(8).fillColor(palette.gold).text("HOMEOWNER ACTION", 78, 398, {
+  doc.roundedRect(54, 304, 242, 122, 12).fill(palette.sand).strokeColor(palette.line).stroke();
+  doc.font("Helvetica").fontSize(8).fillColor(palette.gold).text("HOMEOWNER ACTION", 78, 328, {
     characterSpacing: 1.2
   });
   doc.font("Times-Bold").fontSize(16).fillColor(status.tone === "urgent" ? palette.urgent : palette.ink).text(
     status.tone === "urgent" ? "Review promptly" : "No immediate action",
     78,
-    420,
+    350,
     { width: 190 }
   );
-  doc.font("Helvetica").fontSize(9.5).fillColor(palette.charcoal).text(status.description, 78, 450, {
+  doc.font("Helvetica").fontSize(9).fillColor(palette.charcoal).text(status.description, 78, 378, {
     width: 190,
-    lineGap: 3
+    lineGap: 2,
+    height: 36,
+    ellipsis: true
   });
 
-  doc.roundedRect(316, 372, 242, 142, 12).fill(palette.white).strokeColor(palette.line).stroke();
-  doc.font("Helvetica").fontSize(8).fillColor(palette.gold).text("VISIT CONTEXT", 340, 398, {
+  doc.roundedRect(316, 304, 242, 122, 12).fill(palette.white).strokeColor(palette.line).stroke();
+  doc.font("Helvetica").fontSize(8).fillColor(palette.gold).text("VISIT CONTEXT", 340, 328, {
     characterSpacing: 1.2
   });
-  writeInlineDetail(doc, "Inspector", inspection.inspectorName, 340, 426);
-  writeInlineDetail(doc, "Interior Temp", inspection.interiorTemperature + " F", 460, 426);
-  writeInlineDetail(doc, "Inspection", getInspectionType(inspection.checklist), 340, 472);
+  writeInlineDetail(doc, "Inspector", inspection.inspectorName || "Inspector", 340, 354);
+  writeInlineDetail(doc, "Interior Temp", inspection.interiorTemperature + " F", 460, 354);
+  writeInlineDetail(doc, "Inspection", getInspectionType(inspection.checklist), 340, 392);
 
-  doc.roundedRect(54, 550, 504, 104, 12).fill(palette.white).strokeColor(palette.line).stroke();
-  doc.font("Times-Bold").fontSize(15).fillColor(palette.ink).text("Included in this packet", 78, 576);
-  doc.moveTo(78, 596).lineTo(198, 596).lineWidth(0.8).strokeColor(palette.gold).stroke();
-  writePacketItem(doc, "Inspection record", "Checklist observations and any notes from the property visit.", 78, 618);
-  writePacketItem(doc, "Photo documentation", "Representative images are included for visual confirmation.", 252, 618);
-  writePacketItem(doc, "Service history", "Report details remain available inside EstateIQ for future reference.", 426, 618);
-}
-
-function drawInspectionRecordPage(
-  doc: PDFKit.PDFDocument,
-  inspection: Inspection,
-  photoAssets: Array<{ photo: InspectionPhoto; asset: { buffer: Buffer } | null }>
-) {
-  doc.addPage();
-  drawPageBackground(doc);
-  drawSectionHeader(doc, "Inspection Record", "Checklist, notes, and visual documentation", 54, 48);
-
-  doc.roundedRect(54, 104, 504, 72, 12).fill(palette.white).strokeColor(palette.line).stroke();
-  doc.font("Times-Bold").fontSize(14).fillColor(palette.ink).text("Notes / Issues Found", 78, 126);
+  const notes = inspection.notes || "No issues were noted during this visit.";
+  doc.roundedRect(54, 452, 504, 96, 12).fill(palette.white).strokeColor(palette.line).stroke();
+  doc.font("Times-Bold").fontSize(14).fillColor(palette.ink).text("Notes / Issues Found", 78, 474);
   doc.font("Helvetica").fontSize(9.2).fillColor(palette.charcoal).text(
-    inspection.notes || "No issues were noted during this visit.",
+    notes,
     78,
-    148,
-    { width: 456, lineGap: 2 }
+    498,
+    { width: 456, lineGap: 3, height: 32, ellipsis: true }
   );
 
   const sections = groupChecklistItems(inspection.checklist).filter((section) => section.items.length);
   const sectionWidth = 242;
-  const sectionY = 202;
+  const sectionY = 574;
+  const sectionHeight = 144;
 
   if (!sections.length) {
     doc.font("Helvetica").fontSize(10).fillColor(palette.muted).text("No checklist items were marked complete.", 54, sectionY);
@@ -201,64 +238,174 @@ function drawInspectionRecordPage(
 
   sections.slice(0, 2).forEach((section, sectionIndex) => {
     const x = sectionIndex === 0 ? 54 : 316;
-    doc.roundedRect(x, sectionY, sectionWidth, 250, 12).fill(palette.white).strokeColor(palette.line).stroke();
+    doc.roundedRect(x, sectionY, sectionWidth, sectionHeight, 12).fill(palette.white).strokeColor(palette.line).stroke();
     doc.rect(x, sectionY, sectionWidth, 4).fill(palette.gold);
     doc.font("Times-Bold").fontSize(14).fillColor(palette.ink).text(section.title, x + 18, sectionY + 18);
 
     let itemY = sectionY + 44;
     section.items.forEach((item) => {
-      if (itemY > sectionY + 226) return;
+      if (itemY > sectionY + sectionHeight - 24) return;
       doc.circle(x + 24, itemY + 4, 3.2).fill(palette.gold);
-      doc.font("Helvetica").fontSize(7.8).fillColor(palette.charcoal).text(item, x + 36, itemY, {
+      doc.font("Helvetica").fontSize(7.3).fillColor(palette.charcoal).text(item, x + 36, itemY, {
         width: sectionWidth - 52,
         lineGap: 0.4
       });
-      itemY += 14;
+      itemY += 12;
     });
   });
+}
 
-  doc.font("Helvetica").fontSize(8).fillColor(palette.gold).text("PHOTO DOCUMENTATION", 54, 486, {
-    characterSpacing: 1.2
-  });
+function drawPhotoPages(
+  doc: PDFKit.PDFDocument,
+  photoAssets: Array<{ photo: InspectionPhoto; asset: { buffer: Buffer } | null }>
+) {
+  if (!photoAssets.length) return;
 
-  const photoY = 508;
-  const photoWidth = 154;
-  photoAssets.slice(0, 3).forEach(({ photo, asset }, index) => {
-    const x = 54 + index * 175;
-    doc.roundedRect(x, photoY, photoWidth, 150, 10).fill(palette.white).strokeColor(palette.line).stroke();
-    if (asset) {
-      try {
-        doc.image(asset.buffer, x + 10, photoY + 12, { fit: [photoWidth - 20, 92], align: "center", valign: "center" });
-      } catch {
-        doc.font("Helvetica").fontSize(8).fillColor(palette.urgent).text("Photo unavailable", x + 12, photoY + 42, {
-          width: photoWidth - 24,
-          align: "center"
-        });
+  const photoGroups = groupReportPhotos(photoAssets);
+  let hasPhotoPage = false;
+  let cursorY = 0;
+
+  for (const group of photoGroups) {
+    const layout = photoLayoutForGroup();
+    let photoIndex = 0;
+
+    while (photoIndex < group.photos.length) {
+      const sectionHeight =
+        32 + Math.ceil(Math.min(group.photos.length - photoIndex, layout.perRow * layout.rowsPerSection) / layout.perRow) * (layout.cardHeight + layout.rowGap);
+
+      if (!hasPhotoPage || cursorY + sectionHeight > 724) {
+        hasPhotoPage = true;
+        doc.addPage();
+        drawPageBackground(doc);
+        drawSectionHeader(doc, "Photo Documentation", "Curated visual record from the property visit", 54, 48);
+        cursorY = 120;
       }
-    } else {
-      doc.font("Helvetica").fontSize(8).fillColor(palette.urgent).text("Photo unavailable", x + 12, photoY + 42, {
-        width: photoWidth - 24,
-        align: "center"
+
+      doc.font("Helvetica").fontSize(8).fillColor(palette.gold).text(group.title.toUpperCase(), 54, cursorY, {
+        characterSpacing: 1.2
       });
+      doc.font("Helvetica").fontSize(8.5).fillColor(palette.muted).text(`${group.photos.length} documented`, 458, cursorY, {
+        width: 100,
+        align: "right"
+      });
+      doc.moveTo(54, cursorY + 18).lineTo(558, cursorY + 18).lineWidth(0.45).strokeColor(palette.line).stroke();
+      cursorY += 30;
+
+      const capacity = layout.perRow * layout.rowsPerSection;
+      const pagePhotos = group.photos.slice(photoIndex, photoIndex + capacity);
+      pagePhotos.forEach((photoAsset, index) => {
+        const column = index % layout.perRow;
+        const row = Math.floor(index / layout.perRow);
+        const x = 54 + column * (layout.cardWidth + layout.gap);
+        const y = cursorY + row * (layout.cardHeight + layout.rowGap);
+
+        drawReportPhotoCard(doc, photoAsset, x, y, layout.cardWidth, layout.cardHeight);
+      });
+
+      cursorY += Math.ceil(pagePhotos.length / layout.perRow) * (layout.cardHeight + layout.rowGap) + 14;
+      photoIndex += pagePhotos.length;
+    }
+  }
+}
+
+function photoLayoutForGroup() {
+  return { cardWidth: 156, cardHeight: 112, gap: 18, rowGap: 14, perRow: 3, rowsPerSection: 3 };
+}
+
+function groupReportPhotos(photoAssets: Array<{ photo: InspectionPhoto; asset: { buffer: Buffer } | null }>) {
+  const groups = [
+    {
+      category: "Exterior",
+      title: "Exterior Photos",
+      subtitle: "Property exterior, entry, landscape, pool, and outdoor conditions",
+      photos: [] as Array<{ photo: InspectionPhoto; asset: { buffer: Buffer } | null }>
+    },
+    {
+      category: "Interior",
+      title: "Interior Photos",
+      subtitle: "Interior rooms, systems, fixtures, and visible condition",
+      photos: [] as Array<{ photo: InspectionPhoto; asset: { buffer: Buffer } | null }>
+    },
+    {
+      category: "Issues",
+      title: "Issue Photos",
+      subtitle: "Items requiring attention, monitoring, or follow-up",
+      photos: [] as Array<{ photo: InspectionPhoto; asset: { buffer: Buffer } | null }>
+    }
+  ];
+  const uncategorizedPhotos: Array<{ photo: InspectionPhoto; asset: { buffer: Buffer } | null }> = [];
+
+  photoAssets.forEach((photoAsset) => {
+    const category = reportPhotoCategory(photoAsset.photo.name);
+    const group = groups.find((item) => item.category === category);
+
+    if (group) {
+      group.photos.push(photoAsset);
+      return;
     }
 
-    doc.font("Helvetica-Bold").fontSize(7.8).fillColor(palette.ink).text(cleanPhotoName(photo.name), x + 10, photoY + 114, {
-      width: photoWidth - 20,
-      align: "center"
-    });
+    uncategorizedPhotos.push(photoAsset);
   });
 
-  doc.roundedRect(54, 686, 504, 34, 10).fill(palette.sand).strokeColor(palette.line).stroke();
-  doc.font("Helvetica").fontSize(8.5).fillColor(palette.muted).text(
-    "Complete photo set and checklist detail are retained in EstateIQ inspection history.",
-    76,
-    698,
-    { width: 460, align: "center" }
-  );
+  if (uncategorizedPhotos.length) {
+    uncategorizedPhotos.forEach((photoAsset, index) => {
+      const groupIndex = Math.min(2, Math.floor((index / uncategorizedPhotos.length) * 3));
+      groups[groupIndex].photos.push(photoAsset);
+    });
+  }
+
+  return groups.filter((group) => group.photos.length);
+}
+
+function reportPhotoCategory(name: string) {
+  if (name.startsWith("Exterior__")) return "Exterior";
+  if (name.startsWith("Interior__")) return "Interior";
+  if (name.startsWith("Issues__")) return "Issues";
+  return undefined;
+}
+
+function drawReportPhotoCard(
+  doc: PDFKit.PDFDocument,
+  { photo, asset }: { photo: InspectionPhoto; asset: { buffer: Buffer } | null },
+  x: number,
+  y: number,
+  width: number,
+  height: number
+) {
+  doc.save();
+  doc.roundedRect(x, y, width, height, 8).fill(palette.charcoal).strokeColor(palette.line).stroke();
+  doc.roundedRect(x + 3, y + 3, width - 6, height - 6, 6).clip();
+  const imageX = x + 3;
+  const imageY = y + 3;
+  const imageWidth = width - 6;
+  const imageHeight = height - 6;
+
+  if (asset) {
+    try {
+      doc.image(asset.buffer, imageX, imageY, {
+        cover: [imageWidth, imageHeight],
+        align: "center",
+        valign: "center"
+      });
+    } catch {
+      writePhotoUnavailable(doc, imageX, imageY + imageHeight / 2 - 8, imageWidth);
+    }
+  } else {
+    writePhotoUnavailable(doc, imageX, imageY + imageHeight / 2 - 8, imageWidth);
+  }
+  doc.restore();
+  doc.roundedRect(x, y, width, height, 8).lineWidth(0.65).strokeColor(palette.line).stroke();
+}
+
+function writePhotoUnavailable(doc: PDFKit.PDFDocument, x: number, y: number, width: number) {
+  doc.font("Helvetica").fontSize(8).fillColor(palette.urgent).text("Photo unavailable", x, y, {
+    width,
+    align: "center"
+  });
 }
 
 function cleanPhotoName(name: string) {
-  return name.replace(/\.[^/.]+$/, "");
+  return name.replace(/^(Exterior|Interior|Issues)__/, "").replace(/\.[^/.]+$/, "");
 }
 
 function drawPageBackground(doc: PDFKit.PDFDocument) {
@@ -284,6 +431,17 @@ function drawStatusPill(doc: PDFKit.PDFDocument, label: string, color: string, x
 function writeCoverMeta(doc: PDFKit.PDFDocument, label: string, value: string, x: number, y: number) {
   doc.font("Helvetica").fontSize(8).fillColor(palette.gold).text(label.toUpperCase(), x, y, { characterSpacing: 1.2 });
   doc.font("Helvetica-Bold").fontSize(11).fillColor(palette.ink).text(value, x, y + 15, { width: 180, lineGap: 2 });
+}
+
+function writeCoverMetric(doc: PDFKit.PDFDocument, label: string, value: string, x: number, y: number, width: number) {
+  doc.font("Helvetica").fontSize(7.5).fillColor(palette.gold).text(label.toUpperCase(), x, y, {
+    width,
+    characterSpacing: 1.1
+  });
+  doc.font("Helvetica-Bold").fontSize(10).fillColor(palette.white).text(value, x, y + 16, {
+    width,
+    lineGap: 2
+  });
 }
 
 function drawMetricCard(

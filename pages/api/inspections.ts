@@ -6,7 +6,7 @@ import type { UrgentStatus } from "@/utils/types";
 export const config = {
   api: {
     bodyParser: {
-      sizeLimit: "25mb"
+      sizeLimit: "50mb"
     }
   }
 };

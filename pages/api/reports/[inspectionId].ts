@@ -2,6 +2,7 @@ import type { NextApiRequest, NextApiResponse } from "next";
 import { readDatabase } from "@/services/database";
 import { demoDatabase } from "@/reports/demoData";
 import { writeInspectionReportPdf } from "@/reports/pdfReport";
+import type { Inspection, Property } from "@/utils/types";
 
 export const config = {
   api: {
@@ -23,7 +24,8 @@ export default async function handler(request: NextApiRequest, response: NextApi
     demoDatabase.inspections.find((item) => item.id === inspectionId);
   const property =
     database.properties.find((item) => item.id === inspection?.propertyId) ??
-    demoDatabase.properties.find((item) => item.id === inspection?.propertyId);
+    demoDatabase.properties.find((item) => item.id === inspection?.propertyId) ??
+    fallbackPropertyForInspection(inspection);
 
   if (!inspection || !property) {
     response.status(404).json({ message: "Report not found" });
@@ -35,4 +37,22 @@ export default async function handler(request: NextApiRequest, response: NextApi
   response.setHeader("Content-Disposition", "inline; filename=\"" + filename + "\"");
 
   await writeInspectionReportPdf(response, property, inspection);
+}
+
+function fallbackPropertyForInspection(inspection: Inspection | undefined): Property | undefined {
+  if (!inspection) return undefined;
+
+  const inferredName = (inspection.executiveSummary ?? "").match(/^(.+?) received /)?.[1]?.trim();
+
+  return {
+    id: inspection.propertyId,
+    name: inferredName || "Saved Property",
+    owner: "Homeowner",
+    address: "Property details unavailable",
+    phone: "",
+    email: "",
+    accessNotes: "",
+    photoUrl: "",
+    status: "Active"
+  };
 }

@@ -54,11 +54,11 @@ Use the newer folders for new work:
 - `hooks/`: Shared React hooks.
 - `lib/`: Compatibility exports only. Prefer the new folders above for new imports.
 
-Read `PROJECT_STRUCTURE.md` before moving major files.
+Read `docs/architecture/PROJECT_STRUCTURE.md` before moving major files.
 
 ## Design System Rules
 
-Read `DESIGN_SYSTEM.md` before adding UI.
+Read `docs/product/DESIGN_SYSTEM.md` before adding UI.
 
 Use reusable UI components first:
 
@@ -118,7 +118,7 @@ Do not make reports long unless the user asks for a detailed appendix.
 
 ## AI Feature Rules
 
-Read `AI_OPERATING_MANUAL.md` before adding AI features.
+Read `docs/product/AI_OPERATING_MANUAL.md` before adding AI features.
 
 AI should support the human operator, not replace judgment. AI-generated text must feel like a concierge/estate manager wrote it, not a chatbot.
 

@@ -25,6 +25,24 @@ const workflow = [
   "Report"
 ];
 
+const appEntryPoints = [
+  {
+    title: "Command Center",
+    description: "Manage properties, reports, vendors, schedules, and owner communication.",
+    href: "/demo"
+  },
+  {
+    title: "Inspector",
+    description: "Run a real property visit, capture issues, upload photos, and generate reports.",
+    href: "/demo"
+  },
+  {
+    title: "Owner Portal",
+    description: "Preview the homeowner-facing view for reports, updates, and property status.",
+    href: "/demo"
+  }
+];
+
 export default function Home() {
   return (
     <main className="min-h-screen overflow-hidden bg-paper text-cream">
@@ -63,8 +81,8 @@ export default function Home() {
                 Demo
               </a>
             </nav>
-            <ButtonLink href="/demo?demo=admin" variant="ghost" className="!border-gold/40 !bg-white/10 !text-white hover:!border-gold hover:!bg-white/16">
-              Open Demo
+            <ButtonLink href="/demo" variant="ghost" className="!border-gold/40 !bg-white/10 !text-white hover:!border-gold hover:!bg-white/16">
+              Open App
             </ButtonLink>
           </header>
 
@@ -79,8 +97,11 @@ export default function Home() {
                 vendors, schedules, owner updates, and refined reports into one trusted record.
               </p>
               <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-                <ButtonLink href="/demo?demo=admin" size="lg">
-                  View Live Demo
+                <ButtonLink href="/demo" size="lg">
+                  Open App Login
+                </ButtonLink>
+                <ButtonLink href="/demo?demo=admin" variant="ghost" size="lg" className="!border-white/20 !bg-white/10 !text-white hover:!bg-white/20">
+                  View Demo
                 </ButtonLink>
                 <ButtonLink
                   href="/reports/demo-inspection-home-watch"
@@ -181,8 +202,20 @@ export default function Home() {
             ))}
           </div>
           <div className="lg:col-span-2">
-            <ButtonLink href="/demo?demo=admin" size="lg">
-              Enter EstateIQ Demo
+            <div className="grid gap-3 md:grid-cols-3">
+              {appEntryPoints.map((entry) => (
+                <a
+                  key={entry.title}
+                  href={entry.href}
+                  className="rounded-estate border border-gold/20 bg-white/8 p-4 text-left shadow-soft transition hover:border-gold/50 hover:bg-white/12"
+                >
+                  <span className="text-sm font-extrabold text-gold">{entry.title}</span>
+                  <span className="mt-2 block text-sm leading-6 text-white/72">{entry.description}</span>
+                </a>
+              ))}
+            </div>
+            <ButtonLink href="/demo?demo=admin" size="lg" className="mt-4">
+              Open Demo Mode
             </ButtonLink>
           </div>
         </div>
