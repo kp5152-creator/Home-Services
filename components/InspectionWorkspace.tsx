@@ -451,10 +451,17 @@ export default function InspectionWorkspace({
   const mobileExperienceScreens = mobileRoleExperienceScreens(activeRole, activeExperience).filter((screen) =>
     visibleExperienceScreens.includes(screen)
   );
+  const activeProperties = useMemo(
+    () => properties.filter((property) => property.status !== "Archived"),
+    [properties]
+  );
 
   const selectedProperty = useMemo(
-    () => properties.find((property) => property.id === selectedPropertyId) ?? properties[0],
-    [properties, selectedPropertyId]
+    () =>
+      activeProperties.find((property) => property.id === selectedPropertyId) ??
+      activeProperties[0] ??
+      properties[0],
+    [activeProperties, properties, selectedPropertyId]
   );
   useWorkflowAnalytics({
     screen: activeExperience,
@@ -892,7 +899,8 @@ export default function InspectionWorkspace({
           phone: propertyForm.phone,
           email: propertyForm.email,
           accessNotes: propertyForm.accessNotes,
-          photoUrl: propertyForm.photoUrl
+          photoUrl: propertyForm.photoUrl,
+          status: updatedProperty.status
         };
 
         setProperties((current) => current.map((item) => (item.id === property.id ? property : item)));
@@ -941,7 +949,10 @@ export default function InspectionWorkspace({
         body: JSON.stringify({
           ...propertyForm,
           id: editingPropertyId,
-          address: savedAddress
+          address: savedAddress,
+          status: editingPropertyId
+            ? properties.find((property) => property.id === editingPropertyId)?.status ?? "Active"
+            : "Active"
         })
       });
 
@@ -967,6 +978,70 @@ export default function InspectionWorkspace({
       }, 650);
     } catch {
       setPropertySaveMessage("Property could not be saved. Check your connection and try again.");
+    } finally {
+      setIsSavingProperty(false);
+    }
+  }
+
+  async function archiveSelectedProperty(property: Property) {
+    const confirmed = window.confirm(
+      `Archive ${property.name}? It will be hidden from Home, but inspections, reports, photos, and history will be preserved.`
+    );
+
+    if (!confirmed) return;
+
+    setIsSavingProperty(true);
+    setPropertySaveMessage("Archiving property...");
+
+    if (demoMode) {
+      setProperties((current) =>
+        current.map((item) => (item.id === property.id ? { ...item, status: "Archived" } : item))
+      );
+      const nextProperty = properties.find((item) => item.id !== property.id && item.status !== "Archived");
+      setSelectedPropertyId(nextProperty?.id ?? "");
+      setActiveReportId("");
+      setShowPropertyForm(false);
+      setEditingPropertyId("");
+      setPropertyForm(emptyPropertyForm);
+      setPropertySaveMessage("");
+      setIsSavingProperty(false);
+      return;
+    }
+
+    try {
+      const response = await fetch("/api/properties", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: property.id,
+          name: property.name,
+          owner: property.owner,
+          address: property.address,
+          phone: property.phone,
+          email: property.email,
+          accessNotes: property.accessNotes,
+          photoUrl: property.photoUrl ?? "",
+          status: "Archived"
+        })
+      });
+
+      if (!response.ok) {
+        const error = (await response.json().catch(() => null)) as { message?: string } | null;
+        setPropertySaveMessage(error?.message || "Property could not be archived. Please try again.");
+        return;
+      }
+
+      const archivedProperty = (await response.json()) as Property;
+      setProperties((current) => current.map((item) => (item.id === archivedProperty.id ? archivedProperty : item)));
+      const nextProperty = properties.find((item) => item.id !== property.id && item.status !== "Archived");
+      setSelectedPropertyId(nextProperty?.id ?? "");
+      setActiveReportId("");
+      setShowPropertyForm(false);
+      setEditingPropertyId("");
+      setPropertyForm(emptyPropertyForm);
+      setPropertySaveMessage("");
+    } catch {
+      setPropertySaveMessage("Property could not be archived. Check your connection and try again.");
     } finally {
       setIsSavingProperty(false);
     }
@@ -1569,7 +1644,7 @@ export default function InspectionWorkspace({
     setVendors(demoDatabase.vendors);
     setScheduleTasks(demoDatabase.scheduleTasks);
     setOwnerUpdates(demoDatabase.ownerUpdates);
-    setSelectedPropertyId(demoDatabase.properties[0]?.id ?? "");
+    setSelectedPropertyId(demoDatabase.properties.find((property) => property.status !== "Archived")?.id ?? "");
     setActiveReportId(demoDatabase.inspections[0]?.id ?? "");
     setActiveRole(role);
     setActiveExperience(roleLabels[role].firstScreen);
@@ -1583,7 +1658,7 @@ export default function InspectionWorkspace({
     setVendors(initialDatabase.vendors ?? []);
     setScheduleTasks(initialDatabase.scheduleTasks ?? []);
     setOwnerUpdates(initialDatabase.ownerUpdates ?? []);
-    setSelectedPropertyId(initialDatabase.properties[0]?.id ?? "");
+    setSelectedPropertyId(initialDatabase.properties.find((property) => property.status !== "Archived")?.id ?? "");
     setActiveReportId(initialDatabase.inspections[0]?.id ?? "");
     setActiveExperience("Login");
   }
@@ -1670,7 +1745,7 @@ export default function InspectionWorkspace({
     );
   }
 
-  if (!properties.length) {
+  if (!activeProperties.length) {
     return (
       <main className={`mx-auto min-h-screen w-full max-w-[980px] p-3 sm:p-6 ${darkMode ? "luxury-dark" : ""}`}>
         <section className="mb-5 overflow-hidden rounded-lg bg-ink text-white shadow-estate">
@@ -1917,7 +1992,7 @@ export default function InspectionWorkspace({
         activeRole={activeRole}
         activeReport={activeReport}
         now={now}
-        properties={properties}
+        properties={activeProperties}
         maintenanceIssueForm={maintenanceIssueForm}
         maintenanceRecommendation={maintenanceRecommendation}
         maintenanceRecommendationMessage={maintenanceRecommendationMessage}
@@ -2940,6 +3015,25 @@ export default function InspectionWorkspace({
               onUpload={uploadPropertyPhoto}
               onClear={() => setPropertyForm((current) => ({ ...current, photoUrl: "" }))}
             />
+            {editingPropertyId ? (
+              <div className="rounded-lg border border-[#e7cbc4] bg-[#fff8f6] p-4">
+                <p className="text-sm font-extrabold text-[#9f352e]">Archive this property</p>
+                <p className="mt-1 text-sm leading-6 text-slate-600">
+                  Hide this property from Home while preserving inspections, reports, photos, and history.
+                </p>
+                <button
+                  type="button"
+                  disabled={isSavingProperty}
+                  onClick={() => {
+                    const property = properties.find((item) => item.id === editingPropertyId);
+                    if (property) archiveSelectedProperty(property);
+                  }}
+                  className="button-danger mt-3 min-h-10 rounded-lg px-4 text-sm font-extrabold disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  Archive Property
+                </button>
+              </div>
+            ) : null}
             <div className="sticky bottom-0 -mx-5 -mb-5 flex flex-wrap justify-end gap-3 border-t border-gold/20 bg-cream/95 p-5 backdrop-blur">
               <button
                 type="button"

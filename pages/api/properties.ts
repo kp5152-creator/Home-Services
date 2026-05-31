@@ -1,5 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import { addProperty, deleteProperty, readDatabase, updateProperty } from "@/services/database";
+import type { Property } from "@/utils/types";
 
 export const config = {
   api: {
@@ -82,7 +83,8 @@ export default async function handler(request: NextApiRequest, response: NextApi
         phone: String(request.body.phone ?? ""),
         email: String(request.body.email ?? ""),
         accessNotes: String(request.body.accessNotes ?? ""),
-        photoUrl: String(request.body.photoUrl ?? "")
+        photoUrl: String(request.body.photoUrl ?? ""),
+        status: propertyStatus(request.body.status)
       });
 
       if (!property) {
@@ -101,6 +103,10 @@ export default async function handler(request: NextApiRequest, response: NextApi
 
   response.setHeader("Allow", "GET, POST, PATCH, DELETE");
   response.status(405).json({ message: "Method not allowed" });
+}
+
+function propertyStatus(value: unknown): Property["status"] {
+  return value === "Archived" || value === "Seasonal" ? value : "Active";
 }
 
 function formatErrorMessage(error: unknown) {

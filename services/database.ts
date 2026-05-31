@@ -83,7 +83,7 @@ export async function addProperty(property: Omit<Property, "id" | "status">) {
   return newProperty;
 }
 
-export async function updateProperty(propertyId: string, updates: Omit<Property, "id" | "status">) {
+export async function updateProperty(propertyId: string, updates: Omit<Property, "id">) {
   if (hasSupabaseConfig()) {
     return updateSupabaseProperty(propertyId, updates);
   }
@@ -562,7 +562,7 @@ async function addSupabaseProperty(property: Omit<Property, "id" | "status">) {
   return newProperty;
 }
 
-async function updateSupabaseProperty(propertyId: string, updates: Omit<Property, "id" | "status">) {
+async function updateSupabaseProperty(propertyId: string, updates: Omit<Property, "id">) {
   const supabase = supabaseAdmin();
   const { data, error } = await supabase
     .from("properties")
@@ -573,7 +573,8 @@ async function updateSupabaseProperty(propertyId: string, updates: Omit<Property
       phone: updates.phone,
       email: updates.email,
       access_notes: updates.accessNotes,
-      photo_url: updates.photoUrl ?? ""
+      photo_url: updates.photoUrl ?? "",
+      status: updates.status
     })
     .eq("id", propertyId)
     .select("*")

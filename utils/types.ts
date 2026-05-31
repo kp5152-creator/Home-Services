@@ -66,7 +66,7 @@ export type Property = {
   email: string;
   accessNotes: string;
   photoUrl?: string;
-  status: "Active" | "Seasonal";
+  status: "Active" | "Seasonal" | "Archived";
 };
 
 export type MaintenanceIssue = {
