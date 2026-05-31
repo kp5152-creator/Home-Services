@@ -4369,86 +4369,172 @@ function LuxuryExperiencePanel({
 
       {activeExperience === "Owner Portal" ? (
         <div className="grid gap-5">
-          <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(320px,0.85fr)]">
-            <ConceptCard eyebrow="Owner portal" title={selectedProperty ? selectedProperty.name : "Property overview"}>
-              <div className="grid gap-4 lg:grid-cols-[180px_minmax(0,1fr)] lg:items-center">
-                {selectedProperty?.photoUrl ? (
-                  <img
-                    src={selectedProperty.photoUrl}
-                    alt={selectedProperty.name}
-                    className="aspect-[4/3] w-full rounded-lg border border-gold/20 bg-[#252525] object-cover shadow-soft"
-                  />
-                ) : null}
-                <div
-                  className={`rounded-lg border p-4 shadow-soft ${
-                    ownerAttentionCount > 0
-                      ? "border-[#e7cbc4] bg-[#fff8f6]"
-                      : "border-gold/25 bg-cream/85"
-                  }`}
-                >
-                <span className="text-xs font-extrabold uppercase tracking-[0.1em] text-gold">
-                  Current property status
-                </span>
-                <strong
-                  className={`mt-2 block font-serif text-3xl font-semibold leading-tight ${
-                    ownerAttentionCount > 0 ? "text-[#9f352e]" : "text-ink"
-                  }`}
-                >
-                  {ownerPortalStatus}
-                </strong>
-                <p className="mt-2 text-sm leading-6 text-slate-700">{ownerPortalDetail}</p>
-              </div>
-              </div>
-            </ConceptCard>
+          <section className="overflow-hidden rounded-lg border border-gold/25 bg-cream text-ink shadow-estate">
+            <div className="relative min-h-[26rem] bg-[#252525] text-cream">
+              {selectedProperty?.photoUrl ? (
+                <img
+                  src={selectedProperty.photoUrl}
+                  alt={selectedProperty.name}
+                  className="absolute inset-0 h-full w-full object-cover"
+                />
+              ) : null}
+              <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(31,31,31,0.9),rgba(31,31,31,0.56),rgba(31,31,31,0.16)),linear-gradient(0deg,rgba(31,31,31,0.78),rgba(31,31,31,0.04))]" />
+              <div className="relative flex min-h-[26rem] flex-col justify-between p-5 sm:p-7">
+                <div>
+                  <p className="type-eyebrow">Private Owner View</p>
+                  <h2 className="mt-4 max-w-2xl font-serif text-4xl font-semibold leading-tight text-white sm:text-5xl">
+                    {selectedProperty ? selectedProperty.name : "Property overview"}
+                  </h2>
+                  <p className="mt-3 max-w-xl text-sm leading-6 text-[#eae4d8]">
+                    A calm summary of the property’s latest condition, reports, and homeowner-facing updates.
+                  </p>
+                </div>
 
-            <ConceptCard eyebrow="Latest report" title="Homeowner report">
-              {recentReport ? (
-                <div className="grid gap-3">
-                  <div className="rounded-lg border border-gold/15 bg-cream/85 p-4 shadow-soft">
-                    <span className="text-xs font-extrabold uppercase tracking-[0.08em] text-gold">
-                      {getInspectionType(recentReport.checklist)}
-                    </span>
-                    <p className="mt-2 text-sm font-semibold text-slate-600">
-                      {formatDateTime(recentReport.timestamp)} / {recentReport.inspectorName || "Inspector"}
+                <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(280px,0.72fr)] lg:items-end">
+                  <div>
+                    <div className="h-px w-full max-w-md bg-gold/60" />
+                    <p className="mt-4 text-sm font-semibold leading-6 text-[#eae4d8]">
+                      {selectedProperty?.address || "No property selected"}
                     </p>
-                    <p className="mt-3 text-sm leading-6 text-slate-700">{latestExecutiveSummary}</p>
                   </div>
-                  <div className="grid gap-2 sm:grid-cols-2">
-                    <a
-                      href={`/reports/${ownerReportRouteId(recentReport)}`}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="button-soft grid min-h-11 place-items-center rounded-lg px-4 text-sm font-extrabold"
+                  <div className="rounded-lg border border-gold/30 bg-[#252525]/90 p-4 shadow-lift backdrop-blur">
+                    <span className="text-xs font-extrabold uppercase tracking-[0.1em] text-gold">
+                      Current property status
+                    </span>
+                    <strong
+                      className={`mt-2 block font-serif text-3xl font-semibold leading-tight ${
+                        ownerAttentionCount > 0 ? "text-[#f0b7ae]" : "text-white"
+                      }`}
                     >
-                      Open Report
-                    </a>
-                    <a
-                      href={`/api/reports/${ownerReportRouteId(recentReport)}`}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="button-soft grid min-h-11 place-items-center rounded-lg px-4 text-sm font-extrabold"
-                    >
-                      Download PDF
-                    </a>
+                      {ownerPortalStatus}
+                    </strong>
+                    <p className="mt-2 text-sm leading-6 text-[#d8d0c2]">{ownerPortalDetail}</p>
                   </div>
                 </div>
-              ) : (
-                <div className="rounded-lg border border-gold/15 bg-cream/80 p-4 text-sm leading-6 text-slate-600 shadow-soft">
-                  No homeowner report is ready yet.
-                </div>
-              )}
-            </ConceptCard>
-          </div>
+              </div>
+            </div>
 
-          <ConceptCard eyebrow="Owner updates" title="Recent notes">
+            <div className="grid gap-5 p-5 sm:p-6 lg:grid-cols-[minmax(0,1fr)_minmax(320px,0.72fr)]">
+              <section>
+                <div className="mb-3">
+                  <p className="type-eyebrow">Latest Report</p>
+                  <h3 className="mt-1 font-serif text-2xl font-semibold leading-tight text-ink">Homeowner summary</h3>
+                </div>
+                {recentReport ? (
+                  <div className="grid gap-4">
+                    <p className="max-w-3xl text-sm leading-6 text-slate-700">{latestExecutiveSummary}</p>
+                    <div className="grid gap-3 rounded-lg border border-gold/15 bg-cream/80 p-4 sm:grid-cols-3">
+                      <DetailStrip label="Visit" value={getInspectionType(recentReport.checklist)} />
+                      <DetailStrip label="Date" value={formatDateTime(recentReport.timestamp)} />
+                      <DetailStrip label="Inspector" value={recentReport.inspectorName || "Inspector"} />
+                    </div>
+                    <div className="grid gap-2 sm:grid-cols-2">
+                      <a
+                        href={`/reports/${ownerReportRouteId(recentReport)}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="button-soft grid min-h-11 place-items-center rounded-lg px-4 text-sm font-extrabold"
+                      >
+                        Open Report
+                      </a>
+                      <a
+                        href={`/api/reports/${ownerReportRouteId(recentReport)}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="button-soft grid min-h-11 place-items-center rounded-lg px-4 text-sm font-extrabold"
+                      >
+                        Download PDF
+                      </a>
+                    </div>
+                  </div>
+                ) : (
+                  <p className="rounded-lg border border-gold/15 bg-cream/80 p-4 text-sm leading-6 text-slate-600">
+                    No homeowner report is ready yet.
+                  </p>
+                )}
+              </section>
+
+              <section>
+                <div className="mb-3">
+                  <p className="type-eyebrow">Open Items</p>
+                  <h3 className="mt-1 font-serif text-2xl font-semibold leading-tight text-ink">Needs attention</h3>
+                </div>
+                {activeMaintenanceIssues.length ? (
+                  <div className="grid gap-2">
+                    {activeMaintenanceIssues.map((issue) => (
+                      <button
+                        key={issue.id}
+                        type="button"
+                        onClick={() => setSelectedMaintenanceIssueId(issue.id)}
+                        className="rounded-lg border border-gold/15 bg-cream/80 p-3 text-left transition hover:border-gold/45 hover:shadow-soft"
+                      >
+                        <span className="text-xs font-extrabold uppercase tracking-[0.08em] text-gold">
+                          {issue.priority} / {issue.status}
+                        </span>
+                        <strong className="mt-1 block text-sm text-ink">{issue.title}</strong>
+                        {issue.nextStep ? (
+                          <span className="mt-1 block text-xs leading-5 text-slate-600">{issue.nextStep}</span>
+                        ) : null}
+                      </button>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="rounded-lg border border-gold/15 bg-cream/80 p-4 text-sm leading-6 text-slate-600">
+                    No open homeowner-facing items are currently visible.
+                  </p>
+                )}
+              </section>
+            </div>
+          </section>
+
+          <section className="estate-panel rounded-lg p-5">
+            <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+              <div>
+                <p className="type-eyebrow">Owner Updates</p>
+                <h3 className="mt-1 font-serif text-2xl font-semibold leading-tight text-ink">Recent notes</h3>
+              </div>
+              {activeRole !== "Homeowner" ? (
+                <div className="grid gap-2 sm:flex">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setOwnerUpdateForm(emptyOwnerUpdateForm);
+                      setShowOwnerUpdateForm(true);
+                    }}
+                    className="button-soft min-h-10 rounded-lg px-4 text-sm font-extrabold"
+                  >
+                    Draft Update
+                  </button>
+                  <button
+                    type="button"
+                    onClick={draftLatestInspectionOwnerUpdate}
+                    className="button-soft min-h-10 rounded-lg px-4 text-sm font-extrabold"
+                  >
+                    Draft Visit Note
+                  </button>
+                  <button
+                    type="button"
+                    onClick={draftMaintenanceOwnerUpdate}
+                    className="button-soft min-h-10 rounded-lg px-4 text-sm font-extrabold"
+                  >
+                    Maintenance Note
+                  </button>
+                </div>
+              ) : null}
+            </div>
+
             <div className="grid gap-3">
               {latestSharedOwnerUpdate ? (
-                <div className="rounded-lg border border-gold/15 bg-cream/85 p-4 shadow-soft">
+                <button
+                  type="button"
+                  onClick={() => setSelectedOwnerUpdateId(latestSharedOwnerUpdate.id)}
+                  className="rounded-lg border border-gold/15 bg-cream/85 p-4 text-left shadow-soft transition hover:border-gold/45"
+                >
                   <span className="text-xs font-extrabold uppercase tracking-[0.08em] text-gold">
                     Latest shared update
                   </span>
                   <p className="mt-2 text-sm leading-6 text-slate-700">{latestSharedOwnerUpdate.message}</p>
-                </div>
+                </button>
               ) : (
                 <div className="rounded-lg border border-gold/15 bg-cream/85 p-4 text-sm leading-6 text-slate-600 shadow-soft">
                   No updates have been shared with the homeowner yet.
@@ -4467,42 +4553,13 @@ function LuxuryExperiencePanel({
                 </div>
               ) : null}
 
-              {activeRole !== "Homeowner" ? (
-                <div className="grid gap-2 border-t border-gold/15 pt-3 sm:grid-cols-3">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setOwnerUpdateForm(emptyOwnerUpdateForm);
-                      setShowOwnerUpdateForm(true);
-                    }}
-                    className="button-soft min-h-10 rounded-lg px-4 text-sm font-extrabold"
-                  >
-                    Draft Update
-                  </button>
-                  <button
-                    type="button"
-                    onClick={draftLatestInspectionOwnerUpdate}
-                    className="button-soft min-h-10 rounded-lg px-4 text-sm font-extrabold"
-                  >
-                    Draft Report Note
-                  </button>
-                  <button
-                    type="button"
-                    onClick={draftMaintenanceOwnerUpdate}
-                    className="button-soft min-h-10 rounded-lg px-4 text-sm font-extrabold"
-                  >
-                    Maintenance Note
-                  </button>
+              {ownerUpdateSaveMessage ? (
+                <div className="rounded-lg border border-gold/20 bg-warning-soft/50 p-3 text-sm font-semibold text-slate-600">
+                  {ownerUpdateSaveMessage}
                 </div>
               ) : null}
-
-                {ownerUpdateSaveMessage ? (
-                  <div className="rounded-lg border border-gold/20 bg-warning-soft/50 p-3 text-sm font-semibold text-slate-600">
-                    {ownerUpdateSaveMessage}
-                  </div>
-                ) : null}
-              </div>
-          </ConceptCard>
+            </div>
+          </section>
 
           {showOwnerUpdateForm && activeRole !== "Homeowner" ? (
             <div className="estate-modal-backdrop">
