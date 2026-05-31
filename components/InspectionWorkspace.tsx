@@ -3626,13 +3626,24 @@ function LuxuryExperiencePanel({
                   </p>
                   <h2 className="font-serif text-4xl font-semibold leading-tight text-ink">Today’s properties</h2>
                 </div>
-                <button
-                  type="button"
-                  onClick={openAddPropertyForm}
-                  className="button-soft min-h-11 w-full rounded-lg px-4 text-sm font-extrabold sm:w-auto sm:shrink-0"
-                >
-                  Add New Property
-                </button>
+                <div className="grid gap-2 sm:flex sm:w-auto sm:shrink-0">
+                  {selectedProperty ? (
+                    <button
+                      type="button"
+                      onClick={() => openEditPropertyForm(selectedProperty)}
+                      className="button-soft min-h-11 w-full rounded-lg px-4 text-sm font-extrabold sm:w-auto"
+                    >
+                      Edit Selected Property
+                    </button>
+                  ) : null}
+                  <button
+                    type="button"
+                    onClick={openAddPropertyForm}
+                    className="button-soft min-h-11 w-full rounded-lg px-4 text-sm font-extrabold sm:w-auto"
+                  >
+                    Add New Property
+                  </button>
+                </div>
               </div>
               <div className="grid gap-3 lg:grid-cols-2 xl:grid-cols-3">
                 {properties.map((property) => {
@@ -3693,7 +3704,7 @@ function LuxuryExperiencePanel({
                           </span>
                         </span>
                       </button>
-                      <div className="grid gap-2 border-t border-gold/15 p-3 sm:grid-cols-3">
+                      <div className="grid gap-2 border-t border-gold/15 p-3 sm:grid-cols-2">
                         <button
                           type="button"
                           onClick={() => {
@@ -3703,16 +3714,6 @@ function LuxuryExperiencePanel({
                           className="button-soft min-h-10 rounded-lg px-4 text-sm font-extrabold"
                         >
                           View Property
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            onSelectProperty(property.id);
-                            openEditPropertyForm(property);
-                          }}
-                          className="button-soft min-h-10 rounded-lg px-4 text-sm font-extrabold"
-                        >
-                          Edit
                         </button>
                         <button
                           type="button"
