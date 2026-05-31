@@ -4370,7 +4370,7 @@ function LuxuryExperiencePanel({
       {activeExperience === "Owner Portal" ? (
         <div className="grid gap-5">
           <section className="overflow-hidden rounded-lg border border-gold/25 bg-cream text-ink shadow-estate">
-            <div className="relative min-h-[26rem] bg-[#252525] text-cream">
+            <div className="relative min-h-[24rem] bg-[#252525] text-cream sm:min-h-[28rem]">
               {selectedProperty?.photoUrl ? (
                 <img
                   src={selectedProperty.photoUrl}
@@ -4378,26 +4378,26 @@ function LuxuryExperiencePanel({
                   className="absolute inset-0 h-full w-full object-cover"
                 />
               ) : null}
-              <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(31,31,31,0.9),rgba(31,31,31,0.56),rgba(31,31,31,0.16)),linear-gradient(0deg,rgba(31,31,31,0.78),rgba(31,31,31,0.04))]" />
-              <div className="relative flex min-h-[26rem] flex-col justify-between p-5 sm:p-7">
+              <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(31,31,31,0.84),rgba(31,31,31,0.48),rgba(31,31,31,0.08)),linear-gradient(0deg,rgba(31,31,31,0.9),rgba(31,31,31,0.02)_54%)]" />
+              <div className="relative flex min-h-[24rem] flex-col justify-between p-5 sm:min-h-[28rem] sm:p-7">
                 <div>
                   <p className="type-eyebrow">Private Owner View</p>
-                  <h2 className="mt-4 max-w-2xl font-serif text-4xl font-semibold leading-tight text-white sm:text-5xl">
+                  <h2 className="mt-4 max-w-2xl font-serif text-4xl font-semibold leading-tight text-white sm:text-6xl">
                     {selectedProperty ? selectedProperty.name : "Property overview"}
                   </h2>
-                  <p className="mt-3 max-w-xl text-sm leading-6 text-[#eae4d8]">
-                    A calm summary of the property’s latest condition, reports, and homeowner-facing updates.
-                  </p>
                 </div>
 
-                <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(280px,0.72fr)] lg:items-end">
-                  <div>
+                <div className="grid gap-4 rounded-lg border border-gold/25 bg-[#252525]/88 p-4 shadow-lift backdrop-blur lg:grid-cols-[minmax(0,1fr)_minmax(280px,0.72fr)] lg:items-center">
+                  <div className="min-w-0">
                     <div className="h-px w-full max-w-md bg-gold/60" />
                     <p className="mt-4 text-sm font-semibold leading-6 text-[#eae4d8]">
                       {selectedProperty?.address || "No property selected"}
                     </p>
+                    <p className="mt-2 max-w-xl text-sm leading-6 text-[#d8d0c2]">
+                      Latest property condition, reports, and homeowner-facing updates in one private view.
+                    </p>
                   </div>
-                  <div className="rounded-lg border border-gold/30 bg-[#252525]/90 p-4 shadow-lift backdrop-blur">
+                  <div className="border-t border-gold/20 pt-4 lg:border-l lg:border-t-0 lg:pl-5 lg:pt-0">
                     <span className="text-xs font-extrabold uppercase tracking-[0.1em] text-gold">
                       Current property status
                     </span>
