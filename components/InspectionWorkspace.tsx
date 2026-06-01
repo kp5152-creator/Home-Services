@@ -2824,12 +2824,13 @@ export default function InspectionWorkspace({
               key={screen}
               type="button"
               onClick={() => setActiveExperience(screen)}
-              className={`min-h-16 min-w-0 border-t-2 px-1 text-[0.68rem] font-extrabold leading-tight transition ${
+              className={`grid min-h-16 min-w-0 place-items-center gap-1 border-t-2 px-1 py-2 text-[0.68rem] font-extrabold leading-tight transition ${
                 activeExperience === screen
                   ? "border-gold bg-[#252525] text-gold"
                   : "border-transparent bg-[#1f1f1f] text-[#d8d0c2] hover:border-gold/40 hover:bg-[#252525]"
               }`}
             >
+              <MobileTabIcon screen={screen} active={activeExperience === screen} />
               <span className="block truncate">{mobileScreenLabel(screen)}</span>
             </button>
           ))}
@@ -5877,6 +5878,66 @@ function reportConditionStatus(inspection: Inspection) {
     description:
       "This inspection indicates the property is stable with no urgent homeowner action flagged at this time."
   };
+}
+
+function MobileTabIcon({ screen, active }: { screen: ExperienceScreen; active: boolean }) {
+  const iconClass = active ? "text-gold" : "text-[#d8d0c2]";
+
+  return (
+    <span className={`grid h-6 w-6 place-items-center ${iconClass}`} aria-hidden="true">
+      <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+        {screen === "Dashboard" ? (
+          <>
+            <path d="M3.5 11.2 12 4l8.5 7.2" />
+            <path d="M5.5 10.5V20h13v-9.5" />
+            <path d="M9.5 20v-5h5v5" />
+          </>
+        ) : screen === "Property" ? (
+          <>
+            <path d="M4 20h16" />
+            <path d="M6 20V8l6-4 6 4v12" />
+            <path d="M9 20v-5h6v5" />
+            <path d="M9 10h.01M15 10h.01" />
+          </>
+        ) : screen === "Inspection" ? (
+          <>
+            <path d="M8 4h8l1.5 2H20v15H4V6h2.5L8 4Z" />
+            <path d="m8 13 2 2 5-5" />
+            <path d="M8 18h8" />
+          </>
+        ) : screen === "Maintenance" ? (
+          <>
+            <path d="M12 3.5 21 19H3l9-15.5Z" />
+            <path d="M12 9v4" />
+            <path d="M12 17h.01" />
+          </>
+        ) : screen === "Schedule" ? (
+          <>
+            <path d="M7 3v3M17 3v3" />
+            <path d="M4.5 7.5h15" />
+            <rect x="4" y="5" width="16" height="15" rx="2" />
+            <path d="M8 11h.01M12 11h.01M16 11h.01M8 15h.01M12 15h.01" />
+          </>
+        ) : screen === "Reports" ? (
+          <>
+            <path d="M7 3.5h7l4 4V20.5H7z" />
+            <path d="M14 3.5v4h4" />
+            <path d="M9.5 12h5M9.5 15h5M9.5 18h3" />
+          </>
+        ) : screen === "Owner Portal" ? (
+          <>
+            <path d="M12 3.5 19 6v5.5c0 4.2-2.7 7-7 9-4.3-2-7-4.8-7-9V6l7-2.5Z" />
+            <path d="m9 12 2 2 4-4" />
+          </>
+        ) : (
+          <>
+            <path d="M5 12h14" />
+            <path d="M12 5v14" />
+          </>
+        )}
+      </svg>
+    </span>
+  );
 }
 
 function PropertyInput({
