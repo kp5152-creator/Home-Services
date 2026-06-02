@@ -98,6 +98,17 @@ type OwnerUpdateForm = {
   status: OwnerUpdateStatus;
 };
 
+type OwnerRequestType = "Request Service" | "Request Extra Inspection" | "Ask a Question" | "Arrival Prep" | "Report a Concern";
+
+type OwnerConciergeRequestForm = {
+  requestType: OwnerRequestType;
+  subject: string;
+  message: string;
+  urgency: MaintenancePriority;
+  preferredTiming: string;
+  photoFiles: File[];
+};
+
 type FeedbackForm = {
   type: FeedbackType;
   sentiment: FeedbackSentiment;
@@ -215,9 +226,25 @@ const emptyOwnerUpdateForm: OwnerUpdateForm = {
   status: "Draft"
 };
 
+const emptyOwnerConciergeRequestForm: OwnerConciergeRequestForm = {
+  requestType: "Request Service",
+  subject: "",
+  message: "",
+  urgency: "Medium",
+  preferredTiming: "",
+  photoFiles: []
+};
+
 const vendorTypes: VendorType[] = ["Pool", "Landscape", "HVAC", "Cleaning", "Handyman", "Plumbing", "Electrical", "Other"];
 const ownerUpdateCategories: OwnerUpdateCategory[] = ["Inspection", "Maintenance", "Vendor", "Arrival", "General"];
 const ownerUpdateStatuses: OwnerUpdateStatus[] = ["Draft", "Shared", "Archived"];
+const ownerRequestTypes: OwnerRequestType[] = [
+  "Request Service",
+  "Request Extra Inspection",
+  "Ask a Question",
+  "Arrival Prep",
+  "Report a Concern"
+];
 const scheduleTaskTypes: ScheduleTaskType[] = [
   "Home Watch",
   "Pre-Guest Arrival",
@@ -437,6 +464,11 @@ export default function InspectionWorkspace({
   const [selectedVendorId, setSelectedVendorId] = useState("");
   const [showMaintenanceForm, setShowMaintenanceForm] = useState(false);
   const [selectedMaintenanceIssueId, setSelectedMaintenanceIssueId] = useState("");
+  const [showOwnerRequestForm, setShowOwnerRequestForm] = useState(false);
+  const [ownerRequestForm, setOwnerRequestForm] =
+    useState<OwnerConciergeRequestForm>(emptyOwnerConciergeRequestForm);
+  const [ownerRequestMessage, setOwnerRequestMessage] = useState("");
+  const [isSavingOwnerRequest, setIsSavingOwnerRequest] = useState(false);
   const [activeExperience, setActiveExperience] = useState<ExperienceScreen>("Login");
   const [activeRole, setActiveRole] = useState<AppRole>("Admin");
   const [demoMode, setDemoMode] = useState(false);
@@ -1358,6 +1390,119 @@ export default function InspectionWorkspace({
     }
   }
 
+  async function saveOwnerConciergeRequest(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!selectedProperty) {
+      setOwnerRequestMessage("Select a property before sending a request.");
+      return;
+    }
+
+    const subject = ownerRequestForm.subject.trim();
+    const message = ownerRequestForm.message.trim();
+
+    if (!subject || !message) {
+      setOwnerRequestMessage("Add a short subject and message before sending.");
+      return;
+    }
+
+    setIsSavingOwnerRequest(true);
+    setOwnerRequestMessage("Sending concierge request...");
+
+    let photos: Awaited<ReturnType<typeof fileToPhotoUpload>>[];
+
+    try {
+      photos = await Promise.all(ownerRequestForm.photoFiles.map(fileToPhotoUpload));
+    } catch {
+      setOwnerRequestMessage("One or more photos could not be processed. Please try JPEG or PNG photos.");
+      setIsSavingOwnerRequest(false);
+      return;
+    }
+
+    const description = [
+      `Owner request type: ${ownerRequestForm.requestType}`,
+      `Preferred timing: ${ownerRequestForm.preferredTiming.trim() || "Not specified"}`,
+      "",
+      message
+    ].join("\n");
+    const issueBase = {
+      propertyId: selectedProperty.id,
+      title: `${ownerRequestForm.requestType}: ${subject}`,
+      description,
+      priority: ownerRequestForm.urgency,
+      status: "Open" as MaintenanceStatus,
+      vendor: "",
+      nextStep: "Owner request received. Review and respond with the recommended next step."
+    };
+
+    if (demoMode) {
+      const issue: MaintenanceIssue = {
+        id: `demo-owner-request-${Date.now()}`,
+        createdAt: new Date().toISOString(),
+        ...issueBase,
+        photos: photos.map((photo, index) => photoUploadToDemoPhoto(photo, "maintenance", index))
+      };
+
+      setMaintenanceIssues((current) => [issue, ...current]);
+      setOwnerRequestForm(emptyOwnerConciergeRequestForm);
+      setShowOwnerRequestForm(false);
+      setOwnerRequestMessage("Concierge request received. The property team will review it.");
+      setIsSavingOwnerRequest(false);
+      trackAnalyticsEvent({
+        name: "workflow_step",
+        role: activeRole,
+        screen: activeExperience,
+        workflow: "owner_request",
+        target: "request_created",
+        demoMode: true,
+        metadata: { requestType: ownerRequestForm.requestType, priority: issue.priority, photoCount: issue.photos.length }
+      });
+      return;
+    }
+
+    try {
+      const response = await fetch("/api/maintenance-issues", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...issueBase,
+          photos
+        })
+      });
+
+      if (!response.ok) {
+        const error = (await response.json().catch(() => null)) as { message?: string } | null;
+        setOwnerRequestMessage(error?.message || "Concierge request could not be sent. Please try again.");
+        return;
+      }
+
+      const issue = (await response.json()) as MaintenanceIssue;
+      setMaintenanceIssues((current) => [issue, ...current]);
+      setOwnerRequestForm(emptyOwnerConciergeRequestForm);
+      setShowOwnerRequestForm(false);
+      setOwnerRequestMessage("Concierge request received. The property team will review it.");
+      trackAnalyticsEvent({
+        name: "workflow_step",
+        role: activeRole,
+        screen: activeExperience,
+        workflow: "owner_request",
+        target: "request_created",
+        demoMode,
+        metadata: { requestType: ownerRequestForm.requestType, priority: issue.priority, photoCount: issue.photos.length }
+      });
+    } catch {
+      setOwnerRequestMessage("Concierge request could not be sent. Check your connection and try again.");
+    } finally {
+      setIsSavingOwnerRequest(false);
+    }
+  }
+
+  function addOwnerRequestPhotoFiles(files: FileList | null) {
+    setOwnerRequestForm((current) => ({
+      ...current,
+      photoFiles: files ? [...current.photoFiles, ...Array.from(files)] : current.photoFiles
+    }));
+  }
+
   function toggleChecklistItem(item: string) {
     setInspectionForm((current) => ({
       ...current,
@@ -2001,6 +2146,8 @@ export default function InspectionWorkspace({
         ownerUpdateForm={ownerUpdateForm}
         ownerUpdateSaveMessage={ownerUpdateSaveMessage}
         ownerUpdates={selectedOwnerUpdates}
+        ownerRequestForm={ownerRequestForm}
+        ownerRequestMessage={ownerRequestMessage}
         scheduleTaskForm={scheduleTaskForm}
         scheduleSaveMessage={scheduleSaveMessage}
         scheduleTasks={selectedScheduleTasks}
@@ -2023,13 +2170,18 @@ export default function InspectionWorkspace({
         setActiveExperience={setActiveExperience}
         setInspectionForm={setInspectionForm}
         setMaintenanceIssueForm={setMaintenanceIssueForm}
+        setOwnerRequestForm={setOwnerRequestForm}
+        setOwnerRequestMessage={setOwnerRequestMessage}
         setOwnerUpdateForm={setOwnerUpdateForm}
         setScheduleTaskForm={setScheduleTaskForm}
         addMaintenanceIssuePhotoFiles={addMaintenanceIssuePhotoFiles}
+        addOwnerRequestPhotoFiles={addOwnerRequestPhotoFiles}
         saveMaintenanceIssue={saveMaintenanceIssue}
+        saveOwnerConciergeRequest={saveOwnerConciergeRequest}
         saveOwnerUpdate={saveOwnerUpdate}
         saveScheduleTask={saveScheduleTask}
         isSavingMaintenanceIssue={isSavingMaintenanceIssue}
+        isSavingOwnerRequest={isSavingOwnerRequest}
         isSavingOwnerUpdate={isSavingOwnerUpdate}
         isSavingScheduleTask={isSavingScheduleTask}
         maintenanceSaveMessage={maintenanceSaveMessage}
@@ -2038,6 +2190,8 @@ export default function InspectionWorkspace({
         setMaintenanceRecommendationMessage={setMaintenanceRecommendationMessage}
         showMaintenanceForm={showMaintenanceForm}
         setShowMaintenanceForm={setShowMaintenanceForm}
+        showOwnerRequestForm={showOwnerRequestForm}
+        setShowOwnerRequestForm={setShowOwnerRequestForm}
         setSelectedMaintenanceIssueId={setSelectedMaintenanceIssueId}
         upcomingScheduleTasks={upcomingScheduleTasks}
         updateMaintenanceStatus={updateMaintenanceStatus}
@@ -3287,6 +3441,8 @@ function LuxuryExperiencePanel({
   maintenanceSaveMessage,
   setMaintenanceSaveMessage,
   now,
+  ownerRequestForm,
+  ownerRequestMessage,
   ownerUpdateForm,
   ownerUpdateSaveMessage,
   ownerUpdates,
@@ -3296,6 +3452,7 @@ function LuxuryExperiencePanel({
   scheduleSaveMessage,
   scheduleTasks,
   saveMaintenanceIssue,
+  saveOwnerConciergeRequest,
   saveOwnerUpdate,
   saveScheduleTask,
   saveVendor,
@@ -3310,14 +3467,20 @@ function LuxuryExperiencePanel({
   setMaintenanceRecommendation,
   setMaintenanceRecommendationMessage,
   setMaintenanceIssueForm,
+  setOwnerRequestForm,
+  setOwnerRequestMessage,
   showMaintenanceForm,
   setShowMaintenanceForm,
+  showOwnerRequestForm,
+  setShowOwnerRequestForm,
   setSelectedMaintenanceIssueId,
   setOwnerUpdateForm,
   setScheduleTaskForm,
   setVendorForm,
   suggestMaintenanceRecommendation,
+  addOwnerRequestPhotoFiles,
   isSavingOwnerUpdate,
+  isSavingOwnerRequest,
   isSavingScheduleTask,
   isSavingMaintenanceIssue,
   upcomingScheduleTasks,
@@ -3348,6 +3511,8 @@ function LuxuryExperiencePanel({
   maintenanceSaveMessage: string;
   setMaintenanceSaveMessage: Dispatch<SetStateAction<string>>;
   now: Date;
+  ownerRequestForm: OwnerConciergeRequestForm;
+  ownerRequestMessage: string;
   ownerUpdateForm: OwnerUpdateForm;
   ownerUpdateSaveMessage: string;
   ownerUpdates: OwnerUpdate[];
@@ -3357,6 +3522,7 @@ function LuxuryExperiencePanel({
   scheduleSaveMessage: string;
   scheduleTasks: ScheduleTask[];
   saveMaintenanceIssue: (event: FormEvent<HTMLFormElement>) => void;
+  saveOwnerConciergeRequest: (event: FormEvent<HTMLFormElement>) => void;
   saveOwnerUpdate: (event: FormEvent<HTMLFormElement>) => void;
   saveScheduleTask: (event: FormEvent<HTMLFormElement>) => void;
   saveVendor: (event: FormEvent<HTMLFormElement>) => void;
@@ -3371,14 +3537,20 @@ function LuxuryExperiencePanel({
   setMaintenanceRecommendation: Dispatch<SetStateAction<MaintenanceRecommendation | null>>;
   setMaintenanceRecommendationMessage: Dispatch<SetStateAction<string>>;
   setMaintenanceIssueForm: Dispatch<SetStateAction<MaintenanceIssueForm>>;
+  setOwnerRequestForm: Dispatch<SetStateAction<OwnerConciergeRequestForm>>;
+  setOwnerRequestMessage: Dispatch<SetStateAction<string>>;
   showMaintenanceForm: boolean;
   setShowMaintenanceForm: Dispatch<SetStateAction<boolean>>;
+  showOwnerRequestForm: boolean;
+  setShowOwnerRequestForm: Dispatch<SetStateAction<boolean>>;
   setSelectedMaintenanceIssueId: Dispatch<SetStateAction<string>>;
   setOwnerUpdateForm: Dispatch<SetStateAction<OwnerUpdateForm>>;
   setScheduleTaskForm: Dispatch<SetStateAction<ScheduleTaskForm>>;
   setVendorForm: Dispatch<SetStateAction<VendorForm>>;
   suggestMaintenanceRecommendation: () => void;
+  addOwnerRequestPhotoFiles: (files: FileList | null) => void;
   isSavingOwnerUpdate: boolean;
+  isSavingOwnerRequest: boolean;
   isSavingScheduleTask: boolean;
   updateMaintenanceStatus: (issueId: string, status: MaintenanceStatus) => void;
   updateMaintenanceIssue: (issueId: string, updates: Partial<MaintenanceIssueForm>) => Promise<MaintenanceIssue>;
@@ -4582,6 +4754,44 @@ function LuxuryExperiencePanel({
             </div>
           </section>
 
+          <section className="overflow-hidden rounded-lg border border-gold/25 bg-[#252525] text-cream shadow-estate">
+            <div className="grid gap-5 bg-[radial-gradient(circle_at_top_right,rgba(229,199,107,0.2),transparent_24rem),linear-gradient(135deg,rgba(31,31,31,0.98),rgba(44,44,44,0.94))] p-5 sm:p-6 lg:grid-cols-[minmax(0,1fr)_minmax(280px,0.48fr)] lg:items-center">
+              <div>
+                <p className="type-eyebrow">Concierge Desk</p>
+                <h3 className="mt-2 font-serif text-3xl font-semibold leading-tight text-white">
+                  Need something handled at the property?
+                </h3>
+                <p className="mt-3 max-w-3xl text-sm leading-6 text-[#d8d0c2]">
+                  Send a private request for service, an extra inspection, arrival preparation, or a homeowner question.
+                  The estate team reviews every request before assigning next steps.
+                </p>
+              </div>
+              <div className="rounded-lg border border-gold/25 bg-[#1f1f1f]/72 p-4 shadow-lift backdrop-blur">
+                <div className="mb-4 grid grid-cols-3 gap-2 text-center">
+                  <DetailStrip label="Requests" value={`${activeMaintenanceIssues.length}`} dark />
+                  <DetailStrip label="Status" value={ownerAttentionCount > 0 ? "Review" : "Calm"} dark />
+                  <DetailStrip label="Privacy" value="Private" dark />
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setOwnerRequestForm(emptyOwnerConciergeRequestForm);
+                    setOwnerRequestMessage("");
+                    setShowOwnerRequestForm(true);
+                  }}
+                  className="button-soft min-h-12 w-full rounded-lg px-5 text-sm font-extrabold"
+                >
+                  Request Concierge Support
+                </button>
+                {ownerRequestMessage ? (
+                  <p className="mt-3 rounded-lg border border-gold/20 bg-cream/10 p-3 text-sm font-semibold leading-5 text-[#eae4d8]">
+                    {ownerRequestMessage}
+                  </p>
+                ) : null}
+              </div>
+            </div>
+          </section>
+
           <section className="estate-panel rounded-lg p-5">
             <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
               <div>
@@ -4743,6 +4953,160 @@ function LuxuryExperiencePanel({
                   className="button-soft min-h-12 rounded-lg px-5 font-extrabold disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   {isSavingOwnerUpdate ? "Saving..." : "Save Update"}
+                </button>
+              </form>
+            </div>
+          ) : null}
+
+          {showOwnerRequestForm ? (
+            <div className="estate-modal-backdrop">
+              <form
+                className="estate-modal-panel grid max-h-[calc(100svh-2rem)] w-full max-w-2xl gap-4 overflow-y-auto p-5"
+                onSubmit={saveOwnerConciergeRequest}
+              >
+                <div className="flex items-start justify-between gap-3 border-b border-gold/20 pb-4">
+                  <div>
+                    <span className="text-xs font-extrabold uppercase tracking-[0.1em] text-clay">
+                      Concierge request
+                    </span>
+                    <h3 className="mt-1 font-serif text-3xl font-semibold leading-tight text-ink">
+                      How can the estate team help?
+                    </h3>
+                    <p className="mt-2 max-w-xl text-sm leading-6 text-slate-600">
+                      Your request will be reviewed by the property team before any service or inspection is scheduled.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setShowOwnerRequestForm(false)}
+                    className="button-soft min-h-10 shrink-0 rounded-lg px-4 text-sm font-extrabold"
+                  >
+                    Close
+                  </button>
+                </div>
+
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <label className="grid gap-2 text-sm font-extrabold text-ink">
+                    Request type
+                    <select
+                      value={ownerRequestForm.requestType}
+                      onChange={(event) =>
+                        setOwnerRequestForm((current) => ({
+                          ...current,
+                          requestType: event.target.value as OwnerRequestType
+                        }))
+                      }
+                      className="field-shell rounded-lg p-3"
+                    >
+                      {ownerRequestTypes.map((requestType) => (
+                        <option key={requestType}>{requestType}</option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="grid gap-2 text-sm font-extrabold text-ink">
+                    Urgency
+                    <select
+                      value={ownerRequestForm.urgency}
+                      onChange={(event) =>
+                        setOwnerRequestForm((current) => ({
+                          ...current,
+                          urgency: event.target.value as MaintenancePriority
+                        }))
+                      }
+                      className="field-shell rounded-lg p-3"
+                    >
+                      {(["Low", "Medium", "High", "Urgent"] as MaintenancePriority[]).map((priority) => (
+                        <option key={priority}>{priority}</option>
+                      ))}
+                    </select>
+                  </label>
+                </div>
+
+                <label className="grid gap-2 text-sm font-extrabold text-ink">
+                  Subject
+                  <input
+                    required
+                    value={ownerRequestForm.subject}
+                    onChange={(event) => setOwnerRequestForm((current) => ({ ...current, subject: event.target.value }))}
+                    className="field-shell rounded-lg p-3"
+                    placeholder="Pool heater question, arrival prep, extra property check..."
+                  />
+                </label>
+
+                <label className="grid gap-2 text-sm font-extrabold text-ink">
+                  Preferred timing
+                  <input
+                    value={ownerRequestForm.preferredTiming}
+                    onChange={(event) =>
+                      setOwnerRequestForm((current) => ({ ...current, preferredTiming: event.target.value }))
+                    }
+                    className="field-shell rounded-lg p-3"
+                    placeholder="This week, before Friday arrival, next visit is fine..."
+                  />
+                </label>
+
+                <label className="grid gap-2 text-sm font-extrabold text-ink">
+                  Message
+                  <textarea
+                    required
+                    rows={5}
+                    value={ownerRequestForm.message}
+                    onChange={(event) => setOwnerRequestForm((current) => ({ ...current, message: event.target.value }))}
+                    className="field-shell rounded-lg p-3"
+                    placeholder="Describe what you would like the property team to review or handle."
+                  />
+                </label>
+
+                <label className="grid min-h-24 content-center gap-2 rounded-lg border border-dashed border-gold/40 bg-warning-soft/50 p-4 text-sm font-extrabold text-ink shadow-soft transition hover:border-gold">
+                  Attach photos
+                  <input
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    onChange={(event) => addOwnerRequestPhotoFiles(event.target.files)}
+                    className="w-full min-w-0 text-xs font-semibold text-muted file:mr-3 file:rounded-lg file:border-0 file:bg-[#252525] file:px-3 file:py-2 file:text-xs file:font-extrabold file:text-cream"
+                  />
+                </label>
+
+                {ownerRequestForm.photoFiles.length ? (
+                  <div className="rounded-lg border border-line bg-[#fbfcfb] p-3 text-sm text-slate-600">
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                      <strong className="text-ink">
+                        {ownerRequestForm.photoFiles.length} photo selected
+                        {ownerRequestForm.photoFiles.length === 1 ? "" : "s"}
+                      </strong>
+                      <button
+                        type="button"
+                        onClick={() => setOwnerRequestForm((current) => ({ ...current, photoFiles: [] }))}
+                        className="font-extrabold text-[#9f352e]"
+                      >
+                        Clear photos
+                      </button>
+                    </div>
+                    <SelectedPhotoPreviewGrid
+                      files={ownerRequestForm.photoFiles}
+                      onRemove={(removeIndex) =>
+                        setOwnerRequestForm((current) => ({
+                          ...current,
+                          photoFiles: current.photoFiles.filter((_, index) => index !== removeIndex)
+                        }))
+                      }
+                    />
+                  </div>
+                ) : null}
+
+                {ownerRequestMessage ? (
+                  <p className="rounded-lg border border-gold/20 bg-warning-soft/50 p-3 text-sm font-semibold text-slate-600">
+                    {ownerRequestMessage}
+                  </p>
+                ) : null}
+
+                <button
+                  type="submit"
+                  disabled={isSavingOwnerRequest}
+                  className="button-soft min-h-12 rounded-lg px-5 font-extrabold disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {isSavingOwnerRequest ? "Sending..." : "Send Concierge Request"}
                 </button>
               </form>
             </div>
@@ -5689,11 +6053,11 @@ function MaintenanceIssueCard({
   );
 }
 
-function DetailStrip({ label, value }: { label: string; value: string }) {
+function DetailStrip({ label, value, dark = false }: { label: string; value: string; dark?: boolean }) {
   return (
-    <div className="rounded-lg border border-gold/15 bg-cream/80 p-3 shadow-soft">
+    <div className={`rounded-lg border p-3 shadow-soft ${dark ? "border-gold/20 bg-cream/10" : "border-gold/15 bg-cream/80"}`}>
       <span className="block text-xs font-extrabold uppercase tracking-[0.08em] text-gold">{label}</span>
-      <strong className="mt-1 block text-ink">{value}</strong>
+      <strong className={`mt-1 block ${dark ? "text-cream" : "text-ink"}`}>{value}</strong>
     </div>
   );
 }
