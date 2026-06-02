@@ -552,7 +552,7 @@ export default function InspectionWorkspace({
   const selectedReportAction =
     selectedInspections.find((inspection) => inspection.id === selectedReportActionId) ?? null;
   const reportRouteId = (inspection: Inspection) =>
-    demoMode && inspection.id.startsWith("demo-inspection-") && !demoDatabase.inspections.some((item) => item.id === inspection.id)
+    inspection.id.startsWith("demo-inspection-") && !demoDatabase.inspections.some((item) => item.id === inspection.id)
       ? demoDatabase.inspections[0]?.id ?? inspection.id
       : inspection.id;
   const selectedNextScheduleTask = selectedScheduleTasks.find((task) => !["Complete", "Skipped"].includes(task.status));

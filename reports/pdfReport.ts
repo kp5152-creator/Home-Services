@@ -1,6 +1,7 @@
 import fs from "fs/promises";
 import path from "path";
 import PDFDocument from "pdfkit";
+import sharp from "sharp";
 import { getInspectionType, groupChecklistItems, visibleChecklistItems } from "@/utils/checklists";
 import { readPhotoAsset } from "@/services/database";
 import type { Inspection, InspectionPhoto, Property } from "@/utils/types";
@@ -55,10 +56,11 @@ export async function writeInspectionReportPdf(
 async function loadReportPhoto(inspectionId: string, photo: InspectionPhoto) {
   const filename = path.basename(photo.url);
   if (photo.url.startsWith("/demo-")) {
-    return { buffer: await fs.readFile(path.join(process.cwd(), "public", filename)) };
+    return { buffer: await pdfReadyImageBuffer(await fs.readFile(path.join(process.cwd(), "public", filename))) };
   }
 
-  return readPhotoAsset(inspectionId, filename);
+  const asset = await readPhotoAsset(inspectionId, filename);
+  return asset ? { buffer: await pdfReadyImageBuffer(asset.buffer) } : null;
 }
 
 async function loadPropertyPhoto(photoUrl: string | undefined) {
@@ -66,18 +68,35 @@ async function loadPropertyPhoto(photoUrl: string | undefined) {
 
   if (photoUrl.startsWith("data:image/")) {
     const base64 = photoUrl.split(",").pop();
-    return base64 ? { buffer: Buffer.from(base64, "base64") } : null;
+    return base64 ? { buffer: await pdfReadyImageBuffer(Buffer.from(base64, "base64")) } : null;
   }
 
   if (photoUrl.startsWith("/") && !photoUrl.startsWith("/api/")) {
     try {
-      return { buffer: await fs.readFile(path.join(process.cwd(), "public", photoUrl.replace(/^\/+/, ""))) };
+      return { buffer: await pdfReadyImageBuffer(await fs.readFile(path.join(process.cwd(), "public", photoUrl.replace(/^\/+/, "")))) };
     } catch {
       return null;
     }
   }
 
   return null;
+}
+
+async function pdfReadyImageBuffer(buffer: Buffer) {
+  if (isPdfSupportedImage(buffer)) return buffer;
+
+  return sharp(buffer).jpeg({ quality: 88 }).toBuffer();
+}
+
+function isPdfSupportedImage(buffer: Buffer) {
+  const isJpeg = buffer[0] === 0xff && buffer[1] === 0xd8;
+  const isPng =
+    buffer[0] === 0x89 &&
+    buffer[1] === 0x50 &&
+    buffer[2] === 0x4e &&
+    buffer[3] === 0x47;
+
+  return isJpeg || isPng;
 }
 
 function drawCoverPage(
@@ -91,7 +110,11 @@ function drawCoverPage(
   if (coverImage) {
     doc.save();
     doc.rect(0, 0, 612, 470).clip();
-    doc.image(coverImage, 0, 0, { cover: [612, 470], align: "center", valign: "center" });
+    try {
+      doc.image(coverImage, 0, 0, { cover: [612, 470], align: "center", valign: "center" });
+    } catch {
+      doc.rect(0, 0, 612, 470).fill(palette.charcoal);
+    }
     doc.restore();
   } else {
     doc.rect(0, 0, 612, 470).fill(palette.charcoal);
