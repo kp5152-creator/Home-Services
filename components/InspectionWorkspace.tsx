@@ -3580,6 +3580,7 @@ function LuxuryExperiencePanel({
   const [showOwnerUpdateForm, setShowOwnerUpdateForm] = useState(false);
   const [selectedOwnerUpdateId, setSelectedOwnerUpdateId] = useState("");
   const selectedOwnerUpdate = ownerUpdates.find((update) => update.id === selectedOwnerUpdateId) ?? null;
+  const homeownerFirstName = selectedProperty?.owner?.trim().split(/\s+/)[0] || "there";
   const ownerAttentionCount = urgentCount + urgentMaintenanceCount;
   const ownerPortalStatus = ownerAttentionCount > 0 ? "Attention Recommended" : "Property Stable";
   const ownerPortalDetail =
@@ -3599,6 +3600,12 @@ function LuxuryExperiencePanel({
   const activeScheduleTasks = scheduleTasks
     .filter((task) => !["Complete", "Skipped"].includes(task.status))
     .sort((first, second) => new Date(first.scheduledFor).getTime() - new Date(second.scheduledFor).getTime());
+  const nextArrivalTask = activeScheduleTasks.find(
+    (task) => task.type === "Pre-Guest Arrival" || /arrival|arrive|guest/i.test(`${task.title} ${task.notes}`)
+  );
+  const daysUntilArrival = nextArrivalTask
+    ? Math.max(0, Math.ceil((new Date(nextArrivalTask.scheduledFor).getTime() - now.getTime()) / 86400000))
+    : null;
   const completedScheduleTasks = scheduleTasks.filter((task) => task.status === "Complete");
   const [showScheduleForm, setShowScheduleForm] = useState(false);
   const [selectedScheduleTaskId, setSelectedScheduleTaskId] = useState("");
@@ -3610,6 +3617,25 @@ function LuxuryExperiencePanel({
     setSelectedOwnerUpdateId("");
     setShowOwnerUpdateForm(false);
   }, [selectedPropertyId]);
+
+  function openAnticipatoryOwnerRequest(
+    requestType: OwnerRequestType,
+    subject: string,
+    message: string,
+    urgency: MaintenancePriority,
+    preferredTiming: string
+  ) {
+    setOwnerRequestForm({
+      requestType,
+      subject,
+      message,
+      urgency,
+      preferredTiming,
+      photoFiles: []
+    });
+    setOwnerRequestMessage("");
+    setShowOwnerRequestForm(true);
+  }
 
   function localDateTimeValue(daysFromNow: number, hour: number, minute = 0) {
     const date = new Date();
@@ -4649,6 +4675,9 @@ function LuxuryExperiencePanel({
               <div className="relative flex min-h-[24rem] flex-col justify-between p-5 sm:min-h-[28rem] sm:p-7">
                 <div>
                   <p className="type-eyebrow">Private Owner View</p>
+                  <p className="mt-4 text-sm font-semibold leading-6 text-[#eae4d8] sm:text-base">
+                    Welcome back, {homeownerFirstName}.
+                  </p>
                   <h2 className="mt-4 max-w-2xl font-serif text-4xl font-semibold leading-tight text-white sm:text-6xl">
                     {selectedProperty ? selectedProperty.name : "Property overview"}
                   </h2>
@@ -4661,7 +4690,7 @@ function LuxuryExperiencePanel({
                       {selectedProperty?.address || "No property selected"}
                     </p>
                     <p className="mt-2 max-w-xl text-sm leading-6 text-[#d8d0c2]">
-                      Latest property condition, reports, and homeowner-facing updates in one private view.
+                      Your property is being watched, documented, and cared for with discreet estate-level service.
                     </p>
                   </div>
                   <div className="border-t border-gold/20 pt-4 lg:border-l lg:border-t-0 lg:pl-5 lg:pt-0">
@@ -4754,6 +4783,79 @@ function LuxuryExperiencePanel({
             </div>
           </section>
 
+          <section className="estate-panel rounded-lg p-5">
+            <div className="mb-4">
+              <p className="type-eyebrow">Anticipatory Services</p>
+              <h3 className="mt-1 font-serif text-3xl font-semibold leading-tight text-ink">Recommended for you</h3>
+              <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
+                Thoughtful prompts based on upcoming property needs and seasonal conditions.
+              </p>
+            </div>
+            <div className="grid gap-3 lg:grid-cols-2">
+              <button
+                type="button"
+                onClick={() =>
+                  openAnticipatoryOwnerRequest(
+                    "Arrival Prep",
+                    "Arrival Preparation Inspection",
+                    nextArrivalTask
+                      ? `Please prepare the property ahead of the upcoming arrival scheduled for ${formatDateTime(nextArrivalTask.scheduledFor)}.`
+                      : "Please schedule an arrival preparation inspection before my next stay.",
+                    "Medium",
+                    nextArrivalTask ? `${daysUntilArrival} day${daysUntilArrival === 1 ? "" : "s"} before arrival` : "Before next arrival"
+                  )
+                }
+                className="grid gap-4 rounded-lg border border-gold/20 bg-cream/85 p-4 text-left shadow-soft transition hover:border-gold/50 hover:shadow-lift"
+              >
+                <span className="flex items-start justify-between gap-3">
+                  <span>
+                    <span className="type-eyebrow">Arrival Reminder</span>
+                    <strong className="mt-2 block font-serif text-2xl font-semibold leading-tight text-ink">
+                      {daysUntilArrival !== null
+                        ? `We noticed your arrival is in ${daysUntilArrival} day${daysUntilArrival === 1 ? "" : "s"}.`
+                        : "Planning a visit soon?"}
+                    </strong>
+                  </span>
+                  <span className="rounded-full border border-gold/25 bg-warning-soft px-3 py-1 text-xs font-extrabold text-ink">
+                    Prepare
+                  </span>
+                </span>
+                <span className="text-sm leading-6 text-slate-600">
+                  Would you like an arrival preparation inspection so the home is ready before you arrive?
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() =>
+                  openAnticipatoryOwnerRequest(
+                    "Request Extra Inspection",
+                    "Supplemental HVAC Inspection",
+                    "Please perform a supplemental HVAC and thermostat check due to recent extreme heat conditions.",
+                    "High",
+                    "As soon as the team is available"
+                  )
+                }
+                className="grid gap-4 rounded-lg border border-gold/20 bg-[#252525] p-4 text-left text-cream shadow-soft transition hover:border-gold/60 hover:shadow-lift"
+              >
+                <span className="flex items-start justify-between gap-3">
+                  <span>
+                    <span className="type-eyebrow">Heat Advisory</span>
+                    <strong className="mt-2 block font-serif text-2xl font-semibold leading-tight text-white">
+                      Extreme heat can stress HVAC systems.
+                    </strong>
+                  </span>
+                  <span className="rounded-full border border-gold/30 bg-cream/10 px-3 py-1 text-xs font-extrabold text-gold">
+                    Protect
+                  </span>
+                </span>
+                <span className="text-sm leading-6 text-[#d8d0c2]">
+                  Would you like a supplemental HVAC inspection after elevated desert temperatures?
+                </span>
+              </button>
+            </div>
+          </section>
+
           <section className="overflow-hidden rounded-lg border border-gold/25 bg-[#252525] text-cream shadow-estate">
             <div className="grid gap-5 bg-[radial-gradient(circle_at_top_right,rgba(229,199,107,0.2),transparent_24rem),linear-gradient(135deg,rgba(31,31,31,0.98),rgba(44,44,44,0.94))] p-5 sm:p-6 lg:grid-cols-[minmax(0,1fr)_minmax(280px,0.48fr)] lg:items-center">
               <div>
@@ -4792,40 +4894,39 @@ function LuxuryExperiencePanel({
             </div>
           </section>
 
+          {activeRole !== "Homeowner" ? (
           <section className="estate-panel rounded-lg p-5">
             <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
               <div>
-                <p className="type-eyebrow">Owner Updates</p>
-                <h3 className="mt-1 font-serif text-2xl font-semibold leading-tight text-ink">Recent notes</h3>
+                <p className="type-eyebrow">Owner Communication</p>
+                <h3 className="mt-1 font-serif text-2xl font-semibold leading-tight text-ink">Shared messages</h3>
               </div>
-              {activeRole !== "Homeowner" ? (
-                <div className="grid gap-2 sm:flex">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setOwnerUpdateForm(emptyOwnerUpdateForm);
-                      setShowOwnerUpdateForm(true);
-                    }}
-                    className="button-soft min-h-10 rounded-lg px-4 text-sm font-extrabold"
-                  >
-                    Draft Update
-                  </button>
-                  <button
-                    type="button"
-                    onClick={draftLatestInspectionOwnerUpdate}
-                    className="button-soft min-h-10 rounded-lg px-4 text-sm font-extrabold"
-                  >
-                    Draft Visit Note
-                  </button>
-                  <button
-                    type="button"
-                    onClick={draftMaintenanceOwnerUpdate}
-                    className="button-soft min-h-10 rounded-lg px-4 text-sm font-extrabold"
-                  >
-                    Maintenance Note
-                  </button>
-                </div>
-              ) : null}
+              <div className="grid gap-2 sm:flex">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setOwnerUpdateForm(emptyOwnerUpdateForm);
+                    setShowOwnerUpdateForm(true);
+                  }}
+                  className="button-soft min-h-10 rounded-lg px-4 text-sm font-extrabold"
+                >
+                  Draft Update
+                </button>
+                <button
+                  type="button"
+                  onClick={draftLatestInspectionOwnerUpdate}
+                  className="button-soft min-h-10 rounded-lg px-4 text-sm font-extrabold"
+                >
+                  Draft Visit Note
+                </button>
+                <button
+                  type="button"
+                  onClick={draftMaintenanceOwnerUpdate}
+                  className="button-soft min-h-10 rounded-lg px-4 text-sm font-extrabold"
+                >
+                  Maintenance Note
+                </button>
+              </div>
             </div>
 
             <div className="grid gap-3">
@@ -4865,6 +4966,7 @@ function LuxuryExperiencePanel({
               ) : null}
             </div>
           </section>
+          ) : null}
 
           {showOwnerUpdateForm && activeRole !== "Homeowner" ? (
             <div className="estate-modal-backdrop">
