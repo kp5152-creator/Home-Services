@@ -4784,16 +4784,38 @@ function LuxuryExperiencePanel({
           </section>
 
           <section className="estate-panel rounded-lg p-5">
-            <div className="mb-4">
-              <p className="type-eyebrow">Anticipatory Services</p>
-              <h3 className="mt-1 font-serif text-3xl font-semibold leading-tight text-ink">Recommended for you</h3>
-              <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
-                Thoughtful prompts based on upcoming property needs and seasonal conditions.
-              </p>
-            </div>
-            <div className="grid gap-3 lg:grid-cols-2">
+            <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+              <div>
+                <p className="type-eyebrow">Concierge Desk</p>
+                <h3 className="mt-1 font-serif text-3xl font-semibold leading-tight text-ink">
+                  Recommended for your property
+                </h3>
+                <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
+                  Thoughtful service suggestions and private requests, reviewed by the estate team before any next step.
+                </p>
+              </div>
               <button
                 type="button"
+                onClick={() => {
+                  setOwnerRequestForm(emptyOwnerConciergeRequestForm);
+                  setOwnerRequestMessage("");
+                  setShowOwnerRequestForm(true);
+                }}
+                className="button-soft min-h-11 rounded-lg px-5 text-sm font-extrabold"
+              >
+                Custom Request
+              </button>
+            </div>
+            <div className="grid gap-3 lg:grid-cols-2">
+              <OwnerConciergePrompt
+                eyebrow="Arrival Reminder"
+                title={
+                  daysUntilArrival !== null
+                    ? `We noticed your arrival is in ${daysUntilArrival} day${daysUntilArrival === 1 ? "" : "s"}.`
+                    : "Planning a visit soon?"
+                }
+                description="Would you like an arrival preparation inspection so the home is ready before you arrive?"
+                actionLabel="Request Arrival Prep"
                 onClick={() =>
                   openAnticipatoryOwnerRequest(
                     "Arrival Prep",
@@ -4805,28 +4827,13 @@ function LuxuryExperiencePanel({
                     nextArrivalTask ? `${daysUntilArrival} day${daysUntilArrival === 1 ? "" : "s"} before arrival` : "Before next arrival"
                   )
                 }
-                className="grid gap-4 rounded-lg border border-gold/20 bg-cream/85 p-4 text-left shadow-soft transition hover:border-gold/50 hover:shadow-lift"
-              >
-                <span className="flex items-start justify-between gap-3">
-                  <span>
-                    <span className="type-eyebrow">Arrival Reminder</span>
-                    <strong className="mt-2 block font-serif text-2xl font-semibold leading-tight text-ink">
-                      {daysUntilArrival !== null
-                        ? `We noticed your arrival is in ${daysUntilArrival} day${daysUntilArrival === 1 ? "" : "s"}.`
-                        : "Planning a visit soon?"}
-                    </strong>
-                  </span>
-                  <span className="rounded-full border border-gold/25 bg-warning-soft px-3 py-1 text-xs font-extrabold text-ink">
-                    Prepare
-                  </span>
-                </span>
-                <span className="text-sm leading-6 text-slate-600">
-                  Would you like an arrival preparation inspection so the home is ready before you arrive?
-                </span>
-              </button>
+              />
 
-              <button
-                type="button"
+              <OwnerConciergePrompt
+                eyebrow="Heat Advisory"
+                title="Extreme heat can stress HVAC systems."
+                description="Would you like a supplemental HVAC inspection after elevated desert temperatures?"
+                actionLabel="Request HVAC Check"
                 onClick={() =>
                   openAnticipatoryOwnerRequest(
                     "Request Extra Inspection",
@@ -4836,62 +4843,13 @@ function LuxuryExperiencePanel({
                     "As soon as the team is available"
                   )
                 }
-                className="grid gap-4 rounded-lg border border-gold/20 bg-cream/85 p-4 text-left shadow-soft transition hover:border-gold/50 hover:shadow-lift"
-              >
-                <span className="flex items-start justify-between gap-3">
-                  <span>
-                    <span className="type-eyebrow">Heat Advisory</span>
-                    <strong className="mt-2 block font-serif text-2xl font-semibold leading-tight text-ink">
-                      Extreme heat can stress HVAC systems.
-                    </strong>
-                  </span>
-                  <span className="rounded-full border border-gold/25 bg-warning-soft px-3 py-1 text-xs font-extrabold text-ink">
-                    Protect
-                  </span>
-                </span>
-                <span className="text-sm leading-6 text-slate-600">
-                  Would you like a supplemental HVAC inspection after elevated desert temperatures?
-                </span>
-              </button>
+              />
             </div>
-          </section>
-
-          <section className="overflow-hidden rounded-lg border border-gold/20 bg-cream text-ink shadow-estate">
-            <div className="grid gap-5 bg-[linear-gradient(135deg,rgba(245,242,234,0.98),rgba(234,228,216,0.9))] p-5 sm:p-6 lg:grid-cols-[minmax(0,1fr)_minmax(280px,0.48fr)] lg:items-center">
-              <div>
-                <p className="type-eyebrow">Concierge Desk</p>
-                <h3 className="mt-2 font-serif text-3xl font-semibold leading-tight text-ink">
-                  Need something handled at the property?
-                </h3>
-                <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-600">
-                  Send a private request for service, an extra inspection, arrival preparation, or a homeowner question.
-                  The estate team reviews every request before assigning next steps.
-                </p>
-              </div>
-              <div className="rounded-lg border border-gold/20 bg-cream/95 p-4 shadow-soft">
-                <div className="mb-4 grid grid-cols-3 gap-2 text-center">
-                  <DetailStrip label="Requests" value={`${activeMaintenanceIssues.length}`} />
-                  <DetailStrip label="Status" value={ownerAttentionCount > 0 ? "Review" : "Calm"} />
-                  <DetailStrip label="Privacy" value="Private" />
-                </div>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setOwnerRequestForm(emptyOwnerConciergeRequestForm);
-                    setOwnerRequestMessage("");
-                    setShowOwnerRequestForm(true);
-                  }}
-                  className="button-soft min-h-12 w-full rounded-lg px-5 text-sm font-extrabold"
-                >
-                  Request Concierge Support
-                </button>
-                {ownerRequestMessage ? (
-                  <p className="mt-3 rounded-lg border border-gold/20 bg-warning-soft/60 p-3 text-sm font-semibold leading-5 text-slate-600">
-                    {ownerRequestMessage}
-                  </p>
-                ) : null}
-              </div>
-            </div>
+            {ownerRequestMessage ? (
+              <p className="mt-4 rounded-lg border border-gold/20 bg-warning-soft/60 p-3 text-sm font-semibold leading-5 text-slate-600">
+                {ownerRequestMessage}
+              </p>
+            ) : null}
           </section>
 
           {activeRole !== "Homeowner" ? (
@@ -6161,6 +6119,37 @@ function DetailStrip({ label, value, dark = false }: { label: string; value: str
       <span className="block text-xs font-extrabold uppercase tracking-[0.08em] text-gold">{label}</span>
       <strong className={`mt-1 block ${dark ? "text-cream" : "text-ink"}`}>{value}</strong>
     </div>
+  );
+}
+
+function OwnerConciergePrompt({
+  actionLabel,
+  description,
+  eyebrow,
+  onClick,
+  title
+}: {
+  actionLabel: string;
+  description: string;
+  eyebrow: string;
+  onClick: () => void;
+  title: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="grid gap-4 rounded-lg border border-gold/20 bg-cream/85 p-4 text-left shadow-soft transition hover:border-gold/50 hover:shadow-lift"
+    >
+      <span>
+        <span className="type-eyebrow">{eyebrow}</span>
+        <strong className="mt-2 block font-serif text-2xl font-semibold leading-tight text-ink">{title}</strong>
+      </span>
+      <span className="text-sm leading-6 text-slate-600">{description}</span>
+      <span className="inline-flex min-h-10 w-fit items-center rounded-lg border border-gold/25 bg-warning-soft px-4 text-sm font-extrabold text-ink">
+        {actionLabel}
+      </span>
+    </button>
   );
 }
 
