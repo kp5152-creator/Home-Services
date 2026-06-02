@@ -4662,8 +4662,8 @@ function LuxuryExperiencePanel({
 
       {activeExperience === "Owner Portal" ? (
         <div className="grid gap-5">
-          <section className="overflow-hidden rounded-lg border border-gold/25 bg-cream text-ink shadow-estate">
-            <div className="relative min-h-[24rem] bg-[#252525] text-cream sm:min-h-[28rem]">
+          <section className="overflow-hidden rounded-lg border border-gold/20 bg-cream text-ink shadow-estate">
+            <div className="relative min-h-[22rem] bg-[#252525] text-cream sm:min-h-[25rem]">
               {selectedProperty?.photoUrl ? (
                 <img
                   src={selectedProperty.photoUrl}
@@ -4671,25 +4671,25 @@ function LuxuryExperiencePanel({
                   className="absolute inset-0 h-full w-full object-cover"
                 />
               ) : null}
-              <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(31,31,31,0.84),rgba(31,31,31,0.48),rgba(31,31,31,0.08)),linear-gradient(0deg,rgba(31,31,31,0.9),rgba(31,31,31,0.02)_54%)]" />
-              <div className="relative flex min-h-[24rem] flex-col justify-between p-5 sm:min-h-[28rem] sm:p-7">
+              <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(31,31,31,0.72),rgba(31,31,31,0.34),rgba(31,31,31,0.08)),linear-gradient(0deg,rgba(31,31,31,0.66),rgba(31,31,31,0.02)_58%)]" />
+              <div className="relative flex min-h-[22rem] flex-col justify-between p-5 sm:min-h-[25rem] sm:p-7">
                 <div>
                   <p className="type-eyebrow">Private Owner View</p>
-                  <p className="mt-4 text-sm font-semibold leading-6 text-[#eae4d8] sm:text-base">
+                  <p className="mt-3 text-sm font-semibold leading-6 text-[#eae4d8] sm:text-base">
                     Welcome back, {homeownerFirstName}.
                   </p>
-                  <h2 className="mt-4 max-w-2xl font-serif text-4xl font-semibold leading-tight text-white sm:text-6xl">
+                  <h2 className="mt-3 max-w-2xl font-serif text-4xl font-semibold leading-tight text-white sm:text-6xl">
                     {selectedProperty ? selectedProperty.name : "Property overview"}
                   </h2>
                 </div>
 
-                <div className="grid gap-4 rounded-lg border border-gold/25 bg-[#252525]/88 p-4 shadow-lift backdrop-blur lg:grid-cols-[minmax(0,1fr)_minmax(280px,0.72fr)] lg:items-center">
+                <div className="grid gap-4 rounded-lg border border-gold/20 bg-cream/92 p-4 text-ink shadow-lift backdrop-blur lg:grid-cols-[minmax(0,1fr)_minmax(280px,0.72fr)] lg:items-center">
                   <div className="min-w-0">
-                    <div className="h-px w-full max-w-md bg-gold/60" />
-                    <p className="mt-4 text-sm font-semibold leading-6 text-[#eae4d8]">
+                    <div className="h-px w-full max-w-md bg-gold/55" />
+                    <p className="mt-4 text-sm font-semibold leading-6 text-ink">
                       {selectedProperty?.address || "No property selected"}
                     </p>
-                    <p className="mt-2 max-w-xl text-sm leading-6 text-[#d8d0c2]">
+                    <p className="mt-2 max-w-xl text-sm leading-6 text-slate-600">
                       Your property is being watched, documented, and cared for with discreet estate-level service.
                     </p>
                   </div>
@@ -4699,12 +4699,12 @@ function LuxuryExperiencePanel({
                     </span>
                     <strong
                       className={`mt-2 block font-serif text-3xl font-semibold leading-tight ${
-                        ownerAttentionCount > 0 ? "text-[#f0b7ae]" : "text-white"
+                        ownerAttentionCount > 0 ? "text-[#9f352e]" : "text-ink"
                       }`}
                     >
                       {ownerPortalStatus}
                     </strong>
-                    <p className="mt-2 text-sm leading-6 text-[#d8d0c2]">{ownerPortalDetail}</p>
+                    <p className="mt-2 text-sm leading-6 text-slate-600">{ownerPortalDetail}</p>
                   </div>
                 </div>
               </div>
@@ -4836,43 +4836,43 @@ function LuxuryExperiencePanel({
                     "As soon as the team is available"
                   )
                 }
-                className="grid gap-4 rounded-lg border border-gold/20 bg-[#252525] p-4 text-left text-cream shadow-soft transition hover:border-gold/60 hover:shadow-lift"
+                className="grid gap-4 rounded-lg border border-gold/20 bg-cream/85 p-4 text-left shadow-soft transition hover:border-gold/50 hover:shadow-lift"
               >
                 <span className="flex items-start justify-between gap-3">
                   <span>
                     <span className="type-eyebrow">Heat Advisory</span>
-                    <strong className="mt-2 block font-serif text-2xl font-semibold leading-tight text-white">
+                    <strong className="mt-2 block font-serif text-2xl font-semibold leading-tight text-ink">
                       Extreme heat can stress HVAC systems.
                     </strong>
                   </span>
-                  <span className="rounded-full border border-gold/30 bg-cream/10 px-3 py-1 text-xs font-extrabold text-gold">
+                  <span className="rounded-full border border-gold/25 bg-warning-soft px-3 py-1 text-xs font-extrabold text-ink">
                     Protect
                   </span>
                 </span>
-                <span className="text-sm leading-6 text-[#d8d0c2]">
+                <span className="text-sm leading-6 text-slate-600">
                   Would you like a supplemental HVAC inspection after elevated desert temperatures?
                 </span>
               </button>
             </div>
           </section>
 
-          <section className="overflow-hidden rounded-lg border border-gold/25 bg-[#252525] text-cream shadow-estate">
-            <div className="grid gap-5 bg-[radial-gradient(circle_at_top_right,rgba(229,199,107,0.2),transparent_24rem),linear-gradient(135deg,rgba(31,31,31,0.98),rgba(44,44,44,0.94))] p-5 sm:p-6 lg:grid-cols-[minmax(0,1fr)_minmax(280px,0.48fr)] lg:items-center">
+          <section className="overflow-hidden rounded-lg border border-gold/20 bg-cream text-ink shadow-estate">
+            <div className="grid gap-5 bg-[linear-gradient(135deg,rgba(245,242,234,0.98),rgba(234,228,216,0.9))] p-5 sm:p-6 lg:grid-cols-[minmax(0,1fr)_minmax(280px,0.48fr)] lg:items-center">
               <div>
                 <p className="type-eyebrow">Concierge Desk</p>
-                <h3 className="mt-2 font-serif text-3xl font-semibold leading-tight text-white">
+                <h3 className="mt-2 font-serif text-3xl font-semibold leading-tight text-ink">
                   Need something handled at the property?
                 </h3>
-                <p className="mt-3 max-w-3xl text-sm leading-6 text-[#d8d0c2]">
+                <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-600">
                   Send a private request for service, an extra inspection, arrival preparation, or a homeowner question.
                   The estate team reviews every request before assigning next steps.
                 </p>
               </div>
-              <div className="rounded-lg border border-gold/25 bg-[#1f1f1f]/72 p-4 shadow-lift backdrop-blur">
+              <div className="rounded-lg border border-gold/20 bg-cream/95 p-4 shadow-soft">
                 <div className="mb-4 grid grid-cols-3 gap-2 text-center">
-                  <DetailStrip label="Requests" value={`${activeMaintenanceIssues.length}`} dark />
-                  <DetailStrip label="Status" value={ownerAttentionCount > 0 ? "Review" : "Calm"} dark />
-                  <DetailStrip label="Privacy" value="Private" dark />
+                  <DetailStrip label="Requests" value={`${activeMaintenanceIssues.length}`} />
+                  <DetailStrip label="Status" value={ownerAttentionCount > 0 ? "Review" : "Calm"} />
+                  <DetailStrip label="Privacy" value="Private" />
                 </div>
                 <button
                   type="button"
@@ -4886,7 +4886,7 @@ function LuxuryExperiencePanel({
                   Request Concierge Support
                 </button>
                 {ownerRequestMessage ? (
-                  <p className="mt-3 rounded-lg border border-gold/20 bg-cream/10 p-3 text-sm font-semibold leading-5 text-[#eae4d8]">
+                  <p className="mt-3 rounded-lg border border-gold/20 bg-warning-soft/60 p-3 text-sm font-semibold leading-5 text-slate-600">
                     {ownerRequestMessage}
                   </p>
                 ) : null}
