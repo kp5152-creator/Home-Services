@@ -4683,13 +4683,13 @@ function LuxuryExperiencePanel({
                   </h2>
                 </div>
 
-                <div className="grid gap-4 rounded-lg border border-gold/20 bg-cream/92 p-4 text-ink shadow-lift backdrop-blur lg:grid-cols-[minmax(0,1fr)_minmax(280px,0.72fr)] lg:items-center">
+                <div className="grid gap-4 rounded-lg border border-gold/30 bg-[#f5f2ea] p-4 text-ink shadow-lift lg:grid-cols-[minmax(0,1fr)_minmax(280px,0.72fr)] lg:items-center">
                   <div className="min-w-0">
                     <div className="h-px w-full max-w-md bg-gold/55" />
-                    <p className="mt-4 text-sm font-semibold leading-6 text-ink">
+                    <p className="mt-4 text-sm font-extrabold leading-6 text-ink">
                       {selectedProperty?.address || "No property selected"}
                     </p>
-                    <p className="mt-2 max-w-xl text-sm leading-6 text-slate-600">
+                    <p className="mt-2 max-w-xl text-sm font-semibold leading-6 text-[#4f473c]">
                       Your property is being watched, documented, and cared for with discreet estate-level service.
                     </p>
                   </div>
@@ -4704,7 +4704,7 @@ function LuxuryExperiencePanel({
                     >
                       {ownerPortalStatus}
                     </strong>
-                    <p className="mt-2 text-sm leading-6 text-slate-600">{ownerPortalDetail}</p>
+                    <p className="mt-2 text-sm font-semibold leading-6 text-[#4f473c]">{ownerPortalDetail}</p>
                   </div>
                 </div>
               </div>
