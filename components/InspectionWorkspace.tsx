@@ -109,6 +109,8 @@ type OwnerConciergeRequestForm = {
   photoFiles: File[];
 };
 
+type PropertyPortfolioFilter = "All" | "Needs Attention" | "Clear";
+
 type FeedbackForm = {
   type: FeedbackType;
   sentiment: FeedbackSentiment;
@@ -3610,6 +3612,25 @@ function LuxuryExperiencePanel({
   const [showScheduleForm, setShowScheduleForm] = useState(false);
   const [selectedScheduleTaskId, setSelectedScheduleTaskId] = useState("");
   const selectedScheduleTask = scheduleTasks.find((task) => task.id === selectedScheduleTaskId) ?? null;
+  const [propertySearch, setPropertySearch] = useState("");
+  const [propertyFilter, setPropertyFilter] = useState<PropertyPortfolioFilter>("All");
+  const propertyPortfolioFilters: PropertyPortfolioFilter[] = ["All", "Needs Attention", "Clear"];
+  const filteredPortfolioProperties = properties.filter((property) => {
+    const searchValue = propertySearch.trim().toLowerCase();
+    const issueSummary = propertyIssueSummary(property.id);
+    const matchesSearch =
+      !searchValue ||
+      [property.name, property.address, property.owner, property.status]
+        .filter(Boolean)
+        .some((value) => value.toLowerCase().includes(searchValue));
+    const matchesFilter =
+      propertyFilter === "All" ||
+      (propertyFilter === "Needs Attention" && issueSummary.openCount > 0) ||
+      (propertyFilter === "Clear" && issueSummary.openCount === 0);
+
+    return matchesSearch && matchesFilter;
+  });
+  const attentionPropertyCount = properties.filter((property) => propertyIssueSummary(property.id).openCount > 0).length;
 
   useEffect(() => {
     setSelectedScheduleTaskId("");
@@ -3912,12 +3933,15 @@ function LuxuryExperiencePanel({
           ) : (
             <>
           <div className="estate-panel rounded-lg p-5">
-              <div className="mb-4 grid gap-3 sm:flex sm:items-center sm:justify-between">
+              <div className="mb-4 grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-start">
                 <div>
                   <p className="mb-2 text-xs font-extrabold uppercase tracking-[0.12em] text-clay">
                     Home
                   </p>
-                  <h2 className="font-serif text-4xl font-semibold leading-tight text-ink">Today’s properties</h2>
+                  <h2 className="font-serif text-4xl font-semibold leading-tight text-ink">Property portfolio</h2>
+                  <p className="mt-2 max-w-3xl text-sm font-semibold leading-6 text-slate-600">
+                    Search, filter, and open the right property quickly as the portfolio grows.
+                  </p>
                 </div>
                 <button
                   type="button"
@@ -3927,8 +3951,43 @@ function LuxuryExperiencePanel({
                   Add New Property
                 </button>
               </div>
-              <div className="grid gap-3 lg:grid-cols-2 xl:grid-cols-3">
-                {properties.map((property) => {
+
+              <div className="mb-4 grid gap-3 rounded-lg border border-gold/15 bg-[#eae4d8] p-3 shadow-soft lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
+                <div className="grid gap-2 sm:grid-cols-3">
+                  <DetailStrip label="Properties" value={`${properties.length}`} />
+                  <DetailStrip label="Needs Attention" value={`${attentionPropertyCount}`} />
+                  <DetailStrip label="Showing" value={`${filteredPortfolioProperties.length}`} />
+                </div>
+                <label className="grid gap-2 text-sm font-extrabold text-ink lg:min-w-80">
+                  Search portfolio
+                  <input
+                    value={propertySearch}
+                    onChange={(event) => setPropertySearch(event.target.value)}
+                    className="field-shell min-h-11 rounded-lg p-3"
+                    placeholder="Search property, owner, city..."
+                  />
+                </label>
+              </div>
+
+              <div className="mb-4 flex flex-wrap gap-2">
+                {propertyPortfolioFilters.map((filter) => (
+                  <button
+                    key={filter}
+                    type="button"
+                    onClick={() => setPropertyFilter(filter)}
+                    className={`min-h-10 rounded-lg border px-4 text-sm font-extrabold transition ${
+                      propertyFilter === filter
+                        ? "border-gold bg-warning-soft text-ink shadow-[inset_0_0_0_1px_rgba(212,175,55,0.32)]"
+                        : "border-gold/20 bg-cream text-ink hover:border-gold/50"
+                    }`}
+                  >
+                    {filter}
+                  </button>
+                ))}
+              </div>
+
+              <div className="grid gap-3 xl:grid-cols-2">
+                {filteredPortfolioProperties.map((property) => {
                   const issueSummary = propertyIssueSummary(property.id);
 
                   return (
@@ -3946,18 +4005,18 @@ function LuxuryExperiencePanel({
                           onSelectProperty(property.id);
                           setActiveExperience("Property");
                         }}
-                        className="block w-full text-left"
+                        className="grid w-full text-left sm:grid-cols-[148px_minmax(0,1fr)]"
                       >
-                        <span className="block overflow-hidden border-b border-gold/15 bg-[#252525]">
+                        <span className="block overflow-hidden border-b border-gold/15 bg-[#252525] sm:border-b-0 sm:border-r">
                         {property.photoUrl ? (
-                          <img src={property.photoUrl} alt={property.name} className="aspect-[5/3] w-full object-cover" />
+                          <img src={property.photoUrl} alt={property.name} className="aspect-[16/10] w-full object-cover sm:h-full sm:min-h-36 sm:aspect-auto" />
                         ) : (
-                          <span className="grid aspect-[5/3] place-items-center text-xs font-extrabold text-[#d8d0c2]">
+                          <span className="grid aspect-[16/10] place-items-center text-xs font-extrabold text-[#d8d0c2] sm:h-full sm:min-h-36 sm:aspect-auto">
                             Home
                           </span>
                         )}
                         </span>
-                        <span className="block p-3">
+                        <span className="grid min-w-0 gap-3 p-3">
                           <span className="flex items-start justify-between gap-3">
                             <span className="min-w-0">
                               <strong className="block truncate font-serif text-xl font-semibold leading-tight text-ink">
@@ -3967,7 +4026,7 @@ function LuxuryExperiencePanel({
                                 {property.address}
                               </span>
                               <span className="mt-1 block truncate text-sm font-semibold text-slate-600">
-                                {property.owner} / {property.status}
+                                {property.owner}
                               </span>
                             </span>
                             {issueSummary.openCount ? (
@@ -3983,6 +4042,14 @@ function LuxuryExperiencePanel({
                                   : `${issueSummary.openCount} issue${issueSummary.openCount === 1 ? "" : "s"}`}
                               </span>
                             ) : null}
+                          </span>
+                          <span className="grid gap-2 sm:flex sm:flex-wrap">
+                            <span className="rounded-full border border-gold/20 bg-warning-soft px-3 py-1 text-xs font-extrabold text-ink">
+                              {property.status}
+                            </span>
+                            <span className="rounded-full border border-gold/15 bg-cream px-3 py-1 text-xs font-extrabold text-slate-600">
+                              {property.owner}
+                            </span>
                           </span>
                         </span>
                       </button>
@@ -4012,6 +4079,11 @@ function LuxuryExperiencePanel({
                   );
                 })}
               </div>
+              {!filteredPortfolioProperties.length ? (
+                <div className="mt-4 rounded-lg border border-gold/15 bg-cream/80 p-5 text-center text-sm font-semibold leading-6 text-slate-600 shadow-soft">
+                  No properties match the current search and filter.
+                </div>
+              ) : null}
           </div>
             </>
           )}
