@@ -2701,7 +2701,7 @@ export default function InspectionWorkspace({
                   ) : null}
                 </div>
 
-                <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4 lg:gap-3">
+                <div className="grid gap-2 sm:grid-cols-2 lg:gap-3">
                   <label className="relative grid min-h-12 cursor-pointer content-center gap-1 overflow-hidden rounded-lg border border-gold/25 bg-cream p-3 text-center text-sm font-extrabold shadow-soft transition hover:border-gold/60 hover:shadow-lift sm:min-h-24 sm:gap-2 sm:p-4 sm:text-left">
                     <span>Start Walkthrough</span>
                     <span className="hidden text-xs font-semibold leading-5 text-slate-600 sm:block">
