@@ -1578,7 +1578,7 @@ export default function InspectionWorkspace({
       .join(" ");
 
     setSuggestedSummary(summary);
-    setSuggestedSummaryMessage("Concierge summary drafted. Review and approve before sharing with the homeowner.");
+    setSuggestedSummaryMessage("Owner summary prepared. Review before generating the report.");
     trackAnalyticsEvent({
       name: "workflow_step",
       role: activeRole,
@@ -1602,7 +1602,7 @@ export default function InspectionWorkspace({
       ...current,
       executiveSummary: suggestedSummary
     }));
-    setSuggestedSummaryMessage("Concierge summary approved. You can edit it before generating the report.");
+    setSuggestedSummaryMessage("Owner summary approved for the report.");
   }
 
   function suggestMaintenanceRecommendation() {
@@ -2833,14 +2833,14 @@ export default function InspectionWorkspace({
                   </div>
                   {suggestedSummary ? (
                     <div className="mt-4 rounded-lg border border-gold/20 bg-warning-soft/50 p-4">
-                      <span className="type-eyebrow">Draft Summary</span>
+                      <span className="type-eyebrow">Owner Summary</span>
                       <p className="mt-2 text-sm font-semibold leading-6 text-ink">{suggestedSummary}</p>
                       <button
                         type="button"
                         onClick={useSuggestedSummary}
                         className="button-primary mt-4 min-h-10 rounded-lg px-4 text-sm font-extrabold"
                       >
-                        Approve Draft
+                        Use Summary
                       </button>
                     </div>
                   ) : null}
