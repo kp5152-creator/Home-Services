@@ -611,6 +611,18 @@ export default function InspectionWorkspace({
           : "";
   const inspectionReady = !inspectionReadyMessage;
   const allInspectionChecklistItems = activeInspectionTemplate.sections.flatMap((section) => section.items);
+  const transcriptCaptured = Boolean(walkthroughTranscript.trim());
+  const evidenceReady = Boolean(inspectionForm.photoFiles.length || inspectionForm.notes.trim() || transcriptCaptured);
+  const aiReviewStatus = suggestedSummary
+    ? "Draft ready for approval"
+    : evidenceReady
+      ? "Ready to draft"
+      : "Capture evidence first";
+  const aiNextAction = suggestedSummary
+    ? "Review and approve the homeowner summary."
+    : evidenceReady
+      ? "Draft a concierge summary from the captured evidence."
+      : "Capture photos, notes, or walkthrough narration to begin.";
 
   function draftOwnerUpdateFromReport(inspection: Inspection) {
     const status = reportConditionStatus(inspection);
@@ -2587,21 +2599,30 @@ export default function InspectionWorkspace({
                 ) : null}
               </section>
 
-              <section className="grid gap-4 rounded-lg border border-gold/20 bg-cream p-4 text-ink shadow-soft lg:grid-cols-[minmax(0,1fr)_220px] lg:items-center">
+              <section className="grid gap-4 rounded-lg border border-gold/20 bg-cream p-4 text-ink shadow-soft lg:grid-cols-[minmax(0,1fr)_240px] lg:items-start">
                 <div>
-                  <p className="type-eyebrow">AI Review</p>
-                  <h3 className="mt-1 font-serif text-2xl font-semibold leading-tight text-ink">
-                    Draft from captured evidence.
-                  </h3>
-                  <p className="mt-2 max-w-3xl text-sm font-semibold leading-6 text-slate-600">
-                    EstateIQ can draft an owner-ready summary from the captured notes, photos, checklist progress, and flagged issues.
-                    The inspector reviews and approves before a report is generated.
-                  </p>
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div>
+                      <p className="type-eyebrow">AI Review</p>
+                      <h3 className="mt-1 font-serif text-2xl font-semibold leading-tight text-ink">
+                        Evidence review desk
+                      </h3>
+                      <p className="mt-2 max-w-3xl text-sm font-semibold leading-6 text-slate-600">
+                        Review the captured evidence, then draft a homeowner-ready summary. The inspector approves the final language before the report is generated.
+                      </p>
+                    </div>
+                    <span className="rounded-full border border-gold/25 bg-warning-soft px-3 py-1 text-xs font-extrabold text-ink">
+                      {aiReviewStatus}
+                    </span>
+                  </div>
                   <div className="mt-4 grid gap-2 sm:grid-cols-3">
                     <DetailStrip label="Photos" value={`${inspectionForm.photoFiles.length}`} />
                     <DetailStrip label="Checks" value={`${inspectionForm.checklist.length}/${inspectionTotalChecks}`} />
-                    <DetailStrip label="Walkthrough" value={walkthroughVideoName ? "Captured" : "Not captured"} />
+                    <DetailStrip label="Narration" value={transcriptCaptured ? "Reviewed" : walkthroughVideoName ? "Captured" : "Needed"} />
                   </div>
+                  <p className="mt-3 rounded-lg border border-gold/15 bg-warning-soft/45 p-3 text-sm font-semibold leading-6 text-ink">
+                    {aiNextAction}
+                  </p>
                   <div className="mt-4 grid gap-3 rounded-lg border border-gold/20 bg-cream/85 p-4">
                     <div className="flex flex-wrap items-start justify-between gap-3">
                       <div>
@@ -2661,7 +2682,8 @@ export default function InspectionWorkspace({
                 <button
                   type="button"
                   onClick={generateSuggestedSummary}
-                  className="button-soft min-h-12 rounded-lg px-5 text-sm font-extrabold"
+                  disabled={!evidenceReady}
+                  className="button-soft min-h-12 rounded-lg px-5 text-sm font-extrabold disabled:cursor-not-allowed disabled:opacity-55"
                 >
                   Draft From Evidence
                 </button>
