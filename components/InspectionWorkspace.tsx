@@ -2847,13 +2847,13 @@ export default function InspectionWorkspace({
                   {suggestedSummaryMessage ? (
                     <p className="mt-3 text-sm font-semibold text-slate-600">{suggestedSummaryMessage}</p>
                   ) : null}
-                  <div className="mt-4 grid gap-2 rounded-lg border border-gold/15 bg-cream/80 p-3">
-                    <span className="font-serif text-lg font-semibold leading-tight text-ink">Urgent?</span>
-                    <div className="grid grid-cols-2 gap-2" role="radiogroup" aria-label="Urgent issue">
+                  <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-gold/15 bg-cream/80 p-3">
+                    <span className="text-sm font-extrabold text-ink">Urgent issue?</span>
+                    <div className="grid w-full grid-cols-2 gap-2 sm:w-auto sm:min-w-48" role="radiogroup" aria-label="Urgent issue">
                       {(["No", "Yes"] as UrgentStatus[]).map((value) => (
                         <label
                           key={value}
-                          className={`flex min-h-11 items-center justify-center gap-2 rounded-lg border font-extrabold transition ${
+                          className={`flex min-h-10 items-center justify-center gap-2 rounded-lg border px-4 text-sm font-extrabold transition ${
                             inspectionForm.urgent === value
                               ? value === "Yes"
                                 ? "border-[#e7cbc4] bg-[#fff8f6] text-[#9f352e]"
