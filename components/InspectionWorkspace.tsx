@@ -2739,9 +2739,28 @@ export default function InspectionWorkspace({
                     />
                   </label>
 
-                  <label className="relative grid min-h-12 cursor-pointer content-center gap-1 overflow-hidden rounded-lg border border-gold/20 bg-cream/90 p-3 text-center text-sm font-extrabold shadow-soft transition hover:border-gold/50 hover:shadow-lift sm:min-h-24 sm:gap-2 sm:p-4 sm:text-left">
+                  <label className="relative grid min-h-12 cursor-pointer content-center gap-1 overflow-hidden rounded-lg border border-gold/20 bg-cream/90 p-3 text-center text-sm font-extrabold shadow-soft transition hover:border-gold/50 hover:shadow-lift sm:hidden">
                     <span>Add Photos</span>
-                    <span className="hidden text-xs font-semibold leading-5 text-slate-600 sm:block">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      capture="environment"
+                      onChange={(event) => {
+                        const count = addPhotoFiles(event.target.files);
+                        setQuickCaptureMessage(
+                          count
+                            ? `${count} photo${count === 1 ? "" : "s"} captured for inspection evidence.`
+                            : "No photos were selected."
+                        );
+                        event.target.value = "";
+                      }}
+                      className="absolute inset-0 cursor-pointer opacity-0"
+                    />
+                  </label>
+
+                  <label className="relative hidden min-h-24 cursor-pointer content-center gap-2 overflow-hidden rounded-lg border border-gold/20 bg-cream/90 p-4 text-left text-sm font-extrabold shadow-soft transition hover:border-gold/50 hover:shadow-lift sm:grid">
+                    <span>Add Photos</span>
+                    <span className="text-xs font-semibold leading-5 text-slate-600">
                       Add field photos.
                     </span>
                     <input
