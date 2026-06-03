@@ -3595,6 +3595,41 @@ function LuxuryExperiencePanel({
       ? "The latest inspection has been completed and is ready for homeowner review."
       : "Complete an inspection to create the first homeowner summary.");
   const activeMaintenanceIssues = maintenanceIssues.filter((issue) => issue.status !== "Resolved").slice(0, 3);
+  const recentReportPhotos = recentReport?.photos.slice(0, 4) ?? [];
+  const completedCareChecks = recentReport ? visibleChecklistItems(recentReport.checklist) : [];
+  const securityCareChecks = completedCareChecks.filter((item) =>
+    /security|door|window|gate|lock|alarm|forced entry|access|panel/i.test(item)
+  );
+  const proofOfCareItems = [
+    {
+      label: "Inspection completed",
+      value: recentReport ? formatDateTime(recentReport.timestamp) : "Not yet completed",
+      detail: recentReport ? `${getInspectionType(recentReport.checklist)} by ${recentReport.inspectorName || "Inspector"}` : "No visit has been shared yet."
+    },
+    {
+      label: "Photo documentation",
+      value: recentReport ? `${recentReport.photos.length} photo${recentReport.photos.length === 1 ? "" : "s"}` : "No photos yet",
+      detail: recentReport?.photos.length ? "Current property condition was visually documented." : "Photos will appear after the next inspection."
+    },
+    {
+      label: "Security confidence",
+      value: securityCareChecks.length ? `${securityCareChecks.length} checks` : recentReport ? "Reviewed" : "Pending",
+      detail: securityCareChecks.length
+        ? "Doors, gates, access points, or security-related items were checked."
+        : recentReport
+          ? "The latest visit did not flag a visible security concern."
+          : "Security notes will appear after the first inspection."
+    },
+    {
+      label: "Flagged items",
+      value: activeMaintenanceIssues.length
+        ? `${activeMaintenanceIssues.length} open item${activeMaintenanceIssues.length === 1 ? "" : "s"}`
+        : "None open",
+      detail: activeMaintenanceIssues.length
+        ? "Items needing attention are being tracked by the property team."
+        : "No open homeowner-facing issues are visible right now."
+    }
+  ];
   const ownerReportRouteId = (inspection: Inspection) =>
     inspection.id.startsWith("demo-inspection-") && !demoDatabase.inspections.some((item) => item.id === inspection.id)
       ? demoDatabase.inspections[0]?.id ?? inspection.id
@@ -4782,7 +4817,106 @@ function LuxuryExperiencePanel({
               </div>
             </div>
 
-            <div className="grid gap-5 p-5 sm:p-6 lg:grid-cols-[minmax(0,1fr)_minmax(320px,0.72fr)]">
+            <div className="grid gap-5 p-5 sm:p-6">
+              <section className="rounded-lg border border-gold/20 bg-[#eae4d8] p-4 shadow-soft">
+                <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+                  <div>
+                    <p className="type-eyebrow">Proof Of Care</p>
+                    <h3 className="mt-1 font-serif text-3xl font-semibold leading-tight text-ink">
+                      Your home was checked and documented.
+                    </h3>
+                    <p className="mt-2 max-w-3xl text-sm font-semibold leading-6 text-[#4f473c]">
+                      Weekly evidence, security confidence, photo documentation, and flagged items in one calm view.
+                    </p>
+                  </div>
+                  {recentReport ? (
+                    <span className="w-fit rounded-full border border-gold/25 bg-cream px-4 py-2 text-xs font-extrabold uppercase tracking-[0.08em] text-ink">
+                      Verified Visit
+                    </span>
+                  ) : null}
+                </div>
+
+                <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+                  {proofOfCareItems.map((item) => (
+                    <ProofOfCareCard key={item.label} item={item} />
+                  ))}
+                </div>
+
+                <div className="mt-4 grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(280px,0.42fr)]">
+                  <div className="rounded-lg border border-gold/15 bg-cream/85 p-4 shadow-soft">
+                    <div className="mb-3 flex items-center justify-between gap-3">
+                      <div>
+                        <p className="type-eyebrow">Weekly Photos</p>
+                        <h4 className="mt-1 font-serif text-2xl font-semibold leading-tight text-ink">
+                          Latest visual record
+                        </h4>
+                      </div>
+                      <span className="rounded-full border border-gold/20 bg-warning-soft px-3 py-1 text-xs font-extrabold text-ink">
+                        {recentReportPhotos.length} shown
+                      </span>
+                    </div>
+                    {recentReportPhotos.length ? (
+                      <div className="grid gap-2 sm:grid-cols-2">
+                        {recentReportPhotos.map((photo) => (
+                          <a
+                            key={photo.id}
+                            href={photo.url}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="group overflow-hidden rounded-lg border border-gold/15 bg-[#252525] shadow-soft"
+                          >
+                            <img
+                              src={photo.url}
+                              alt={photo.name}
+                              className="aspect-[4/3] w-full object-cover transition duration-200 group-hover:scale-[1.02]"
+                            />
+                          </a>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="rounded-lg border border-gold/15 bg-cream/80 p-4 text-sm font-semibold leading-6 text-slate-600">
+                        Photos from the latest inspection will appear here.
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="rounded-lg border border-gold/15 bg-cream/85 p-4 shadow-soft">
+                    <p className="type-eyebrow">Care Timeline</p>
+                    <h4 className="mt-1 font-serif text-2xl font-semibold leading-tight text-ink">
+                      Recent activity
+                    </h4>
+                    <div className="mt-4 grid gap-3">
+                      <CareTimelineItem
+                        title={recentReport ? "Inspection completed" : "Inspection pending"}
+                        detail={recentReport ? formatDateTime(recentReport.timestamp) : "No shared visit yet"}
+                        active={Boolean(recentReport)}
+                      />
+                      <CareTimelineItem
+                        title="Security review"
+                        detail={
+                          securityCareChecks.length
+                            ? `${securityCareChecks.length} security-related check${securityCareChecks.length === 1 ? "" : "s"} completed`
+                            : recentReport
+                              ? "No visible security concern flagged"
+                              : "Pending first inspection"
+                        }
+                        active={Boolean(recentReport)}
+                      />
+                      <CareTimelineItem
+                        title="Issue monitoring"
+                        detail={
+                          activeMaintenanceIssues.length
+                            ? `${activeMaintenanceIssues.length} item${activeMaintenanceIssues.length === 1 ? "" : "s"} being tracked`
+                            : "No open items visible"
+                        }
+                        active
+                      />
+                    </div>
+                  </div>
+                </div>
+              </section>
+
+              <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(320px,0.72fr)]">
               <section>
                 <div className="mb-3">
                   <p className="type-eyebrow">Latest Report</p>
@@ -4852,6 +4986,7 @@ function LuxuryExperiencePanel({
                   </p>
                 )}
               </section>
+              </div>
             </div>
           </section>
 
@@ -6222,6 +6357,40 @@ function OwnerConciergePrompt({
         {actionLabel}
       </span>
     </button>
+  );
+}
+
+function ProofOfCareCard({
+  item
+}: {
+  item: {
+    label: string;
+    value: string;
+    detail: string;
+  };
+}) {
+  return (
+    <article className="rounded-lg border border-gold/15 bg-cream/90 p-4 shadow-soft">
+      <span className="type-eyebrow">{item.label}</span>
+      <strong className="mt-2 block font-serif text-2xl font-semibold leading-tight text-ink">{item.value}</strong>
+      <p className="mt-2 text-sm font-semibold leading-6 text-slate-600">{item.detail}</p>
+    </article>
+  );
+}
+
+function CareTimelineItem({ active, detail, title }: { active: boolean; detail: string; title: string }) {
+  return (
+    <div className="grid grid-cols-[24px_minmax(0,1fr)] gap-3">
+      <span
+        className={`mt-1 h-3 w-3 rounded-full border ${
+          active ? "border-gold bg-gold shadow-[0_0_0_4px_rgba(212,175,55,0.14)]" : "border-line bg-cream"
+        }`}
+      />
+      <span className="min-w-0">
+        <strong className="block text-sm text-ink">{title}</strong>
+        <span className="mt-1 block text-sm font-semibold leading-5 text-slate-600">{detail}</span>
+      </span>
+    </div>
   );
 }
 
