@@ -2967,9 +2967,6 @@ export default function InspectionWorkspace({
                     </option>
                   ))}
                 </select>
-                <p className="text-sm leading-6 text-slate-600 lg:hidden">
-                  {activeInspectionTemplate.description}
-                </p>
                 <div className="hidden gap-3 sm:grid-cols-2 lg:grid lg:grid-cols-3">
                   {inspectionTemplates.map((template) => {
                     const active = inspectionForm.inspectionType === template.title;
