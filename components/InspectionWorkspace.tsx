@@ -2906,6 +2906,32 @@ export default function InspectionWorkspace({
                   {suggestedSummaryMessage ? (
                     <p className="mt-3 text-sm font-semibold text-slate-600">{suggestedSummaryMessage}</p>
                   ) : null}
+                  <div className="mt-4 grid gap-2 rounded-lg border border-gold/15 bg-cream/80 p-3">
+                    <span className="font-serif text-lg font-semibold leading-tight text-ink">Urgent?</span>
+                    <div className="grid grid-cols-2 gap-2" role="radiogroup" aria-label="Urgent issue">
+                      {(["No", "Yes"] as UrgentStatus[]).map((value) => (
+                        <label
+                          key={value}
+                          className={`flex min-h-11 items-center justify-center gap-2 rounded-lg border font-extrabold transition ${
+                            inspectionForm.urgent === value
+                              ? value === "Yes"
+                                ? "border-[#e7cbc4] bg-[#fff8f6] text-[#9f352e]"
+                                : "border-gold bg-cream text-ink shadow-[inset_0_0_0_1px_rgba(212,175,55,0.32)]"
+                              : "border-line bg-white text-ink"
+                          }`}
+                        >
+                          <input
+                            type="radio"
+                            name="urgent"
+                            checked={inspectionForm.urgent === value}
+                            onChange={() => setInspectionForm((current) => ({ ...current, urgent: value }))}
+                            className="accent-gold"
+                          />
+                          {value}
+                        </label>
+                      ))}
+                    </div>
+                  </div>
                 </div>
                 <div className="grid grid-cols-2 gap-2 lg:grid-cols-1 lg:gap-3">
                   <button
@@ -2923,6 +2949,30 @@ export default function InspectionWorkspace({
                     className="min-h-11 rounded-lg border border-gold/25 bg-[#252525] px-3 text-sm font-extrabold text-cream shadow-soft transition hover:border-gold/60 hover:bg-[#1f1f1f] disabled:cursor-not-allowed disabled:opacity-55 sm:min-h-12 sm:px-5"
                   >
                     Draft Issue
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void saveInspection()}
+                    disabled={isSavingInspection}
+                    className="button-soft col-span-2 min-h-11 rounded-lg px-3 text-sm font-extrabold disabled:cursor-not-allowed disabled:opacity-60 sm:min-h-12 sm:px-5 lg:col-span-1"
+                  >
+                    {isSavingInspection ? "Generating..." : "Generate Report"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setInspectionForm(emptyInspectionForm);
+                      setQuickCaptureMessage("");
+                      setWalkthroughVideoName("");
+                      setWalkthroughTranscript("");
+                      setTranscriptReviewMessage("");
+                      setChecklistAssistMessage("");
+                      setSuggestedSummary("");
+                      setSuggestedSummaryMessage("");
+                    }}
+                    className="col-span-2 min-h-10 rounded-lg border border-line bg-cream px-3 text-sm font-extrabold text-ink transition hover:border-gold/50 lg:col-span-1"
+                  >
+                    Clear
                   </button>
                 </div>
               </section>
@@ -3258,69 +3308,11 @@ export default function InspectionWorkspace({
                 />
               </label>
 
-              <div className="order-9 grid gap-3 rounded-lg border border-gold/25 bg-cream p-3 text-ink shadow-soft sm:p-4 md:grid-cols-[minmax(0,1fr)_160px] md:items-center">
-                <div>
-                  <strong className="block font-serif text-lg font-semibold leading-tight text-ink sm:text-2xl">
-                    Urgent?
-                  </strong>
-                </div>
-                <div className="grid grid-cols-2 gap-2" role="radiogroup" aria-label="Urgent issue">
-                  {(["No", "Yes"] as UrgentStatus[]).map((value) => (
-                    <label
-                      key={value}
-                      className={`flex min-h-11 items-center justify-center gap-2 rounded-lg border font-extrabold transition ${
-                        inspectionForm.urgent === value
-                          ? value === "Yes"
-                            ? "border-[#e7cbc4] bg-[#fff8f6] text-[#9f352e]"
-                            : "border-gold bg-cream text-ink shadow-[inset_0_0_0_1px_rgba(212,175,55,0.32)]"
-                          : "border-line bg-white text-ink"
-                      }`}
-                    >
-                      <input
-                        type="radio"
-                        name="urgent"
-                        checked={inspectionForm.urgent === value}
-                        onChange={() => setInspectionForm((current) => ({ ...current, urgent: value }))}
-                        className="accent-gold"
-                      />
-                      {value}
-                    </label>
-                  ))}
-                </div>
-              </div>
-
               {inspectionSaveMessage ? (
                 <p className="order-11 rounded-lg border border-gold/20 bg-cream p-3 text-sm font-semibold text-ink shadow-soft">
                   {inspectionSaveMessage}
                 </p>
               ) : null}
-
-              <div className="order-12 grid grid-cols-2 gap-3 lg:flex lg:flex-wrap lg:justify-end">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setInspectionForm(emptyInspectionForm);
-                    setQuickCaptureMessage("");
-                    setWalkthroughVideoName("");
-                    setWalkthroughTranscript("");
-                    setTranscriptReviewMessage("");
-                    setChecklistAssistMessage("");
-                    setSuggestedSummary("");
-                    setSuggestedSummaryMessage("");
-                  }}
-                  className="button-soft min-h-11 flex-1 rounded-lg px-5 font-extrabold sm:flex-none"
-                >
-                  Clear
-                </button>
-                <button
-                  type="button"
-                  onClick={() => void saveInspection()}
-                  disabled={isSavingInspection}
-                  className="button-soft min-h-11 flex-1 rounded-lg px-5 font-extrabold disabled:cursor-not-allowed disabled:opacity-60 sm:flex-none"
-                >
-                  {isSavingInspection ? "Generating..." : "Generate Report"}
-                </button>
-              </div>
             </form>
           </section>
         </section>
