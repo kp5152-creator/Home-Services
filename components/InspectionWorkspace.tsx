@@ -1552,6 +1552,9 @@ export default function InspectionWorkspace({
       inspectionForm.urgent === "Yes"
         ? "Immediate homeowner attention is recommended based on the urgent issue flag"
         : "No urgent homeowner action is indicated from this inspection";
+    const transcriptPhrase = walkthroughTranscript.trim()
+      ? `Walkthrough narration reviewed: ${walkthroughTranscript.trim()}`
+      : "";
     const notesPhrase = inspectionForm.notes.trim()
       ? `Inspector notes: ${inspectionForm.notes.trim()}`
       : "No additional issues were noted by the inspector";
@@ -1562,8 +1565,11 @@ export default function InspectionWorkspace({
       }.`,
       `${completionPhrase}. ${temperaturePhrase}, and ${photoPhrase}.`,
       issuePhrase,
+      transcriptPhrase,
       notesPhrase
-    ].join(" ");
+    ]
+      .filter(Boolean)
+      .join(" ");
 
     setSuggestedSummary(summary);
     setSuggestedSummaryMessage("Concierge summary drafted. Review and approve before sharing with the homeowner.");
@@ -1577,7 +1583,8 @@ export default function InspectionWorkspace({
       metadata: {
         checklistItems: completedCount,
         urgent: inspectionForm.urgent === "Yes",
-        photoCount: inspectionForm.photoFiles.length
+        photoCount: inspectionForm.photoFiles.length,
+        transcriptIncluded: Boolean(walkthroughTranscript.trim())
       }
     });
   }
@@ -2627,7 +2634,7 @@ export default function InspectionWorkspace({
                         onClick={applyWalkthroughTranscriptToNotes}
                         className="button-soft min-h-10 rounded-lg px-4 text-sm font-extrabold"
                       >
-                        Apply Transcript To Notes
+                        Add Transcript To Visit Notes
                       </button>
                       {transcriptReviewMessage ? (
                         <p className="text-sm font-semibold leading-6 text-slate-600">{transcriptReviewMessage}</p>
@@ -2656,7 +2663,7 @@ export default function InspectionWorkspace({
                   onClick={generateSuggestedSummary}
                   className="button-soft min-h-12 rounded-lg px-5 text-sm font-extrabold"
                 >
-                  Draft AI Summary
+                  Draft From Evidence
                 </button>
               </section>
 
