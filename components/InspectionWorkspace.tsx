@@ -449,6 +449,8 @@ export default function InspectionWorkspace({
   const [inspectionSaveMessage, setInspectionSaveMessage] = useState("");
   const [quickCaptureMessage, setQuickCaptureMessage] = useState("");
   const [walkthroughVideoName, setWalkthroughVideoName] = useState("");
+  const [walkthroughTranscript, setWalkthroughTranscript] = useState("");
+  const [transcriptReviewMessage, setTranscriptReviewMessage] = useState("");
   const [isSavingInspection, setIsSavingInspection] = useState(false);
   const [propertySaveMessage, setPropertySaveMessage] = useState("");
   const [isSavingProperty, setIsSavingProperty] = useState(false);
@@ -1690,10 +1692,23 @@ export default function InspectionWorkspace({
     if (!file) return;
 
     setWalkthroughVideoName(file.name);
+    setTranscriptReviewMessage("Walkthrough video captured. Add or paste the transcript below before drafting the report.");
     appendInspectionNote(
       `Walkthrough video captured for future AI-assisted review: ${file.name}. Use this recording to support the final notes, photo documentation, issue detection, and owner summary.`
     );
-    setQuickCaptureMessage("Walkthrough captured for future AI-assisted review. Review the notes before generating the report.");
+    setQuickCaptureMessage("Walkthrough captured. Review the transcript and notes before generating the report.");
+  }
+
+  function applyWalkthroughTranscriptToNotes() {
+    const transcript = walkthroughTranscript.trim();
+
+    if (!transcript) {
+      setTranscriptReviewMessage("Add transcript text before applying it to the inspection notes.");
+      return;
+    }
+
+    appendInspectionNote(`Walkthrough transcript reviewed for report draft:\n${transcript}`);
+    setTranscriptReviewMessage("Transcript added to inspection notes. Review the notes before drafting the owner summary.");
   }
 
   function flagQuickIssue() {
@@ -2580,6 +2595,45 @@ export default function InspectionWorkspace({
                     <DetailStrip label="Checks" value={`${inspectionForm.checklist.length}/${inspectionTotalChecks}`} />
                     <DetailStrip label="Walkthrough" value={walkthroughVideoName ? "Captured" : "Not captured"} />
                   </div>
+                  <div className="mt-4 grid gap-3 rounded-lg border border-gold/20 bg-cream/85 p-4">
+                    <div className="flex flex-wrap items-start justify-between gap-3">
+                      <div>
+                        <span className="type-eyebrow">Transcript Review</span>
+                        <h4 className="mt-1 font-serif text-xl font-semibold leading-tight text-ink">
+                          Walkthrough narration
+                        </h4>
+                        <p className="mt-1 text-sm font-semibold leading-6 text-slate-600">
+                          Paste dictated notes or a video transcript here. The next AI phase can automate this from the walkthrough recording.
+                        </p>
+                      </div>
+                      {walkthroughVideoName ? (
+                        <span className="rounded-full border border-gold/25 bg-warning-soft px-3 py-1 text-xs font-extrabold text-ink">
+                          {walkthroughVideoName}
+                        </span>
+                      ) : null}
+                    </div>
+                    <textarea
+                      value={walkthroughTranscript}
+                      onChange={(event) => {
+                        setWalkthroughTranscript(event.target.value);
+                        if (transcriptReviewMessage) setTranscriptReviewMessage("");
+                      }}
+                      placeholder="Example: Front exterior looks secure. Side gate latch should be monitored. Interior temperature was stable. No visible water intrusion in primary living areas."
+                      className="field-shell min-h-28 rounded-lg border border-gold/30 bg-white p-3 text-sm font-semibold leading-6 text-ink shadow-[inset_0_1px_0_rgba(255,255,255,0.8)]"
+                    />
+                    <div className="flex flex-wrap items-center gap-3">
+                      <button
+                        type="button"
+                        onClick={applyWalkthroughTranscriptToNotes}
+                        className="button-soft min-h-10 rounded-lg px-4 text-sm font-extrabold"
+                      >
+                        Apply Transcript To Notes
+                      </button>
+                      {transcriptReviewMessage ? (
+                        <p className="text-sm font-semibold leading-6 text-slate-600">{transcriptReviewMessage}</p>
+                      ) : null}
+                    </div>
+                  </div>
                   {suggestedSummary ? (
                     <div className="mt-4 rounded-lg border border-gold/20 bg-warning-soft/50 p-4">
                       <span className="type-eyebrow">Draft Summary</span>
@@ -2934,7 +2988,15 @@ export default function InspectionWorkspace({
               <div className="grid grid-cols-2 gap-3 lg:flex lg:flex-wrap lg:justify-end">
                 <button
                   type="button"
-                  onClick={() => setInspectionForm(emptyInspectionForm)}
+                  onClick={() => {
+                    setInspectionForm(emptyInspectionForm);
+                    setQuickCaptureMessage("");
+                    setWalkthroughVideoName("");
+                    setWalkthroughTranscript("");
+                    setTranscriptReviewMessage("");
+                    setSuggestedSummary("");
+                    setSuggestedSummaryMessage("");
+                  }}
                   className="button-soft min-h-11 flex-1 rounded-lg px-5 font-extrabold sm:flex-none"
                 >
                   Clear
