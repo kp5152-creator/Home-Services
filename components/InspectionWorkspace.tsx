@@ -2783,12 +2783,7 @@ export default function InspectionWorkspace({
                       </h3>
                     </div>
                   </div>
-                  <div className="mt-3 grid grid-cols-3 gap-2 sm:mt-4">
-                    <DetailStrip label="Photos" value={`${inspectionForm.photoFiles.length}`} />
-                    <DetailStrip label="Checks" value={`${inspectionForm.checklist.length}/${inspectionTotalChecks}`} />
-                    <DetailStrip label="Notes" value={transcriptCaptured ? "Added" : walkthroughVideoName ? "Video" : "Open"} />
-                  </div>
-                  <div className="mt-3 grid gap-3 rounded-lg border border-gold/20 bg-cream/85 p-3 sm:mt-4 sm:p-4">
+                  <div className="mt-3 grid gap-3 rounded-lg border border-gold/20 bg-cream/85 p-3 sm:p-4">
                     <div className="flex flex-wrap items-start justify-between gap-3">
                       <div>
                         <h4 className="mt-1 font-serif text-lg font-semibold leading-tight text-ink sm:text-xl">
