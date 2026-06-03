@@ -451,6 +451,7 @@ export default function InspectionWorkspace({
   const [walkthroughVideoName, setWalkthroughVideoName] = useState("");
   const [walkthroughTranscript, setWalkthroughTranscript] = useState("");
   const [transcriptReviewMessage, setTranscriptReviewMessage] = useState("");
+  const [checklistAssistMessage, setChecklistAssistMessage] = useState("");
   const [isSavingInspection, setIsSavingInspection] = useState(false);
   const [propertySaveMessage, setPropertySaveMessage] = useState("");
   const [isSavingProperty, setIsSavingProperty] = useState(false);
@@ -621,7 +622,7 @@ export default function InspectionWorkspace({
   const aiNextAction = suggestedSummary
     ? "Review and approve the homeowner summary."
     : evidenceReady
-      ? "Draft a concierge summary from the captured evidence."
+      ? "Draft the report summary or open an issue draft from the captured evidence."
       : "Capture photos, notes, or walkthrough narration to begin.";
 
   function draftOwnerUpdateFromReport(inspection: Inspection) {
@@ -1730,6 +1731,205 @@ export default function InspectionWorkspace({
     setTranscriptReviewMessage("Transcript added to inspection notes. Review the notes before drafting the owner summary.");
   }
 
+  function suggestChecklistFromInspectionEvidence() {
+    const evidenceText = `${walkthroughTranscript} ${inspectionForm.notes}`.trim().toLowerCase();
+
+    if (!evidenceText) {
+      setChecklistAssistMessage("Add narration or notes before suggesting checklist items.");
+      return;
+    }
+
+    const suggestionRules: Array<{ pattern: RegExp; items: string[] }> = [
+      {
+        pattern: /perimeter|walked around|walk around|exterior|outside|yard|property grounds/,
+        items: ["Walk perimeter of property", "Check driveway and entry appearance", "Inspect exterior condition"]
+      },
+      {
+        pattern: /gate|fence|latch|access|entry|lock|door|window|secured|secure/,
+        items: [
+          "Check gates/fencing",
+          "Inspect windows and doors",
+          "Confirm entry access is working",
+          "Secure doors and windows",
+          "Confirm property is secured",
+          "Confirm area is safe/secured"
+        ]
+      },
+      {
+        pattern: /forced entry|security|alarm|panel|break.?in|unlocked/,
+        items: ["Look for signs of forced entry", "Inspect alarm panel status", "Confirm property is secured"]
+      },
+      {
+        pattern: /thermostat|temperature|hvac|air|a\/c|ac|cooling|heating/,
+        items: [
+          "Check thermostat and HVAC operation",
+          "Set thermostat to arrival temperature",
+          "Check thermostat setting",
+          "Check for HVAC concern"
+        ]
+      },
+      {
+        pattern: /leak|water|plumb|sink|shower|toilet|faucet|drip|disposal/,
+        items: [
+          "Run water at sinks/showers",
+          "Flush toilets",
+          "Check for plumbing leaks",
+          "Run garbage disposal",
+          "Check for active water leak"
+        ]
+      },
+      {
+        pattern: /ceiling|wall|water intrusion|mold|mildew|odor|odour/,
+        items: ["Inspect ceilings/walls for water intrusion", "Look for mold/mildew odors"]
+      },
+      {
+        pattern: /irrigation|sprinkler|landscape|plant|lawn|tree|flooding|dry spot/,
+        items: ["Check irrigation leaks or flooding", "Verify landscape condition"]
+      },
+      {
+        pattern: /pool|spa|water feature/,
+        items: ["Inspect pool/spa area", "Inspect pool/spa presentation"]
+      },
+      {
+        pattern: /light|lighting|outdoor lighting|interior lights|power|breaker|electrical/,
+        items: ["Verify outdoor lighting functionality", "Turn on required interior lights", "Check electrical breakers if needed", "Check for electrical safety concern"]
+      },
+      {
+        pattern: /package|flyer|mail|delivery/,
+        items: ["Check for package deliveries/flyers", "Remove flyers/packages from entry"]
+      },
+      {
+        pattern: /fridge|refrigerator|freezer|appliance|kitchen/,
+        items: ["Verify refrigerator/freezer operation", "Check kitchen and appliance condition", "Check for appliance concern"]
+      },
+      {
+        pattern: /wifi|internet|router|network/,
+        items: ["Check internet/WiFi system"]
+      },
+      {
+        pattern: /smoke|carbon|co detector|detector/,
+        items: ["Inspect smoke/CO detectors"]
+      },
+      {
+        pattern: /pest|insect|bug|rodent/,
+        items: ["Look for pest activity", "Check for insect activity"]
+      },
+      {
+        pattern: /photo|picture|image|documented|documentation/,
+        items: ["Photograph damage or maintenance concern", "Photograph any cleaning concerns", "Photograph any visible damage"]
+      }
+    ];
+    const activeChecklistItems = new Set<string>(allInspectionChecklistItems);
+    const suggestedItems = suggestionRules.flatMap((rule) =>
+      rule.pattern.test(evidenceText) ? rule.items.filter((item) => activeChecklistItems.has(item)) : []
+    );
+    const uniqueSuggestedItems = Array.from(new Set(suggestedItems));
+
+    if (!uniqueSuggestedItems.length) {
+      setChecklistAssistMessage("No checklist matches found yet. Add more specific narration or select checks manually.");
+      return;
+    }
+
+    setInspectionForm((current) => {
+      const currentItems = new Set(current.checklist);
+      const mergedItems = [...current.checklist];
+
+      uniqueSuggestedItems.forEach((item) => {
+        if (!currentItems.has(item)) mergedItems.push(item);
+      });
+
+      return {
+        ...current,
+        checklist: mergedItems
+      };
+    });
+    setChecklistAssistMessage(
+      `${uniqueSuggestedItems.length} checklist item${uniqueSuggestedItems.length === 1 ? "" : "s"} suggested from the captured evidence. Review before generating the report.`
+    );
+  }
+
+  function draftIssueFromInspectionEvidence() {
+    const evidenceText = `${walkthroughTranscript} ${inspectionForm.notes}`.trim();
+    const issueText = evidenceText.toLowerCase();
+
+    if (!issueText) {
+      setQuickCaptureMessage("Add narration or notes before drafting an issue from evidence.");
+      return;
+    }
+
+    const issueDraft = /security|gate|lock|door|window|access|alarm|forced entry/.test(issueText)
+      ? {
+          title: "Security or access concern",
+          priority: /forced entry|unlocked|open door|alarm|security/.test(issueText) ? "Urgent" : "High",
+          vendorType: "Handyman" as VendorType,
+          description:
+            "Security or access concern identified from inspection narration. Review doors, gates, locks, windows, panels, and any visible signs of concern.",
+          nextStep: "Document with photos, verify the affected access point, and notify the homeowner with recommended next steps."
+        }
+      : /leak|water|plumb|toilet|sink|shower|faucet|drip/.test(issueText)
+        ? {
+            title: "Water or plumbing concern",
+            priority: /active leak|flood|standing water|water intrusion/.test(issueText) ? "Urgent" : "High",
+            vendorType: "Plumbing" as VendorType,
+            description:
+              "Water or plumbing condition identified from inspection narration. Confirm the location, source, visible damage, and whether active water is present.",
+            nextStep: "Capture photos, contact the plumbing vendor for availability, and update the homeowner once timing is confirmed."
+          }
+        : /hvac|air|thermostat|temperature|ac|a\/c|cooling|heating/.test(issueText)
+          ? {
+              title: "HVAC performance concern",
+              priority: /no air|no ac|no a\/c|not cooling|not heating/.test(issueText) ? "Urgent" : "High",
+              vendorType: "HVAC" as VendorType,
+              description:
+                "HVAC performance concern identified from inspection narration. Confirm thermostat reading, airflow, abnormal noise, and interior temperature trend.",
+              nextStep: "Request HVAC vendor review and keep the homeowner updated once service timing is confirmed."
+            }
+          : /pool|spa|water feature|heater/.test(issueText)
+            ? {
+                title: "Pool or spa service item",
+                priority: /equipment|heater|leak|pump|not working/.test(issueText) ? "High" : "Medium",
+                vendorType: "Pool" as VendorType,
+                description:
+                  "Pool or spa condition identified from inspection narration. Review water clarity, equipment status, visible leaks, and surrounding condition.",
+                nextStep: "Request pool vendor review and continue monitoring until service is complete."
+              }
+            : /irrigation|landscape|sprinkler|plant|tree|lawn|drip/.test(issueText)
+              ? {
+                  title: "Landscape or irrigation issue",
+                  priority: /leak|flood|broken|dead|major/.test(issueText) ? "High" : "Medium",
+                  vendorType: "Landscape" as VendorType,
+                  description:
+                    "Landscape or irrigation condition identified from inspection narration. Review affected area, visible leaks, dry spots, plant stress, or water waste.",
+                  nextStep: "Coordinate with the landscape vendor and verify the condition at the next property visit."
+                }
+              : {
+                  title: "Inspection follow-up item",
+                  priority: "Medium" as MaintenancePriority,
+                  vendorType: "Handyman" as VendorType,
+                  description:
+                    "Follow-up item identified from inspection narration. Review the location, condition, photos, and recommended homeowner/vendor next step.",
+                  nextStep: "Document the item, assign the appropriate vendor if needed, and monitor until resolved."
+                };
+    const matchingVendor = selectedVendors.find((vendor) => vendor.type === issueDraft.vendorType);
+
+    setMaintenanceIssueForm({
+      title: issueDraft.title,
+      description: `${issueDraft.description}\n\nEvidence reviewed: ${evidenceText}`,
+      priority: issueDraft.priority as MaintenancePriority,
+      status: "Open",
+      vendor: matchingVendor?.name ?? "",
+      nextStep: issueDraft.nextStep,
+      photoFiles: []
+    });
+    setMaintenanceRecommendation(null);
+    setMaintenanceRecommendationMessage("");
+    setMaintenanceSaveMessage("Issue draft created from inspection evidence. Review before saving.");
+    setSelectedMaintenanceIssueId("");
+    setActiveExperience("Maintenance");
+    setShowMaintenanceForm(true);
+    window.setTimeout(() => setActiveExperience("Maintenance"), 0);
+  }
+
   function flagQuickIssue() {
     setMaintenanceIssueForm((current) => ({
       ...current,
@@ -2608,7 +2808,7 @@ export default function InspectionWorkspace({
                         Evidence review desk
                       </h3>
                       <p className="mt-2 max-w-3xl text-sm font-semibold leading-6 text-slate-600">
-                        Review the captured evidence, then draft a homeowner-ready summary. The inspector approves the final language before the report is generated.
+                        Review the captured evidence, then choose whether to draft the homeowner summary or open an issue draft for repair follow-up.
                       </p>
                     </div>
                     <span className="rounded-full border border-gold/25 bg-warning-soft px-3 py-1 text-xs font-extrabold text-ink">
@@ -2645,6 +2845,7 @@ export default function InspectionWorkspace({
                       onChange={(event) => {
                         setWalkthroughTranscript(event.target.value);
                         if (transcriptReviewMessage) setTranscriptReviewMessage("");
+                        if (checklistAssistMessage) setChecklistAssistMessage("");
                       }}
                       placeholder="Example: Front exterior looks secure. Side gate latch should be monitored. Interior temperature was stable. No visible water intrusion in primary living areas."
                       className="field-shell min-h-28 rounded-lg border border-gold/30 bg-white p-3 text-sm font-semibold leading-6 text-ink shadow-[inset_0_1px_0_rgba(255,255,255,0.8)]"
@@ -2657,8 +2858,19 @@ export default function InspectionWorkspace({
                       >
                         Add Transcript To Visit Notes
                       </button>
+                      <button
+                        type="button"
+                        onClick={suggestChecklistFromInspectionEvidence}
+                        disabled={!evidenceReady}
+                        className="button-soft min-h-10 rounded-lg px-4 text-sm font-extrabold disabled:cursor-not-allowed disabled:opacity-55"
+                      >
+                        Suggest Checklist
+                      </button>
                       {transcriptReviewMessage ? (
                         <p className="text-sm font-semibold leading-6 text-slate-600">{transcriptReviewMessage}</p>
+                      ) : null}
+                      {checklistAssistMessage ? (
+                        <p className="text-sm font-semibold leading-6 text-slate-600">{checklistAssistMessage}</p>
                       ) : null}
                     </div>
                   </div>
@@ -2679,14 +2891,24 @@ export default function InspectionWorkspace({
                     <p className="mt-3 text-sm font-semibold text-slate-600">{suggestedSummaryMessage}</p>
                   ) : null}
                 </div>
-                <button
-                  type="button"
-                  onClick={generateSuggestedSummary}
-                  disabled={!evidenceReady}
-                  className="button-soft min-h-12 rounded-lg px-5 text-sm font-extrabold disabled:cursor-not-allowed disabled:opacity-55"
-                >
-                  Draft From Evidence
-                </button>
+                <div className="grid gap-3">
+                  <button
+                    type="button"
+                    onClick={generateSuggestedSummary}
+                    disabled={!evidenceReady}
+                    className="button-soft min-h-12 rounded-lg px-5 text-sm font-extrabold disabled:cursor-not-allowed disabled:opacity-55"
+                  >
+                    Draft Report Summary
+                  </button>
+                  <button
+                    type="button"
+                    onClick={draftIssueFromInspectionEvidence}
+                    disabled={!evidenceReady}
+                    className="min-h-12 rounded-lg border border-gold/25 bg-[#252525] px-5 text-sm font-extrabold text-cream shadow-soft transition hover:border-gold/60 hover:bg-[#1f1f1f] disabled:cursor-not-allowed disabled:opacity-55"
+                  >
+                    Open Issue Draft
+                  </button>
+                </div>
               </section>
 
               <fieldset className="grid gap-3 rounded-lg border border-gold/30 bg-warning-soft/70 p-4 shadow-soft">
@@ -3023,6 +3245,7 @@ export default function InspectionWorkspace({
                     setWalkthroughVideoName("");
                     setWalkthroughTranscript("");
                     setTranscriptReviewMessage("");
+                    setChecklistAssistMessage("");
                     setSuggestedSummary("");
                     setSuggestedSummaryMessage("");
                   }}
