@@ -763,6 +763,7 @@ export default function InspectionWorkspace({
     const reportTemperature =
       demoMode && (!Number.isFinite(temperature) || temperature < 40 || temperature > 120) ? 76 : temperature;
     const reportChecklist = demoMode ? demoChecklist : inspectionForm.checklist;
+    const reportNotes = [inspectionForm.notes.trim(), walkthroughTranscript.trim()].filter(Boolean).join("\n\n");
 
     if (!demoMode && !inspectorName) {
       setInspectionSaveMessage("Add the inspector name before generating the homeowner report.");
@@ -823,7 +824,7 @@ export default function InspectionWorkspace({
         interiorTemperature: String(Math.round(reportTemperature)),
         checklist: withInspectionType(reportChecklist, inspectionForm.inspectionType),
         executiveSummary: inspectionForm.executiveSummary,
-        notes: inspectionForm.notes,
+        notes: reportNotes,
         urgent: inspectionForm.urgent,
         photos: photos.map((photo, index) => photoUploadToDemoPhoto(photo, "inspection", index))
       };
@@ -859,6 +860,7 @@ export default function InspectionWorkspace({
           ...inspectionForm,
           inspectorName: reportInspectorName,
           interiorTemperature: String(Math.round(reportTemperature)),
+          notes: reportNotes,
           photoFiles: undefined,
           photos,
           propertyId: selectedProperty.id
@@ -1724,18 +1726,6 @@ export default function InspectionWorkspace({
     setTranscriptReviewMessage("Ready for dictation.");
     setQuickCaptureMessage("Dictation ready.");
     window.setTimeout(() => walkthroughTranscriptRef.current?.focus(), 0);
-  }
-
-  function applyWalkthroughTranscriptToNotes() {
-    const transcript = walkthroughTranscript.trim();
-
-    if (!transcript) {
-      setTranscriptReviewMessage("Add notes first.");
-      return;
-    }
-
-    appendInspectionNote(`Walkthrough transcript reviewed for report draft:\n${transcript}`);
-    setTranscriptReviewMessage("Added to notes.");
   }
 
   function suggestChecklistFromInspectionEvidence() {
@@ -2866,13 +2856,6 @@ export default function InspectionWorkspace({
                         className="min-h-10 rounded-lg border border-gold/25 bg-[#252525] px-4 text-sm font-extrabold text-cream shadow-soft transition hover:border-gold/60 hover:bg-[#1f1f1f]"
                       >
                         Dictate
-                      </button>
-                      <button
-                        type="button"
-                        onClick={applyWalkthroughTranscriptToNotes}
-                        className="button-soft min-h-10 rounded-lg px-4 text-sm font-extrabold"
-                      >
-                        Add To Notes
                       </button>
                       <button
                         type="button"
