@@ -2789,18 +2789,13 @@ export default function InspectionWorkspace({
                     </div>
                   </div>
                   <div className="mt-3 grid gap-3 rounded-lg border border-gold/20 bg-cream/85 p-3 sm:p-4">
-                    <div className="flex flex-wrap items-start justify-between gap-3">
-                      <div>
-                        <h4 className="mt-1 font-serif text-lg font-semibold leading-tight text-ink sm:text-xl">
-                          Notes
-                        </h4>
-                      </div>
-                      {walkthroughVideoName ? (
+                    {walkthroughVideoName ? (
+                      <div className="flex justify-end">
                         <span className="rounded-full border border-gold/25 bg-warning-soft px-3 py-1 text-xs font-extrabold text-ink">
                           {walkthroughVideoName}
                         </span>
-                      ) : null}
-                    </div>
+                      </div>
+                    ) : null}
                     <textarea
                       ref={walkthroughTranscriptRef}
                       value={walkthroughTranscript}
