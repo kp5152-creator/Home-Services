@@ -3233,32 +3233,6 @@ export default function InspectionWorkspace({
                 </div>
               ) : null}
 
-              <label className="order-7 hidden gap-2 rounded-lg border border-gold/15 bg-cream/80 p-4 text-sm font-extrabold text-ink shadow-soft lg:grid">
-                Notes / issues found
-                <textarea
-                  rows={5}
-                  value={inspectionForm.notes}
-                  onChange={(event) => setInspectionForm((current) => ({ ...current, notes: event.target.value }))}
-                  placeholder="Record observations, maintenance needs, vendor recommendations, or owner follow-up."
-                  className="field-shell rounded-lg p-3"
-                />
-              </label>
-
-              <label className="order-8 hidden gap-2 rounded-lg border border-gold/20 bg-cream p-4 text-sm font-extrabold text-ink shadow-soft lg:grid">
-                <span className="text-xs font-extrabold uppercase tracking-[0.1em] text-gold">
-                  Executive Summary
-                </span>
-                <textarea
-                  rows={4}
-                  value={inspectionForm.executiveSummary}
-                  onChange={(event) =>
-                    setInspectionForm((current) => ({ ...current, executiveSummary: event.target.value }))
-                  }
-                  placeholder="Approved owner-ready summary for the final report."
-                  className="field-shell rounded-lg bg-white p-3 text-ink placeholder:text-muted"
-                />
-              </label>
-
               {inspectionSaveMessage ? (
                 <p className="order-11 rounded-lg border border-gold/20 bg-cream p-3 text-sm font-semibold text-ink shadow-soft">
                   {inspectionSaveMessage}
