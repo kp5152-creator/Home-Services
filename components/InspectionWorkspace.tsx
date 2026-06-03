@@ -2904,22 +2904,6 @@ export default function InspectionWorkspace({
                   >
                     {isSavingInspection ? "Generating..." : "Generate Report"}
                   </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setInspectionForm(emptyInspectionForm);
-                      setQuickCaptureMessage("");
-                      setWalkthroughVideoName("");
-                      setWalkthroughTranscript("");
-                      setTranscriptReviewMessage("");
-                      setChecklistAssistMessage("");
-                      setSuggestedSummary("");
-                      setSuggestedSummaryMessage("");
-                    }}
-                    className="col-span-2 min-h-10 rounded-lg border border-line bg-cream px-3 text-sm font-extrabold text-ink transition hover:border-gold/50 lg:col-span-1"
-                  >
-                    Clear
-                  </button>
                 </div>
               </section>
 
