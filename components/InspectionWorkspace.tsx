@@ -3034,20 +3034,31 @@ export default function InspectionWorkspace({
                     <h3 className="font-serif text-lg font-semibold leading-tight text-ink sm:text-xl">Checklist</h3>
                   </div>
                 </div>
-                <div className="flex flex-col gap-3 rounded-lg border border-gold/15 bg-cream/90 p-3 sm:flex-row sm:items-center sm:justify-between">
-                  <p className="text-sm font-semibold text-muted">
-                    <span className="font-extrabold text-ink">
-                      {inspectionForm.checklist.length}/{inspectionTotalChecks}
-                    </span>{" "}
-                    checks complete
-                  </p>
-                  <div className="grid grid-cols-2 gap-2 sm:flex">
+                <div className="rounded-lg border border-gold/15 bg-cream/90 p-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="text-sm font-semibold text-muted">
+                      <span className="font-extrabold text-ink">
+                        {inspectionForm.checklist.length}/{inspectionTotalChecks}
+                      </span>{" "}
+                      complete
+                    </p>
+                    <span className="rounded-full border border-gold/25 bg-warning-soft px-3 py-1 text-xs font-extrabold text-ink">
+                      {Math.round((inspectionForm.checklist.length / inspectionTotalChecks) * 100)}%
+                    </span>
+                  </div>
+                  <div className="mt-3 h-2 overflow-hidden rounded-full bg-[#d8d0c2]">
+                    <div
+                      className="h-full rounded-full bg-gold transition-all"
+                      style={{ width: `${(inspectionForm.checklist.length / inspectionTotalChecks) * 100}%` }}
+                    />
+                  </div>
+                  <div className="mt-3 grid grid-cols-2 gap-2 sm:flex">
                     <button
                       type="button"
                       onClick={() => setInspectionForm((current) => ({ ...current, checklist: allInspectionChecklistItems }))}
                       className="button-soft min-h-10 rounded-lg px-4 text-sm font-extrabold"
                     >
-                      Select All
+                      All
                     </button>
                     <button
                       type="button"
@@ -3082,7 +3093,7 @@ export default function InspectionWorkspace({
                             onClick={() => setChecklistSection(section.items, !sectionComplete)}
                             className="min-h-10 rounded-lg border border-line bg-cream px-3 text-sm font-extrabold text-ink transition hover:border-gold/50"
                           >
-                            {sectionComplete ? "Clear Section" : "Select Section"}
+                            {sectionComplete ? "Clear" : "Select"}
                           </button>
                           {section.items.map((item) => (
                             <label
