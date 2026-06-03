@@ -615,16 +615,6 @@ export default function InspectionWorkspace({
   const allInspectionChecklistItems = activeInspectionTemplate.sections.flatMap((section) => section.items);
   const transcriptCaptured = Boolean(walkthroughTranscript.trim());
   const evidenceReady = Boolean(inspectionForm.photoFiles.length || inspectionForm.notes.trim() || transcriptCaptured);
-  const aiReviewStatus = suggestedSummary
-    ? "Draft ready for approval"
-    : evidenceReady
-      ? "Ready to draft"
-      : "Capture evidence first";
-  const aiNextAction = suggestedSummary
-    ? "Approve the draft when ready."
-    : evidenceReady
-      ? "Draft the summary or create an issue."
-      : "Add notes, photos, or video to begin.";
 
   function draftOwnerUpdateFromReport(inspection: Inspection) {
     const status = reportConditionStatus(inspection);
@@ -2813,18 +2803,12 @@ export default function InspectionWorkspace({
                         Review
                       </h3>
                     </div>
-                    <span className="rounded-full border border-gold/25 bg-warning-soft px-3 py-1 text-xs font-extrabold text-ink">
-                      {aiReviewStatus}
-                    </span>
                   </div>
                   <div className="mt-3 grid grid-cols-3 gap-2 sm:mt-4">
                     <DetailStrip label="Photos" value={`${inspectionForm.photoFiles.length}`} />
                     <DetailStrip label="Checks" value={`${inspectionForm.checklist.length}/${inspectionTotalChecks}`} />
-                    <DetailStrip label="Narration" value={transcriptCaptured ? "Reviewed" : walkthroughVideoName ? "Captured" : "Needed"} />
+                    <DetailStrip label="Notes" value={transcriptCaptured ? "Added" : walkthroughVideoName ? "Video" : "Open"} />
                   </div>
-                  <p className="mt-3 rounded-lg border border-gold/15 bg-warning-soft/45 p-3 text-sm font-semibold leading-5 text-ink sm:leading-6">
-                    {aiNextAction}
-                  </p>
                   <div className="mt-3 grid gap-3 rounded-lg border border-gold/20 bg-cream/85 p-3 sm:mt-4 sm:p-4">
                     <div className="flex flex-wrap items-start justify-between gap-3">
                       <div>
