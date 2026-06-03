@@ -1,6 +1,6 @@
 "use client";
 
-import { Dispatch, FormEvent, SetStateAction, useEffect, useMemo, useState } from "react";
+import { Dispatch, FormEvent, SetStateAction, useEffect, useMemo, useRef, useState } from "react";
 import {
   defaultInspectionType,
   getInspectionTemplate,
@@ -483,6 +483,7 @@ export default function InspectionWorkspace({
   const [hasAppliedInitialRole, setHasAppliedInitialRole] = useState(false);
   const [darkMode, setDarkMode] = useState(false);
   const [now] = useState(() => new Date());
+  const walkthroughTranscriptRef = useRef<HTMLTextAreaElement | null>(null);
   const visibleExperienceScreens = roleExperienceScreens(activeRole);
   const desktopNavigationScreens = visibleExperienceScreens.includes("Dashboard")
     ? (["Dashboard", ...visibleExperienceScreens.filter((screen) => screen !== "Dashboard")] as ExperienceScreen[])
@@ -620,10 +621,10 @@ export default function InspectionWorkspace({
       ? "Ready to draft"
       : "Capture evidence first";
   const aiNextAction = suggestedSummary
-    ? "Review and approve the homeowner summary."
+    ? "Approve the draft when ready."
     : evidenceReady
-      ? "Draft the report summary or open an issue draft from the captured evidence."
-      : "Capture photos, notes, or walkthrough narration to begin.";
+      ? "Draft the summary or create an issue."
+      : "Add notes, photos, or video to begin.";
 
   function draftOwnerUpdateFromReport(inspection: Inspection) {
     const status = reportConditionStatus(inspection);
@@ -1712,30 +1713,36 @@ export default function InspectionWorkspace({
     if (!file) return;
 
     setWalkthroughVideoName(file.name);
-    setTranscriptReviewMessage("Walkthrough video captured. Add or paste the transcript below before drafting the report.");
+    setTranscriptReviewMessage("Walkthrough captured.");
     appendInspectionNote(
       `Walkthrough video captured for future AI-assisted review: ${file.name}. Use this recording to support the final notes, photo documentation, issue detection, and owner summary.`
     );
-    setQuickCaptureMessage("Walkthrough captured. Review the transcript and notes before generating the report.");
+    setQuickCaptureMessage("Walkthrough captured.");
+  }
+
+  function startInspectionDictation() {
+    setTranscriptReviewMessage("Ready for dictation.");
+    setQuickCaptureMessage("Dictation ready.");
+    window.setTimeout(() => walkthroughTranscriptRef.current?.focus(), 0);
   }
 
   function applyWalkthroughTranscriptToNotes() {
     const transcript = walkthroughTranscript.trim();
 
     if (!transcript) {
-      setTranscriptReviewMessage("Add transcript text before applying it to the inspection notes.");
+      setTranscriptReviewMessage("Add notes first.");
       return;
     }
 
     appendInspectionNote(`Walkthrough transcript reviewed for report draft:\n${transcript}`);
-    setTranscriptReviewMessage("Transcript added to inspection notes. Review the notes before drafting the owner summary.");
+    setTranscriptReviewMessage("Added to notes.");
   }
 
   function suggestChecklistFromInspectionEvidence() {
     const evidenceText = `${walkthroughTranscript} ${inspectionForm.notes}`.trim().toLowerCase();
 
     if (!evidenceText) {
-      setChecklistAssistMessage("Add narration or notes before suggesting checklist items.");
+      setChecklistAssistMessage("Add notes first.");
       return;
     }
 
@@ -1826,7 +1833,7 @@ export default function InspectionWorkspace({
     const uniqueSuggestedItems = Array.from(new Set(suggestedItems));
 
     if (!uniqueSuggestedItems.length) {
-      setChecklistAssistMessage("No checklist matches found yet. Add more specific narration or select checks manually.");
+      setChecklistAssistMessage("No matches yet. Add more detail or select manually.");
       return;
     }
 
@@ -1844,7 +1851,7 @@ export default function InspectionWorkspace({
       };
     });
     setChecklistAssistMessage(
-      `${uniqueSuggestedItems.length} checklist item${uniqueSuggestedItems.length === 1 ? "" : "s"} suggested from the captured evidence. Review before generating the report.`
+      `${uniqueSuggestedItems.length} check${uniqueSuggestedItems.length === 1 ? "" : "s"} suggested.`
     );
   }
 
@@ -2689,30 +2696,23 @@ export default function InspectionWorkspace({
             </div>
           </section>
 
-          <section className={`estate-panel no-print rounded-lg p-5 pb-28 lg:pb-5 ${activeExperience === "Inspection" ? "" : "hidden"}`}>
+          <section className={`estate-panel no-print rounded-lg p-4 pb-28 sm:p-5 lg:pb-5 ${activeExperience === "Inspection" ? "" : "hidden"}`}>
             <div className="mb-5 flex items-start justify-between gap-3">
               <div>
-                <p className="mb-2 text-xs font-extrabold uppercase tracking-[0.1em] text-clay">
-                  Inspection
-                </p>
-                <h2 className="font-serif text-3xl font-semibold leading-tight text-ink">AI Walkthrough</h2>
+                <h2 className="font-serif text-2xl font-semibold leading-tight text-ink sm:text-3xl">Inspect</h2>
               </div>
-              <span className="rounded-full border border-gold/25 bg-warning-soft px-3 py-2 text-xs font-extrabold text-ink">
+              <span className="hidden rounded-full border border-gold/25 bg-warning-soft px-3 py-2 text-xs font-extrabold text-ink sm:inline-flex">
                 {formatDateTime(now)}
               </span>
             </div>
 
             <form id="inspection-form" className="grid gap-4" onSubmit={saveInspection}>
-              <section className="rounded-lg border border-gold/25 bg-[#eae4d8] p-4 text-ink shadow-soft">
-                <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+              <section className="order-3 rounded-lg border border-gold/25 bg-[#eae4d8] p-3 text-ink shadow-soft sm:p-4">
+                <div className="mb-3 flex flex-col gap-2 lg:flex-row lg:items-end lg:justify-between">
                   <div>
-                    <p className="type-eyebrow">AI Walkthrough</p>
-                    <h3 className="mt-1 font-serif text-2xl font-semibold leading-tight text-ink">
-                      Capture the visit. Review before sending.
+                    <h3 className="mt-1 font-serif text-xl font-semibold leading-tight text-ink sm:text-2xl">
+                      Capture
                     </h3>
-                    <p className="mt-2 max-w-3xl text-sm font-semibold leading-6 text-[#4f473c]">
-                      Photos, walkthrough video, dictated notes, and flagged issues can become AI-assisted report content after review.
-                    </p>
                   </div>
                   {walkthroughVideoName ? (
                     <span className="w-fit rounded-full border border-gold/25 bg-cream px-3 py-1 text-xs font-extrabold text-ink">
@@ -2721,11 +2721,11 @@ export default function InspectionWorkspace({
                   ) : null}
                 </div>
 
-                <div className="grid gap-3 lg:grid-cols-4">
-                  <label className="grid min-h-24 cursor-pointer content-center gap-2 rounded-lg border border-gold/25 bg-cream p-4 text-sm font-extrabold shadow-soft transition hover:border-gold/60 hover:shadow-lift">
-                    Start AI Walkthrough
-                    <span className="text-xs font-semibold leading-5 text-slate-600">
-                      Record video for future AI-assisted review and report drafting.
+                <div className="grid grid-cols-2 gap-2 lg:grid-cols-4 lg:gap-3">
+                  <label className="grid min-h-14 cursor-pointer content-center gap-1 rounded-lg border border-gold/25 bg-cream p-3 text-sm font-extrabold shadow-soft transition hover:border-gold/60 hover:shadow-lift sm:min-h-24 sm:gap-2 sm:p-4">
+                    Start Walkthrough
+                    <span className="hidden text-xs font-semibold leading-5 text-slate-600 sm:block">
+                      Record video for review.
                     </span>
                     <input
                       type="file"
@@ -2739,10 +2739,10 @@ export default function InspectionWorkspace({
                     />
                   </label>
 
-                  <label className="grid min-h-24 cursor-pointer content-center gap-2 rounded-lg border border-gold/20 bg-cream/90 p-4 text-sm font-extrabold shadow-soft transition hover:border-gold/50 hover:shadow-lift">
+                  <label className="grid min-h-14 cursor-pointer content-center gap-1 rounded-lg border border-gold/20 bg-cream/90 p-3 text-sm font-extrabold shadow-soft transition hover:border-gold/50 hover:shadow-lift sm:min-h-24 sm:gap-2 sm:p-4">
                     Add Photos
-                    <span className="text-xs font-semibold leading-5 text-slate-600">
-                      Add field photos for future AI-assisted categorization.
+                    <span className="hidden text-xs font-semibold leading-5 text-slate-600 sm:block">
+                      Add field photos.
                     </span>
                     <input
                       type="file"
@@ -2763,26 +2763,23 @@ export default function InspectionWorkspace({
 
                   <button
                     type="button"
-                    onClick={() => {
-                      appendInspectionNote("Inspector dictated note for AI-assisted report draft: ");
-                      setQuickCaptureMessage("Dictation marker added to Notes / issues found.");
-                    }}
-                    className="grid min-h-24 content-center gap-2 rounded-lg border border-gold/20 bg-cream/90 p-4 text-left text-sm font-extrabold shadow-soft transition hover:border-gold/50 hover:shadow-lift"
+                    onClick={startInspectionDictation}
+                    className="hidden min-h-24 content-center gap-2 rounded-lg border border-gold/20 bg-cream/90 p-4 text-left text-sm font-extrabold shadow-soft transition hover:border-gold/50 hover:shadow-lift lg:grid"
                   >
                     Dictate Observations
                     <span className="text-xs font-semibold leading-5 text-slate-600">
-                      Adds a clean dictation marker to the report notes.
+                      Jump to notes.
                     </span>
                   </button>
 
                   <button
                     type="button"
                     onClick={flagQuickIssue}
-                    className="grid min-h-24 content-center gap-2 rounded-lg border border-gold/20 bg-cream/90 p-4 text-left text-sm font-extrabold shadow-soft transition hover:border-gold/50 hover:shadow-lift"
+                    className="hidden min-h-24 content-center gap-2 rounded-lg border border-gold/20 bg-cream/90 p-4 text-left text-sm font-extrabold shadow-soft transition hover:border-gold/50 hover:shadow-lift lg:grid"
                   >
                     Flag Issue
                     <span className="text-xs font-semibold leading-5 text-slate-600">
-                      Start an open item from the field workflow.
+                      Start a repair item.
                     </span>
                   </button>
                 </div>
@@ -2799,40 +2796,32 @@ export default function InspectionWorkspace({
                 ) : null}
               </section>
 
-              <section className="grid gap-4 rounded-lg border border-gold/20 bg-cream p-4 text-ink shadow-soft lg:grid-cols-[minmax(0,1fr)_240px] lg:items-start">
+              <section className="order-10 grid gap-3 rounded-lg border border-gold/20 bg-cream p-3 text-ink shadow-soft sm:p-4 lg:grid-cols-[minmax(0,1fr)_240px] lg:items-start">
                 <div>
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div>
-                      <p className="type-eyebrow">AI Review</p>
-                      <h3 className="mt-1 font-serif text-2xl font-semibold leading-tight text-ink">
-                        Evidence review desk
+                      <h3 className="mt-1 font-serif text-xl font-semibold leading-tight text-ink sm:text-2xl">
+                        Review
                       </h3>
-                      <p className="mt-2 max-w-3xl text-sm font-semibold leading-6 text-slate-600">
-                        Review the captured evidence, then choose whether to draft the homeowner summary or open an issue draft for repair follow-up.
-                      </p>
                     </div>
                     <span className="rounded-full border border-gold/25 bg-warning-soft px-3 py-1 text-xs font-extrabold text-ink">
                       {aiReviewStatus}
                     </span>
                   </div>
-                  <div className="mt-4 grid gap-2 sm:grid-cols-3">
+                  <div className="mt-3 grid grid-cols-3 gap-2 sm:mt-4">
                     <DetailStrip label="Photos" value={`${inspectionForm.photoFiles.length}`} />
                     <DetailStrip label="Checks" value={`${inspectionForm.checklist.length}/${inspectionTotalChecks}`} />
                     <DetailStrip label="Narration" value={transcriptCaptured ? "Reviewed" : walkthroughVideoName ? "Captured" : "Needed"} />
                   </div>
-                  <p className="mt-3 rounded-lg border border-gold/15 bg-warning-soft/45 p-3 text-sm font-semibold leading-6 text-ink">
+                  <p className="mt-3 rounded-lg border border-gold/15 bg-warning-soft/45 p-3 text-sm font-semibold leading-5 text-ink sm:leading-6">
                     {aiNextAction}
                   </p>
-                  <div className="mt-4 grid gap-3 rounded-lg border border-gold/20 bg-cream/85 p-4">
+                  <div className="mt-3 grid gap-3 rounded-lg border border-gold/20 bg-cream/85 p-3 sm:mt-4 sm:p-4">
                     <div className="flex flex-wrap items-start justify-between gap-3">
                       <div>
-                        <span className="type-eyebrow">Transcript Review</span>
-                        <h4 className="mt-1 font-serif text-xl font-semibold leading-tight text-ink">
-                          Walkthrough narration
+                        <h4 className="mt-1 font-serif text-lg font-semibold leading-tight text-ink sm:text-xl">
+                          Notes
                         </h4>
-                        <p className="mt-1 text-sm font-semibold leading-6 text-slate-600">
-                          Paste dictated notes or a video transcript here. The next AI phase can automate this from the walkthrough recording.
-                        </p>
                       </div>
                       {walkthroughVideoName ? (
                         <span className="rounded-full border border-gold/25 bg-warning-soft px-3 py-1 text-xs font-extrabold text-ink">
@@ -2841,22 +2830,30 @@ export default function InspectionWorkspace({
                       ) : null}
                     </div>
                     <textarea
+                      ref={walkthroughTranscriptRef}
                       value={walkthroughTranscript}
                       onChange={(event) => {
                         setWalkthroughTranscript(event.target.value);
                         if (transcriptReviewMessage) setTranscriptReviewMessage("");
                         if (checklistAssistMessage) setChecklistAssistMessage("");
                       }}
-                      placeholder="Example: Front exterior looks secure. Side gate latch should be monitored. Interior temperature was stable. No visible water intrusion in primary living areas."
-                      className="field-shell min-h-28 rounded-lg border border-gold/30 bg-white p-3 text-sm font-semibold leading-6 text-ink shadow-[inset_0_1px_0_rgba(255,255,255,0.8)]"
+                      placeholder="Front entry secure. Thermostat stable. No visible leaks. Side gate latch needs repair."
+                      className="field-shell min-h-24 rounded-lg border border-gold/30 bg-white p-3 text-sm font-semibold leading-6 text-ink shadow-[inset_0_1px_0_rgba(255,255,255,0.8)] sm:min-h-28"
                     />
-                    <div className="flex flex-wrap items-center gap-3">
+                    <div className="grid gap-2 sm:flex sm:flex-wrap sm:items-center sm:gap-3">
+                      <button
+                        type="button"
+                        onClick={startInspectionDictation}
+                        className="min-h-10 rounded-lg border border-gold/25 bg-[#252525] px-4 text-sm font-extrabold text-cream shadow-soft transition hover:border-gold/60 hover:bg-[#1f1f1f]"
+                      >
+                        Dictate
+                      </button>
                       <button
                         type="button"
                         onClick={applyWalkthroughTranscriptToNotes}
                         className="button-soft min-h-10 rounded-lg px-4 text-sm font-extrabold"
                       >
-                        Add Transcript To Visit Notes
+                        Add To Notes
                       </button>
                       <button
                         type="button"
@@ -2864,7 +2861,7 @@ export default function InspectionWorkspace({
                         disabled={!evidenceReady}
                         className="button-soft min-h-10 rounded-lg px-4 text-sm font-extrabold disabled:cursor-not-allowed disabled:opacity-55"
                       >
-                        Suggest Checklist
+                        Suggest Checks
                       </button>
                       {transcriptReviewMessage ? (
                         <p className="text-sm font-semibold leading-6 text-slate-600">{transcriptReviewMessage}</p>
@@ -2891,31 +2888,30 @@ export default function InspectionWorkspace({
                     <p className="mt-3 text-sm font-semibold text-slate-600">{suggestedSummaryMessage}</p>
                   ) : null}
                 </div>
-                <div className="grid gap-3">
+                <div className="grid grid-cols-2 gap-2 lg:grid-cols-1 lg:gap-3">
                   <button
                     type="button"
                     onClick={generateSuggestedSummary}
                     disabled={!evidenceReady}
-                    className="button-soft min-h-12 rounded-lg px-5 text-sm font-extrabold disabled:cursor-not-allowed disabled:opacity-55"
+                    className="button-soft min-h-11 rounded-lg px-3 text-sm font-extrabold disabled:cursor-not-allowed disabled:opacity-55 sm:min-h-12 sm:px-5"
                   >
-                    Draft Report Summary
+                    Draft Summary
                   </button>
                   <button
                     type="button"
                     onClick={draftIssueFromInspectionEvidence}
                     disabled={!evidenceReady}
-                    className="min-h-12 rounded-lg border border-gold/25 bg-[#252525] px-5 text-sm font-extrabold text-cream shadow-soft transition hover:border-gold/60 hover:bg-[#1f1f1f] disabled:cursor-not-allowed disabled:opacity-55"
+                    className="min-h-11 rounded-lg border border-gold/25 bg-[#252525] px-3 text-sm font-extrabold text-cream shadow-soft transition hover:border-gold/60 hover:bg-[#1f1f1f] disabled:cursor-not-allowed disabled:opacity-55 sm:min-h-12 sm:px-5"
                   >
-                    Open Issue Draft
+                    Draft Issue
                   </button>
                 </div>
               </section>
 
-              <fieldset className="grid gap-3 rounded-lg border border-gold/30 bg-warning-soft/70 p-4 shadow-soft">
+              <fieldset className="order-2 grid gap-3 rounded-lg border border-gold/30 bg-warning-soft/70 p-3 shadow-soft sm:p-4">
                 <div className="border-b border-gold/20 pb-3">
                   <div>
-                    <p className="text-xs font-extrabold uppercase tracking-[0.1em] text-gold">Review</p>
-                    <h3 className="font-serif text-xl font-semibold leading-tight text-ink">Inspection type</h3>
+                    <h3 className="font-serif text-lg font-semibold leading-tight text-ink sm:text-xl">Visit type</h3>
                   </div>
                 </div>
                 <select
@@ -2975,11 +2971,10 @@ export default function InspectionWorkspace({
                 </div>
               </fieldset>
 
-              <fieldset className="grid gap-4 rounded-lg border border-gold/20 bg-cream p-4 text-ink shadow-soft md:grid-cols-2">
+              <fieldset className="order-1 grid gap-3 rounded-lg border border-gold/20 bg-cream p-3 text-ink shadow-soft sm:p-4 md:grid-cols-2">
                 <div className="border-b border-gold/20 pb-3 md:col-span-2">
                   <div>
-                    <p className="text-xs font-extrabold uppercase tracking-[0.1em] text-gold">Review</p>
-                    <h3 className="font-serif text-xl font-semibold leading-tight text-ink">Visit details</h3>
+                    <h3 className="font-serif text-lg font-semibold leading-tight text-ink sm:text-xl">Inspector</h3>
                   </div>
                 </div>
                 <label className="grid gap-2 text-sm font-extrabold text-ink">
@@ -3014,11 +3009,10 @@ export default function InspectionWorkspace({
                 </label>
               </fieldset>
 
-              <fieldset className="grid gap-4 rounded-lg border border-gold/20 bg-cream p-4 text-ink shadow-soft">
+              <fieldset className="order-4 grid gap-3 rounded-lg border border-gold/20 bg-cream p-3 text-ink shadow-soft sm:p-4">
                 <div className="border-b border-gold/20 pb-3">
                   <div>
-                    <p className="text-xs font-extrabold uppercase tracking-[0.1em] text-gold">Review</p>
-                    <h3 className="font-serif text-xl font-semibold leading-tight text-ink">Checklist suggestions</h3>
+                    <h3 className="font-serif text-lg font-semibold leading-tight text-ink sm:text-xl">Checklist</h3>
                   </div>
                 </div>
                 <div className="flex flex-col gap-3 rounded-lg border border-gold/15 bg-cream/90 p-3 sm:flex-row sm:items-center sm:justify-between">
@@ -3045,6 +3039,52 @@ export default function InspectionWorkspace({
                     </button>
                   </div>
                 </div>
+                <div className="grid gap-3 lg:hidden">
+                  {activeInspectionTemplate.sections.map((section) => {
+                    const completedInSection = section.items.filter((item) => inspectionForm.checklist.includes(item)).length;
+                    const sectionComplete = completedInSection === section.items.length;
+
+                    return (
+                      <details
+                        key={section.title}
+                        className={`rounded-lg border p-3 ${
+                          sectionComplete ? "border-gold/35 bg-cream shadow-[inset_4px_0_0_#d4af37]" : "border-line bg-cream/80"
+                        }`}
+                      >
+                        <summary className="flex cursor-pointer list-none items-center justify-between gap-3">
+                          <span className="text-sm font-black uppercase tracking-[0.08em] text-gold">{section.title}</span>
+                          <span className="rounded-full border border-line bg-cream px-3 py-1 text-xs font-extrabold text-slate-600">
+                            {completedInSection}/{section.items.length}
+                          </span>
+                        </summary>
+                        <div className="mt-3 grid gap-2">
+                          <button
+                            type="button"
+                            onClick={() => setChecklistSection(section.items, !sectionComplete)}
+                            className="min-h-10 rounded-lg border border-line bg-cream px-3 text-sm font-extrabold text-ink transition hover:border-gold/50"
+                          >
+                            {sectionComplete ? "Clear Section" : "Select Section"}
+                          </button>
+                          {section.items.map((item) => (
+                            <label
+                              key={item}
+                              className="grid min-h-11 min-w-0 grid-cols-[22px_minmax(0,1fr)] items-center gap-2 rounded-md px-2 font-semibold text-ink transition hover:bg-cream/70"
+                            >
+                              <input
+                                type="checkbox"
+                                checked={inspectionForm.checklist.includes(item)}
+                                onChange={() => toggleChecklistItem(item)}
+                                className="accent-gold"
+                              />
+                              <span className="min-w-0 leading-5">{item}</span>
+                            </label>
+                          ))}
+                        </div>
+                      </details>
+                    );
+                  })}
+                </div>
+                <div className="hidden gap-3 lg:grid">
                 {activeInspectionTemplate.sections.map((section) => {
                   const completedInSection = section.items.filter((item) => inspectionForm.checklist.includes(item)).length;
                   const sectionComplete = completedInSection === section.items.length;
@@ -3090,28 +3130,10 @@ export default function InspectionWorkspace({
                   </div>
                   );
                 })}
+                </div>
               </fieldset>
 
-              <label className="grid min-h-24 content-center gap-2 rounded-lg border border-dashed border-gold/40 bg-cream p-4 text-sm font-extrabold text-ink shadow-soft transition hover:border-gold lg:hidden">
-                Add inspection photos
-                <input
-                  type="file"
-                  accept="image/*"
-                  multiple
-                  onChange={(event) => {
-                    const count = addPhotoFiles(event.target.files);
-                    setQuickCaptureMessage(
-                      count
-                        ? `${count} photo${count === 1 ? "" : "s"} captured for inspection evidence.`
-                        : "No photos were selected."
-                    );
-                    event.target.value = "";
-                  }}
-                  className="w-full min-w-0 text-xs font-semibold text-muted file:mr-3 file:rounded-lg file:border-0 file:bg-[#252525] file:px-3 file:py-2 file:text-xs file:font-extrabold file:text-cream"
-                />
-              </label>
-
-              <div className="hidden gap-4 md:grid-cols-3 lg:grid">
+              <div className="order-5 hidden gap-4 md:grid-cols-3 lg:grid">
                 {[
                   ["Exterior", "Exterior photos"],
                   ["Interior", "Interior photos"],
@@ -3141,7 +3163,7 @@ export default function InspectionWorkspace({
                 ))}
               </div>
               {inspectionForm.photoFiles.length ? (
-                <div className="rounded-lg border border-line bg-[#fbfcfb] p-3 text-sm text-slate-600">
+                <div className="order-6 rounded-lg border border-line bg-[#fbfcfb] p-3 text-sm text-slate-600">
                   <div className="flex flex-wrap items-center justify-between gap-3">
                     <strong className="text-ink">
                       {inspectionForm.photoFiles.length} photo selected
@@ -3167,7 +3189,20 @@ export default function InspectionWorkspace({
                 </div>
               ) : null}
 
-              <label className="grid gap-2 rounded-lg border border-gold/15 bg-cream/80 p-4 text-sm font-extrabold text-ink shadow-soft">
+              <details className="order-7 rounded-lg border border-gold/15 bg-cream/80 p-3 text-sm font-extrabold text-ink shadow-soft lg:hidden">
+                <summary className="cursor-pointer list-none font-serif text-lg font-semibold text-ink">
+                  Notes
+                </summary>
+                <textarea
+                  rows={4}
+                  value={inspectionForm.notes}
+                  onChange={(event) => setInspectionForm((current) => ({ ...current, notes: event.target.value }))}
+                  placeholder="Optional notes or owner follow-up."
+                  className="field-shell mt-3 w-full rounded-lg p-3"
+                />
+              </details>
+
+              <label className="order-7 hidden gap-2 rounded-lg border border-gold/15 bg-cream/80 p-4 text-sm font-extrabold text-ink shadow-soft lg:grid">
                 Notes / issues found
                 <textarea
                   rows={5}
@@ -3178,7 +3213,7 @@ export default function InspectionWorkspace({
                 />
               </label>
 
-              <label className="hidden gap-2 rounded-lg border border-gold/20 bg-cream p-4 text-sm font-extrabold text-ink shadow-soft lg:grid">
+              <label className="order-8 hidden gap-2 rounded-lg border border-gold/20 bg-cream p-4 text-sm font-extrabold text-ink shadow-soft lg:grid">
                 <span className="text-xs font-extrabold uppercase tracking-[0.1em] text-gold">
                   Executive Summary
                 </span>
@@ -3193,17 +3228,11 @@ export default function InspectionWorkspace({
                 />
               </label>
 
-              <div className="grid gap-4 rounded-lg border border-gold/25 bg-cream p-4 text-ink shadow-soft md:grid-cols-[minmax(0,1fr)_160px] md:items-center">
+              <div className="order-9 grid gap-3 rounded-lg border border-gold/25 bg-cream p-3 text-ink shadow-soft sm:p-4 md:grid-cols-[minmax(0,1fr)_160px] md:items-center">
                 <div>
-                  <p className="mb-1 text-xs font-extrabold uppercase tracking-[0.1em] text-gold">
-                    Report Flag
-                  </p>
-                  <strong className="block font-serif text-2xl font-semibold leading-tight text-ink">
-                    Urgent issue?
+                  <strong className="block font-serif text-lg font-semibold leading-tight text-ink sm:text-2xl">
+                    Urgent?
                   </strong>
-                  <span className="mt-2 block text-sm font-semibold leading-6 text-ink">
-                    Flag reports that need immediate homeowner attention.
-                  </span>
                 </div>
                 <div className="grid grid-cols-2 gap-2" role="radiogroup" aria-label="Urgent issue">
                   {(["No", "Yes"] as UrgentStatus[]).map((value) => (
@@ -3231,12 +3260,12 @@ export default function InspectionWorkspace({
               </div>
 
               {inspectionSaveMessage ? (
-                <p className="rounded-lg border border-gold/20 bg-cream p-3 text-sm font-semibold text-ink shadow-soft">
+                <p className="order-11 rounded-lg border border-gold/20 bg-cream p-3 text-sm font-semibold text-ink shadow-soft">
                   {inspectionSaveMessage}
                 </p>
               ) : null}
 
-              <div className="grid grid-cols-2 gap-3 lg:flex lg:flex-wrap lg:justify-end">
+              <div className="order-12 grid grid-cols-2 gap-3 lg:flex lg:flex-wrap lg:justify-end">
                 <button
                   type="button"
                   onClick={() => {
@@ -6792,9 +6821,9 @@ function MaintenanceIssueCard({
 
 function DetailStrip({ label, value, dark = false }: { label: string; value: string; dark?: boolean }) {
   return (
-    <div className={`rounded-lg border p-3 shadow-soft ${dark ? "border-gold/20 bg-cream/10" : "border-gold/15 bg-cream/80"}`}>
-      <span className="block text-xs font-extrabold uppercase tracking-[0.08em] text-gold">{label}</span>
-      <strong className={`mt-1 block ${dark ? "text-cream" : "text-ink"}`}>{value}</strong>
+    <div className={`rounded-lg border p-2 shadow-soft sm:p-3 ${dark ? "border-gold/20 bg-cream/10" : "border-gold/15 bg-cream/80"}`}>
+      <span className="block text-[10px] font-extrabold uppercase tracking-[0.08em] text-gold sm:text-xs">{label}</span>
+      <strong className={`mt-1 block text-sm sm:text-base ${dark ? "text-cream" : "text-ink"}`}>{value}</strong>
     </div>
   );
 }
