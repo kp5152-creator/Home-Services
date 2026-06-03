@@ -3269,19 +3269,6 @@ export default function InspectionWorkspace({
                 </div>
               ) : null}
 
-              <details className="order-7 rounded-lg border border-gold/15 bg-cream/80 p-3 text-sm font-extrabold text-ink shadow-soft lg:hidden">
-                <summary className="cursor-pointer list-none font-serif text-lg font-semibold text-ink">
-                  Notes
-                </summary>
-                <textarea
-                  rows={4}
-                  value={inspectionForm.notes}
-                  onChange={(event) => setInspectionForm((current) => ({ ...current, notes: event.target.value }))}
-                  placeholder="Optional notes or owner follow-up."
-                  className="field-shell mt-3 w-full rounded-lg p-3"
-                />
-              </details>
-
               <label className="order-7 hidden gap-2 rounded-lg border border-gold/15 bg-cream/80 p-4 text-sm font-extrabold text-ink shadow-soft lg:grid">
                 Notes / issues found
                 <textarea
