@@ -1659,18 +1659,22 @@ export default function InspectionWorkspace({
   }
 
   function addPhotoFiles(files: FileList | null, category: InspectionPhotoCategory = "Exterior") {
+    const selectedFiles = files ? Array.from(files) : [];
+
     setInspectionForm((current) => ({
       ...current,
-      photoFiles: files
+      photoFiles: selectedFiles.length
         ? [
             ...current.photoFiles,
-            ...Array.from(files).map((file) => ({
+            ...selectedFiles.map((file) => ({
               file,
               category
             }))
           ]
         : current.photoFiles
     }));
+
+    return selectedFiles.length;
   }
 
   function appendInspectionNote(note: string) {
@@ -1687,9 +1691,9 @@ export default function InspectionWorkspace({
 
     setWalkthroughVideoName(file.name);
     appendInspectionNote(
-      `Walkthrough video captured for inspector review: ${file.name}. Use this recording to support the final notes, photo documentation, and owner summary.`
+      `Walkthrough video captured for future AI-assisted review: ${file.name}. Use this recording to support the final notes, photo documentation, issue detection, and owner summary.`
     );
-    setQuickCaptureMessage("Walkthrough captured. Review the notes before generating the report.");
+    setQuickCaptureMessage("Walkthrough captured for future AI-assisted review. Review the notes before generating the report.");
   }
 
   function flagQuickIssue() {
@@ -2457,7 +2461,7 @@ export default function InspectionWorkspace({
                 <p className="mb-2 text-xs font-extrabold uppercase tracking-[0.1em] text-clay">
                   Inspection
                 </p>
-                <h2 className="font-serif text-3xl font-semibold leading-tight text-ink">Inspection</h2>
+                <h2 className="font-serif text-3xl font-semibold leading-tight text-ink">AI Walkthrough</h2>
               </div>
               <span className="rounded-full border border-gold/25 bg-warning-soft px-3 py-2 text-xs font-extrabold text-ink">
                 {formatDateTime(now)}
@@ -2468,12 +2472,12 @@ export default function InspectionWorkspace({
               <section className="rounded-lg border border-gold/25 bg-[#eae4d8] p-4 text-ink shadow-soft">
                 <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
                   <div>
-                    <p className="type-eyebrow">Quick Capture</p>
+                    <p className="type-eyebrow">AI Walkthrough</p>
                     <h3 className="mt-1 font-serif text-2xl font-semibold leading-tight text-ink">
-                      Capture evidence first.
+                      Capture the visit. Review before sending.
                     </h3>
                     <p className="mt-2 max-w-3xl text-sm font-semibold leading-6 text-[#4f473c]">
-                      Photos, walkthrough notes, and flagged issues can be structured into the inspection report after the visit.
+                      Photos, walkthrough video, dictated notes, and flagged issues can become AI-assisted report content after review.
                     </p>
                   </div>
                   {walkthroughVideoName ? (
@@ -2484,28 +2488,10 @@ export default function InspectionWorkspace({
                 </div>
 
                 <div className="grid gap-3 lg:grid-cols-4">
-                  <label className="grid min-h-24 cursor-pointer content-center gap-2 rounded-lg border border-gold/20 bg-cream/90 p-4 text-sm font-extrabold shadow-soft transition hover:border-gold/50 hover:shadow-lift">
-                    Capture Photos
+                  <label className="grid min-h-24 cursor-pointer content-center gap-2 rounded-lg border border-gold/25 bg-cream p-4 text-sm font-extrabold shadow-soft transition hover:border-gold/60 hover:shadow-lift">
+                    Start AI Walkthrough
                     <span className="text-xs font-semibold leading-5 text-slate-600">
-                      Add field photos to the inspection evidence.
-                    </span>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      multiple
-                      onChange={(event) => {
-                        addPhotoFiles(event.target.files);
-                        setQuickCaptureMessage("Photos added to inspection evidence.");
-                        event.target.value = "";
-                      }}
-                      className="w-full min-w-0 text-xs font-semibold text-muted file:mr-3 file:rounded-lg file:border-0 file:bg-[#252525] file:px-3 file:py-2 file:text-xs file:font-extrabold file:text-cream"
-                    />
-                  </label>
-
-                  <label className="grid min-h-24 cursor-pointer content-center gap-2 rounded-lg border border-gold/20 bg-cream/90 p-4 text-sm font-extrabold shadow-soft transition hover:border-gold/50 hover:shadow-lift">
-                    Record Walkthrough
-                    <span className="text-xs font-semibold leading-5 text-slate-600">
-                      Capture a video reference for later agent review.
+                      Record video for future AI-assisted review and report drafting.
                     </span>
                     <input
                       type="file"
@@ -2519,15 +2505,37 @@ export default function InspectionWorkspace({
                     />
                   </label>
 
+                  <label className="grid min-h-24 cursor-pointer content-center gap-2 rounded-lg border border-gold/20 bg-cream/90 p-4 text-sm font-extrabold shadow-soft transition hover:border-gold/50 hover:shadow-lift">
+                    Add Photos
+                    <span className="text-xs font-semibold leading-5 text-slate-600">
+                      Add field photos for future AI-assisted categorization.
+                    </span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      multiple
+                      onChange={(event) => {
+                        const count = addPhotoFiles(event.target.files);
+                        setQuickCaptureMessage(
+                          count
+                            ? `${count} photo${count === 1 ? "" : "s"} captured for inspection evidence.`
+                            : "No photos were selected."
+                        );
+                        event.target.value = "";
+                      }}
+                      className="w-full min-w-0 text-xs font-semibold text-muted file:mr-3 file:rounded-lg file:border-0 file:bg-[#252525] file:px-3 file:py-2 file:text-xs file:font-extrabold file:text-cream"
+                    />
+                  </label>
+
                   <button
                     type="button"
                     onClick={() => {
-                      appendInspectionNote("Inspector dictated note: ");
-                      setQuickCaptureMessage("Dictation placeholder added to Notes / issues found.");
+                      appendInspectionNote("Inspector dictated note for AI-assisted report draft: ");
+                      setQuickCaptureMessage("Dictation marker added to Notes / issues found.");
                     }}
                     className="grid min-h-24 content-center gap-2 rounded-lg border border-gold/20 bg-cream/90 p-4 text-left text-sm font-extrabold shadow-soft transition hover:border-gold/50 hover:shadow-lift"
                   >
-                    Dictate Notes
+                    Dictate Observations
                     <span className="text-xs font-semibold leading-5 text-slate-600">
                       Adds a clean dictation marker to the report notes.
                     </span>
@@ -2548,14 +2556,60 @@ export default function InspectionWorkspace({
                 {quickCaptureMessage ? (
                   <p className="mt-4 rounded-lg border border-gold/20 bg-cream/85 p-3 text-sm font-semibold leading-6 text-slate-600">
                     {quickCaptureMessage}
+                    {inspectionForm.photoFiles.length ? (
+                      <span className="mt-1 block text-ink">
+                        {inspectionForm.photoFiles.length} photo{inspectionForm.photoFiles.length === 1 ? "" : "s"} currently attached.
+                      </span>
+                    ) : null}
                   </p>
                 ) : null}
+              </section>
+
+              <section className="grid gap-4 rounded-lg border border-gold/20 bg-cream p-4 text-ink shadow-soft lg:grid-cols-[minmax(0,1fr)_220px] lg:items-center">
+                <div>
+                  <p className="type-eyebrow">AI Review</p>
+                  <h3 className="mt-1 font-serif text-2xl font-semibold leading-tight text-ink">
+                    Draft from captured evidence.
+                  </h3>
+                  <p className="mt-2 max-w-3xl text-sm font-semibold leading-6 text-slate-600">
+                    EstateIQ can draft an owner-ready summary from the captured notes, photos, checklist progress, and flagged issues.
+                    The inspector reviews and approves before a report is generated.
+                  </p>
+                  <div className="mt-4 grid gap-2 sm:grid-cols-3">
+                    <DetailStrip label="Photos" value={`${inspectionForm.photoFiles.length}`} />
+                    <DetailStrip label="Checks" value={`${inspectionForm.checklist.length}/${inspectionTotalChecks}`} />
+                    <DetailStrip label="Walkthrough" value={walkthroughVideoName ? "Captured" : "Not captured"} />
+                  </div>
+                  {suggestedSummary ? (
+                    <div className="mt-4 rounded-lg border border-gold/20 bg-warning-soft/50 p-4">
+                      <span className="type-eyebrow">Draft Summary</span>
+                      <p className="mt-2 text-sm font-semibold leading-6 text-ink">{suggestedSummary}</p>
+                      <button
+                        type="button"
+                        onClick={useSuggestedSummary}
+                        className="button-primary mt-4 min-h-10 rounded-lg px-4 text-sm font-extrabold"
+                      >
+                        Approve Draft
+                      </button>
+                    </div>
+                  ) : null}
+                  {suggestedSummaryMessage ? (
+                    <p className="mt-3 text-sm font-semibold text-slate-600">{suggestedSummaryMessage}</p>
+                  ) : null}
+                </div>
+                <button
+                  type="button"
+                  onClick={generateSuggestedSummary}
+                  className="button-soft min-h-12 rounded-lg px-5 text-sm font-extrabold"
+                >
+                  Draft AI Summary
+                </button>
               </section>
 
               <fieldset className="grid gap-3 rounded-lg border border-gold/30 bg-warning-soft/70 p-4 shadow-soft">
                 <div className="border-b border-gold/20 pb-3">
                   <div>
-                    <p className="text-xs font-extrabold uppercase tracking-[0.1em] text-gold">Step 1</p>
+                    <p className="text-xs font-extrabold uppercase tracking-[0.1em] text-gold">Review</p>
                     <h3 className="font-serif text-xl font-semibold leading-tight text-ink">Inspection type</h3>
                   </div>
                 </div>
@@ -2619,7 +2673,7 @@ export default function InspectionWorkspace({
               <fieldset className="grid gap-4 rounded-lg border border-gold/20 bg-cream p-4 text-ink shadow-soft md:grid-cols-2">
                 <div className="border-b border-gold/20 pb-3 md:col-span-2">
                   <div>
-                    <p className="text-xs font-extrabold uppercase tracking-[0.1em] text-gold">Step 2</p>
+                    <p className="text-xs font-extrabold uppercase tracking-[0.1em] text-gold">Review</p>
                     <h3 className="font-serif text-xl font-semibold leading-tight text-ink">Visit details</h3>
                   </div>
                 </div>
@@ -2658,8 +2712,8 @@ export default function InspectionWorkspace({
               <fieldset className="grid gap-4 rounded-lg border border-gold/20 bg-cream p-4 text-ink shadow-soft">
                 <div className="border-b border-gold/20 pb-3">
                   <div>
-                    <p className="text-xs font-extrabold uppercase tracking-[0.1em] text-gold">Step 3</p>
-                    <h3 className="font-serif text-xl font-semibold leading-tight text-ink">Inspection checklist</h3>
+                    <p className="text-xs font-extrabold uppercase tracking-[0.1em] text-gold">Review</p>
+                    <h3 className="font-serif text-xl font-semibold leading-tight text-ink">Checklist suggestions</h3>
                   </div>
                 </div>
                 <div className="flex flex-col gap-3 rounded-lg border border-gold/15 bg-cream/90 p-3 sm:flex-row sm:items-center sm:justify-between">
@@ -2739,7 +2793,15 @@ export default function InspectionWorkspace({
                   type="file"
                   accept="image/*"
                   multiple
-                  onChange={(event) => addPhotoFiles(event.target.files)}
+                  onChange={(event) => {
+                    const count = addPhotoFiles(event.target.files);
+                    setQuickCaptureMessage(
+                      count
+                        ? `${count} photo${count === 1 ? "" : "s"} captured for inspection evidence.`
+                        : "No photos were selected."
+                    );
+                    event.target.value = "";
+                  }}
                   className="w-full min-w-0 text-xs font-semibold text-muted file:mr-3 file:rounded-lg file:border-0 file:bg-[#252525] file:px-3 file:py-2 file:text-xs file:font-extrabold file:text-cream"
                 />
               </label>
@@ -2759,7 +2821,15 @@ export default function InspectionWorkspace({
                       type="file"
                       accept="image/*"
                       multiple
-                      onChange={(event) => addPhotoFiles(event.target.files, category as InspectionPhotoCategory)}
+                      onChange={(event) => {
+                        const count = addPhotoFiles(event.target.files, category as InspectionPhotoCategory);
+                        setQuickCaptureMessage(
+                          count
+                            ? `${count} ${String(category).toLowerCase()} photo${count === 1 ? "" : "s"} captured.`
+                            : "No photos were selected."
+                        );
+                        event.target.value = "";
+                      }}
                       className="w-full min-w-0 text-xs font-semibold text-muted file:mr-3 file:rounded-lg file:border-0 file:bg-[#252525] file:px-3 file:py-2 file:text-xs file:font-extrabold file:text-cream"
                     />
                   </label>
@@ -2817,44 +2887,6 @@ export default function InspectionWorkspace({
                   className="field-shell rounded-lg bg-white p-3 text-ink placeholder:text-muted"
                 />
               </label>
-
-              <div className="hidden rounded-lg border border-gold/20 bg-cream p-4 text-ink shadow-soft lg:block">
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                  <div>
-                    <p className="mb-1 text-xs font-extrabold uppercase tracking-[0.1em] text-gold">
-                      Concierge Summary
-                    </p>
-                    <h3 className="font-serif text-2xl font-semibold leading-tight text-ink">
-                      Human-reviewed owner draft
-                    </h3>
-                    <p className="mt-2 text-sm font-semibold leading-6 text-ink">
-                      Creates a private concierge-style draft from verified inspection details. Review before sharing.
-                    </p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={generateSuggestedSummary}
-                    className="button-soft min-h-11 rounded-lg px-4 text-sm font-extrabold"
-                  >
-                    Draft Concierge Summary
-                  </button>
-                </div>
-                {suggestedSummary ? (
-                  <div className="mt-4 rounded-lg border border-gold/20 bg-cream/90 p-4">
-                    <p className="text-sm font-semibold leading-6 text-ink">{suggestedSummary}</p>
-                    <button
-                      type="button"
-                      onClick={useSuggestedSummary}
-                      className="button-primary mt-4 min-h-10 rounded-lg px-4 text-sm font-extrabold"
-                    >
-                      Approve As Executive Summary
-                    </button>
-                  </div>
-                ) : null}
-                {suggestedSummaryMessage ? (
-                  <p className="mt-3 text-sm font-semibold text-ink">{suggestedSummaryMessage}</p>
-                ) : null}
-              </div>
 
               <div className="grid gap-4 rounded-lg border border-gold/25 bg-cream p-4 text-ink shadow-soft md:grid-cols-[minmax(0,1fr)_160px] md:items-center">
                 <div>
