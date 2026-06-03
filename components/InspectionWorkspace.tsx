@@ -614,7 +614,10 @@ export default function InspectionWorkspace({
   const inspectionReady = !inspectionReadyMessage;
   const allInspectionChecklistItems = activeInspectionTemplate.sections.flatMap((section) => section.items);
   const transcriptCaptured = Boolean(walkthroughTranscript.trim());
-  const evidenceReady = Boolean(inspectionForm.photoFiles.length || inspectionForm.notes.trim() || transcriptCaptured);
+  const reviewReady = Boolean(
+    inspectionForm.photoFiles.length || inspectionForm.checklist.length || inspectionForm.notes.trim() || transcriptCaptured
+  );
+  const issueReady = Boolean(inspectionForm.notes.trim() || transcriptCaptured);
 
   function draftOwnerUpdateFromReport(inspection: Inspection) {
     const status = reportConditionStatus(inspection);
@@ -1538,7 +1541,7 @@ export default function InspectionWorkspace({
 
   function generateSuggestedSummary() {
     if (!selectedProperty) {
-      setSuggestedSummaryMessage("Select a property before creating a suggested summary.");
+      setSuggestedSummaryMessage("Select a property before preparing the owner summary.");
       return;
     }
 
@@ -1553,7 +1556,7 @@ export default function InspectionWorkspace({
       : "Interior temperature was not recorded";
     const photoPhrase = inspectionForm.photoFiles.length
       ? `${inspectionForm.photoFiles.length} supporting photo${inspectionForm.photoFiles.length === 1 ? " was" : "s were"} documented`
-      : "No photos were attached at the time of this draft";
+      : "No photos have been attached yet";
     const issuePhrase =
       inspectionForm.urgent === "Yes"
         ? "Immediate homeowner attention is recommended based on the urgent issue flag"
@@ -1578,7 +1581,11 @@ export default function InspectionWorkspace({
       .join(" ");
 
     setSuggestedSummary(summary);
-    setSuggestedSummaryMessage("Owner summary prepared. Review before generating the report.");
+    setInspectionForm((current) => ({
+      ...current,
+      executiveSummary: summary
+    }));
+    setSuggestedSummaryMessage("Owner summary prepared for the report.");
     trackAnalyticsEvent({
       name: "workflow_step",
       role: activeRole,
@@ -1593,16 +1600,6 @@ export default function InspectionWorkspace({
         transcriptIncluded: Boolean(walkthroughTranscript.trim())
       }
     });
-  }
-
-  function useSuggestedSummary() {
-    if (!suggestedSummary) return;
-
-    setInspectionForm((current) => ({
-      ...current,
-      executiveSummary: suggestedSummary
-    }));
-    setSuggestedSummaryMessage("Owner summary approved for the report.");
   }
 
   function suggestMaintenanceRecommendation() {
@@ -1722,7 +1719,7 @@ export default function InspectionWorkspace({
     const evidenceText = `${walkthroughTranscript} ${inspectionForm.notes}`.trim().toLowerCase();
 
     if (!evidenceText) {
-      setChecklistAssistMessage("Add notes first.");
+      setChecklistAssistMessage("Add a note before preparing checklist items.");
       return;
     }
 
@@ -1813,7 +1810,7 @@ export default function InspectionWorkspace({
     const uniqueSuggestedItems = Array.from(new Set(suggestedItems));
 
     if (!uniqueSuggestedItems.length) {
-      setChecklistAssistMessage("No matches yet. Add more detail or select manually.");
+      setChecklistAssistMessage("No checklist changes needed yet.");
       return;
     }
 
@@ -1831,12 +1828,17 @@ export default function InspectionWorkspace({
       };
     });
     setChecklistAssistMessage(
-      `${uniqueSuggestedItems.length} check${uniqueSuggestedItems.length === 1 ? "" : "s"} suggested.`
+      `${uniqueSuggestedItems.length} check${uniqueSuggestedItems.length === 1 ? "" : "s"} added.`
     );
   }
 
   function reviewInspectionEvidence() {
-    suggestChecklistFromInspectionEvidence();
+    const evidenceText = `${walkthroughTranscript} ${inspectionForm.notes}`.trim();
+    if (evidenceText) {
+      suggestChecklistFromInspectionEvidence();
+    } else {
+      setChecklistAssistMessage("");
+    }
     generateSuggestedSummary();
   }
 
@@ -1845,7 +1847,7 @@ export default function InspectionWorkspace({
     const issueText = evidenceText.toLowerCase();
 
     if (!issueText) {
-      setQuickCaptureMessage("Add narration or notes before drafting an issue from evidence.");
+      setQuickCaptureMessage("Add narration or notes before creating an issue.");
       return;
     }
 
@@ -1915,7 +1917,7 @@ export default function InspectionWorkspace({
     });
     setMaintenanceRecommendation(null);
     setMaintenanceRecommendationMessage("");
-    setMaintenanceSaveMessage("Issue draft created from inspection evidence. Review before saving.");
+    setMaintenanceSaveMessage("Issue prepared from the inspection notes. Review before saving.");
     setSelectedMaintenanceIssueId("");
     setActiveExperience("Maintenance");
     setShowMaintenanceForm(true);
@@ -2772,6 +2774,32 @@ export default function InspectionWorkspace({
                     {quickCaptureMessage}
                   </p>
                 ) : null}
+                {inspectionForm.photoFiles.length ? (
+                  <div className="mt-4 rounded-lg border border-line bg-[#fbfcfb] p-3 text-sm text-slate-600">
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                      <strong className="text-ink">
+                        {inspectionForm.photoFiles.length} photo selected
+                        {inspectionForm.photoFiles.length === 1 ? "" : "s"}
+                      </strong>
+                      <button
+                        type="button"
+                        onClick={() => setInspectionForm((current) => ({ ...current, photoFiles: [] }))}
+                        className="font-extrabold text-[#9f352e]"
+                      >
+                        Clear photos
+                      </button>
+                    </div>
+                    <SelectedPhotoPreviewGrid
+                      files={inspectionForm.photoFiles.map((photoFile) => photoFile.file)}
+                      onRemove={(removeIndex) =>
+                        setInspectionForm((current) => ({
+                          ...current,
+                          photoFiles: current.photoFiles.filter((_, index) => index !== removeIndex)
+                        }))
+                      }
+                    />
+                  </div>
+                ) : null}
               </section>
 
               <section className="order-10 grid gap-3 rounded-lg border border-gold/20 bg-cream p-3 text-ink shadow-soft sm:p-4 lg:grid-cols-[minmax(0,1fr)_240px] lg:items-start">
@@ -2813,10 +2841,10 @@ export default function InspectionWorkspace({
                       <button
                         type="button"
                         onClick={reviewInspectionEvidence}
-                        disabled={!evidenceReady}
+                        disabled={!reviewReady}
                         className="button-soft min-h-10 rounded-lg px-4 text-sm font-extrabold disabled:cursor-not-allowed disabled:opacity-55"
                       >
-                        Review Evidence
+                        Prepare Summary
                       </button>
                       {transcriptReviewMessage ? (
                         <p className="text-sm font-semibold leading-6 text-slate-600">{transcriptReviewMessage}</p>
@@ -2830,13 +2858,6 @@ export default function InspectionWorkspace({
                     <div className="mt-4 rounded-lg border border-gold/20 bg-warning-soft/50 p-4">
                       <span className="type-eyebrow">Owner Summary</span>
                       <p className="mt-2 text-sm font-semibold leading-6 text-ink">{suggestedSummary}</p>
-                      <button
-                        type="button"
-                        onClick={useSuggestedSummary}
-                        className="button-primary mt-4 min-h-10 rounded-lg px-4 text-sm font-extrabold"
-                      >
-                        Use Summary
-                      </button>
                     </div>
                   ) : null}
                   {suggestedSummaryMessage ? (
@@ -2873,10 +2894,10 @@ export default function InspectionWorkspace({
                   <button
                     type="button"
                     onClick={draftIssueFromInspectionEvidence}
-                    disabled={!evidenceReady}
+                    disabled={!issueReady}
                     className="min-h-11 rounded-lg border border-gold/25 bg-[#252525] px-3 text-sm font-extrabold text-cream shadow-soft transition hover:border-gold/60 hover:bg-[#1f1f1f] disabled:cursor-not-allowed disabled:opacity-55 sm:min-h-12 sm:px-5"
                   >
-                    Draft Issue
+                    Create Issue
                   </button>
                   <button
                     type="button"
@@ -2993,8 +3014,8 @@ export default function InspectionWorkspace({
                     <h3 className="font-serif text-lg font-semibold leading-tight text-ink sm:text-xl">Checklist</h3>
                   </div>
                 </div>
-                <div className="rounded-lg border border-gold/15 bg-cream/90 p-3">
-                  <div className="flex items-center justify-between gap-3">
+                <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-gold/15 bg-cream/90 p-3">
+                  <div className="flex items-center gap-2">
                     <p className="text-sm font-semibold text-muted">
                       <span className="font-extrabold text-ink">
                         {inspectionForm.checklist.length}/{inspectionTotalChecks}
@@ -3005,13 +3026,7 @@ export default function InspectionWorkspace({
                       {Math.round((inspectionForm.checklist.length / inspectionTotalChecks) * 100)}%
                     </span>
                   </div>
-                  <div className="mt-3 h-2 overflow-hidden rounded-full bg-[#d8d0c2]">
-                    <div
-                      className="h-full rounded-full bg-gold transition-all"
-                      style={{ width: `${(inspectionForm.checklist.length / inspectionTotalChecks) * 100}%` }}
-                    />
-                  </div>
-                  <div className="mt-3 grid grid-cols-2 gap-2 sm:flex">
+                  <div className="grid w-full grid-cols-2 gap-2 sm:w-auto sm:flex">
                     <button
                       type="button"
                       onClick={() => setInspectionForm((current) => ({ ...current, checklist: allInspectionChecklistItems }))}
@@ -3121,62 +3136,6 @@ export default function InspectionWorkspace({
                 })}
                 </div>
               </fieldset>
-
-              <div className="order-5 hidden gap-4 md:grid-cols-3 lg:grid">
-                {[
-                  ["Exterior", "Exterior photos"],
-                  ["Interior", "Interior photos"],
-                  ["Issues", "Issue photos"]
-                ].map(([category, label]) => (
-                  <label
-                    key={label}
-                    className="grid min-h-28 content-center gap-2 rounded-lg border border-dashed border-gold/40 bg-cream p-4 text-sm font-extrabold text-ink shadow-soft transition hover:border-gold"
-                  >
-                    {label}
-                    <input
-                      type="file"
-                      accept="image/*"
-                      multiple
-                      onChange={(event) => {
-                        const count = addPhotoFiles(event.target.files, category as InspectionPhotoCategory);
-                        setQuickCaptureMessage(
-                          count
-                            ? `${count} ${String(category).toLowerCase()} photo${count === 1 ? "" : "s"} captured.`
-                            : "No photos were selected."
-                        );
-                        event.target.value = "";
-                      }}
-                      className="w-full min-w-0 text-xs font-semibold text-muted file:mr-3 file:rounded-lg file:border-0 file:bg-[#252525] file:px-3 file:py-2 file:text-xs file:font-extrabold file:text-cream"
-                    />
-                  </label>
-                ))}
-              </div>
-              {inspectionForm.photoFiles.length ? (
-                <div className="order-6 rounded-lg border border-line bg-[#fbfcfb] p-3 text-sm text-slate-600">
-                  <div className="flex flex-wrap items-center justify-between gap-3">
-                    <strong className="text-ink">
-                      {inspectionForm.photoFiles.length} photo selected
-                      {inspectionForm.photoFiles.length === 1 ? "" : "s"}
-                    </strong>
-                    <button
-                      type="button"
-                      onClick={() => setInspectionForm((current) => ({ ...current, photoFiles: [] }))}
-                      className="font-extrabold text-[#9f352e]"
-                    >
-                      Clear photos
-                    </button>
-                  </div>
-                  <SelectedPhotoPreviewGrid
-                    files={inspectionForm.photoFiles.map((photoFile) => photoFile.file)}
-                    onRemove={(removeIndex) =>
-                      setInspectionForm((current) => ({
-                        ...current,
-                        photoFiles: current.photoFiles.filter((_, index) => index !== removeIndex)
-                      }))
-                    }
-                  />
-                </div>
-              ) : null}
 
               {inspectionSaveMessage ? (
                 <p className="order-11 rounded-lg border border-gold/20 bg-cream p-3 text-sm font-semibold text-ink shadow-soft">
