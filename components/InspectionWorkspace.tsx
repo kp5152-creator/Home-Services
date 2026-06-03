@@ -447,6 +447,8 @@ export default function InspectionWorkspace({
   const [suggestedSummary, setSuggestedSummary] = useState("");
   const [suggestedSummaryMessage, setSuggestedSummaryMessage] = useState("");
   const [inspectionSaveMessage, setInspectionSaveMessage] = useState("");
+  const [quickCaptureMessage, setQuickCaptureMessage] = useState("");
+  const [walkthroughVideoName, setWalkthroughVideoName] = useState("");
   const [isSavingInspection, setIsSavingInspection] = useState(false);
   const [propertySaveMessage, setPropertySaveMessage] = useState("");
   const [isSavingProperty, setIsSavingProperty] = useState(false);
@@ -1671,6 +1673,41 @@ export default function InspectionWorkspace({
     }));
   }
 
+  function appendInspectionNote(note: string) {
+    setInspectionForm((current) => ({
+      ...current,
+      notes: current.notes.trim() ? `${current.notes.trim()}\n\n${note}` : note
+    }));
+  }
+
+  function captureWalkthroughVideo(files: FileList | null) {
+    const file = files?.[0];
+
+    if (!file) return;
+
+    setWalkthroughVideoName(file.name);
+    appendInspectionNote(
+      `Walkthrough video captured for inspector review: ${file.name}. Use this recording to support the final notes, photo documentation, and owner summary.`
+    );
+    setQuickCaptureMessage("Walkthrough captured. Review the notes before generating the report.");
+  }
+
+  function flagQuickIssue() {
+    setMaintenanceIssueForm((current) => ({
+      ...current,
+      title: current.title || "Inspector flagged issue",
+      priority: current.priority || "Medium",
+      status: "Open",
+      description:
+        current.description ||
+        "Issue flagged during inspection quick capture. Add photos, location, and recommended next step before saving.",
+      nextStep: current.nextStep || "Review issue details, attach photos, and determine owner/vendor follow-up."
+    }));
+    setMaintenanceSaveMessage("Issue started from quick capture. Add details before saving.");
+    setShowMaintenanceForm(true);
+    setActiveExperience("Maintenance");
+  }
+
   function addMaintenanceIssuePhotoFiles(files: FileList | null) {
     setMaintenanceIssueForm((current) => ({
       ...current,
@@ -2428,6 +2465,93 @@ export default function InspectionWorkspace({
             </div>
 
             <form id="inspection-form" className="grid gap-4" onSubmit={saveInspection}>
+              <section className="rounded-lg border border-gold/25 bg-[#eae4d8] p-4 text-ink shadow-soft">
+                <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+                  <div>
+                    <p className="type-eyebrow">Quick Capture</p>
+                    <h3 className="mt-1 font-serif text-2xl font-semibold leading-tight text-ink">
+                      Capture evidence first.
+                    </h3>
+                    <p className="mt-2 max-w-3xl text-sm font-semibold leading-6 text-[#4f473c]">
+                      Photos, walkthrough notes, and flagged issues can be structured into the inspection report after the visit.
+                    </p>
+                  </div>
+                  {walkthroughVideoName ? (
+                    <span className="w-fit rounded-full border border-gold/25 bg-cream px-3 py-1 text-xs font-extrabold text-ink">
+                      {walkthroughVideoName}
+                    </span>
+                  ) : null}
+                </div>
+
+                <div className="grid gap-3 lg:grid-cols-4">
+                  <label className="grid min-h-24 cursor-pointer content-center gap-2 rounded-lg border border-gold/20 bg-cream/90 p-4 text-sm font-extrabold shadow-soft transition hover:border-gold/50 hover:shadow-lift">
+                    Capture Photos
+                    <span className="text-xs font-semibold leading-5 text-slate-600">
+                      Add field photos to the inspection evidence.
+                    </span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      multiple
+                      onChange={(event) => {
+                        addPhotoFiles(event.target.files);
+                        setQuickCaptureMessage("Photos added to inspection evidence.");
+                        event.target.value = "";
+                      }}
+                      className="w-full min-w-0 text-xs font-semibold text-muted file:mr-3 file:rounded-lg file:border-0 file:bg-[#252525] file:px-3 file:py-2 file:text-xs file:font-extrabold file:text-cream"
+                    />
+                  </label>
+
+                  <label className="grid min-h-24 cursor-pointer content-center gap-2 rounded-lg border border-gold/20 bg-cream/90 p-4 text-sm font-extrabold shadow-soft transition hover:border-gold/50 hover:shadow-lift">
+                    Record Walkthrough
+                    <span className="text-xs font-semibold leading-5 text-slate-600">
+                      Capture a video reference for later agent review.
+                    </span>
+                    <input
+                      type="file"
+                      accept="video/*"
+                      capture="environment"
+                      onChange={(event) => {
+                        captureWalkthroughVideo(event.target.files);
+                        event.target.value = "";
+                      }}
+                      className="w-full min-w-0 text-xs font-semibold text-muted file:mr-3 file:rounded-lg file:border-0 file:bg-[#252525] file:px-3 file:py-2 file:text-xs file:font-extrabold file:text-cream"
+                    />
+                  </label>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      appendInspectionNote("Inspector dictated note: ");
+                      setQuickCaptureMessage("Dictation placeholder added to Notes / issues found.");
+                    }}
+                    className="grid min-h-24 content-center gap-2 rounded-lg border border-gold/20 bg-cream/90 p-4 text-left text-sm font-extrabold shadow-soft transition hover:border-gold/50 hover:shadow-lift"
+                  >
+                    Dictate Notes
+                    <span className="text-xs font-semibold leading-5 text-slate-600">
+                      Adds a clean dictation marker to the report notes.
+                    </span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={flagQuickIssue}
+                    className="grid min-h-24 content-center gap-2 rounded-lg border border-gold/20 bg-cream/90 p-4 text-left text-sm font-extrabold shadow-soft transition hover:border-gold/50 hover:shadow-lift"
+                  >
+                    Flag Issue
+                    <span className="text-xs font-semibold leading-5 text-slate-600">
+                      Start an open item from the field workflow.
+                    </span>
+                  </button>
+                </div>
+
+                {quickCaptureMessage ? (
+                  <p className="mt-4 rounded-lg border border-gold/20 bg-cream/85 p-3 text-sm font-semibold leading-6 text-slate-600">
+                    {quickCaptureMessage}
+                  </p>
+                ) : null}
+              </section>
+
               <fieldset className="grid gap-3 rounded-lg border border-gold/30 bg-warning-soft/70 p-4 shadow-soft">
                 <div className="border-b border-gold/20 pb-3">
                   <div>
