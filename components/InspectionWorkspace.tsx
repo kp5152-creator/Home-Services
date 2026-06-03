@@ -2760,27 +2760,6 @@ export default function InspectionWorkspace({
                     />
                   </label>
 
-                  <button
-                    type="button"
-                    onClick={startInspectionDictation}
-                    className="hidden min-h-24 content-center gap-2 rounded-lg border border-gold/20 bg-cream/90 p-4 text-left text-sm font-extrabold shadow-soft transition hover:border-gold/50 hover:shadow-lift lg:grid"
-                  >
-                    Dictate Observations
-                    <span className="text-xs font-semibold leading-5 text-slate-600">
-                      Jump to notes.
-                    </span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={flagQuickIssue}
-                    className="hidden min-h-24 content-center gap-2 rounded-lg border border-gold/20 bg-cream/90 p-4 text-left text-sm font-extrabold shadow-soft transition hover:border-gold/50 hover:shadow-lift lg:grid"
-                  >
-                    Flag Issue
-                    <span className="text-xs font-semibold leading-5 text-slate-600">
-                      Start a repair item.
-                    </span>
-                  </button>
                 </div>
 
                 {quickCaptureMessage ? (
