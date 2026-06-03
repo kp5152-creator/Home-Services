@@ -2734,7 +2734,7 @@ export default function InspectionWorkspace({
                         const count = addPhotoFiles(event.target.files);
                         setQuickCaptureMessage(
                           count
-                            ? `${count} photo${count === 1 ? "" : "s"} captured for inspection evidence.`
+                            ? `${count} photo${count === 1 ? "" : "s"} added.`
                             : "No photos were selected."
                         );
                         event.target.value = "";
@@ -2756,7 +2756,7 @@ export default function InspectionWorkspace({
                         const count = addPhotoFiles(event.target.files);
                         setQuickCaptureMessage(
                           count
-                            ? `${count} photo${count === 1 ? "" : "s"} captured for inspection evidence.`
+                            ? `${count} photo${count === 1 ? "" : "s"} added.`
                             : "No photos were selected."
                         );
                         event.target.value = "";
@@ -2770,11 +2770,6 @@ export default function InspectionWorkspace({
                 {quickCaptureMessage ? (
                   <p className="mt-4 rounded-lg border border-gold/20 bg-cream/85 p-3 text-sm font-semibold leading-6 text-slate-600">
                     {quickCaptureMessage}
-                    {inspectionForm.photoFiles.length ? (
-                      <span className="mt-1 block text-ink">
-                        {inspectionForm.photoFiles.length} photo{inspectionForm.photoFiles.length === 1 ? "" : "s"} currently attached.
-                      </span>
-                    ) : null}
                   </p>
                 ) : null}
               </section>
