@@ -1835,6 +1835,11 @@ export default function InspectionWorkspace({
     );
   }
 
+  function reviewInspectionEvidence() {
+    suggestChecklistFromInspectionEvidence();
+    generateSuggestedSummary();
+  }
+
   function draftIssueFromInspectionEvidence() {
     const evidenceText = `${walkthroughTranscript} ${inspectionForm.notes}`.trim();
     const issueText = evidenceText.toLowerCase();
@@ -2817,11 +2822,11 @@ export default function InspectionWorkspace({
                       </button>
                       <button
                         type="button"
-                        onClick={suggestChecklistFromInspectionEvidence}
+                        onClick={reviewInspectionEvidence}
                         disabled={!evidenceReady}
                         className="button-soft min-h-10 rounded-lg px-4 text-sm font-extrabold disabled:cursor-not-allowed disabled:opacity-55"
                       >
-                        Suggest Checks
+                        Review Evidence
                       </button>
                       {transcriptReviewMessage ? (
                         <p className="text-sm font-semibold leading-6 text-slate-600">{transcriptReviewMessage}</p>
@@ -2875,14 +2880,6 @@ export default function InspectionWorkspace({
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-2 lg:grid-cols-1 lg:gap-3">
-                  <button
-                    type="button"
-                    onClick={generateSuggestedSummary}
-                    disabled={!evidenceReady}
-                    className="button-soft min-h-11 rounded-lg px-3 text-sm font-extrabold disabled:cursor-not-allowed disabled:opacity-55 sm:min-h-12 sm:px-5"
-                  >
-                    Draft Summary
-                  </button>
                   <button
                     type="button"
                     onClick={draftIssueFromInspectionEvidence}
