@@ -2721,9 +2721,9 @@ export default function InspectionWorkspace({
                   ) : null}
                 </div>
 
-                <div className="grid grid-cols-2 gap-2 lg:grid-cols-4 lg:gap-3">
-                  <label className="grid min-h-14 cursor-pointer content-center gap-1 rounded-lg border border-gold/25 bg-cream p-3 text-sm font-extrabold shadow-soft transition hover:border-gold/60 hover:shadow-lift sm:min-h-24 sm:gap-2 sm:p-4">
-                    Start Walkthrough
+                <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4 lg:gap-3">
+                  <label className="relative grid min-h-12 cursor-pointer content-center gap-1 overflow-hidden rounded-lg border border-gold/25 bg-cream p-3 text-center text-sm font-extrabold shadow-soft transition hover:border-gold/60 hover:shadow-lift sm:min-h-24 sm:gap-2 sm:p-4 sm:text-left">
+                    <span>Start Walkthrough</span>
                     <span className="hidden text-xs font-semibold leading-5 text-slate-600 sm:block">
                       Record video for review.
                     </span>
@@ -2735,12 +2735,12 @@ export default function InspectionWorkspace({
                         captureWalkthroughVideo(event.target.files);
                         event.target.value = "";
                       }}
-                      className="w-full min-w-0 text-xs font-semibold text-muted file:mr-3 file:rounded-lg file:border-0 file:bg-[#252525] file:px-3 file:py-2 file:text-xs file:font-extrabold file:text-cream"
+                      className="absolute inset-0 cursor-pointer opacity-0"
                     />
                   </label>
 
-                  <label className="grid min-h-14 cursor-pointer content-center gap-1 rounded-lg border border-gold/20 bg-cream/90 p-3 text-sm font-extrabold shadow-soft transition hover:border-gold/50 hover:shadow-lift sm:min-h-24 sm:gap-2 sm:p-4">
-                    Add Photos
+                  <label className="relative grid min-h-12 cursor-pointer content-center gap-1 overflow-hidden rounded-lg border border-gold/20 bg-cream/90 p-3 text-center text-sm font-extrabold shadow-soft transition hover:border-gold/50 hover:shadow-lift sm:min-h-24 sm:gap-2 sm:p-4 sm:text-left">
+                    <span>Add Photos</span>
                     <span className="hidden text-xs font-semibold leading-5 text-slate-600 sm:block">
                       Add field photos.
                     </span>
@@ -2757,7 +2757,7 @@ export default function InspectionWorkspace({
                         );
                         event.target.value = "";
                       }}
-                      className="w-full min-w-0 text-xs font-semibold text-muted file:mr-3 file:rounded-lg file:border-0 file:bg-[#252525] file:px-3 file:py-2 file:text-xs file:font-extrabold file:text-cream"
+                      className="absolute inset-0 cursor-pointer opacity-0"
                     />
                   </label>
 
