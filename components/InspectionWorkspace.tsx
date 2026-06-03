@@ -2892,7 +2892,7 @@ export default function InspectionWorkspace({
                     type="button"
                     onClick={() => void saveInspection()}
                     disabled={isSavingInspection}
-                    className="button-soft col-span-2 min-h-11 rounded-lg px-3 text-sm font-extrabold disabled:cursor-not-allowed disabled:opacity-60 sm:min-h-12 sm:px-5 lg:col-span-1"
+                    className="button-soft min-h-11 rounded-lg px-3 text-sm font-extrabold disabled:cursor-not-allowed disabled:opacity-60 sm:min-h-12 sm:px-5"
                   >
                     {isSavingInspection ? "Generating..." : "Generate Report"}
                   </button>
