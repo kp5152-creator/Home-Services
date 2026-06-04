@@ -1199,12 +1199,12 @@ export default function InspectionWorkspace({
   async function saveScheduleTask(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!selectedProperty) {
-      setScheduleSaveMessage("Select a property before scheduling work.");
+      setScheduleSaveMessage("Select a property before adding a visit.");
       return;
     }
 
     setIsSavingScheduleTask(true);
-    setScheduleSaveMessage("Saving schedule item...");
+    setScheduleSaveMessage("Saving visit...");
 
     if (demoMode) {
       const task: ScheduleTask = {
@@ -1216,7 +1216,7 @@ export default function InspectionWorkspace({
 
       setScheduleTasks((current) => [task, ...current]);
       setScheduleTaskForm(emptyScheduleTaskForm);
-      setScheduleSaveMessage(`Demo schedule item added locally: ${task.title}`);
+      setScheduleSaveMessage(`Demo visit added locally: ${task.title}`);
       setIsSavingScheduleTask(false);
       return;
     }
@@ -1233,16 +1233,16 @@ export default function InspectionWorkspace({
 
       if (!response.ok) {
         const error = (await response.json().catch(() => null)) as { message?: string } | null;
-        setScheduleSaveMessage(error?.message || "Scheduled item could not be saved.");
+        setScheduleSaveMessage(error?.message || "Visit could not be saved.");
         return;
       }
 
       const task = (await response.json()) as ScheduleTask;
       setScheduleTasks((current) => [task, ...current]);
       setScheduleTaskForm(emptyScheduleTaskForm);
-      setScheduleSaveMessage(`Scheduled: ${task.title}`);
+      setScheduleSaveMessage(`Visit added: ${task.title}`);
     } catch {
-      setScheduleSaveMessage("Scheduled item could not be saved. Check your connection and try again.");
+      setScheduleSaveMessage("Visit could not be saved. Check your connection and try again.");
     } finally {
       setIsSavingScheduleTask(false);
     }
@@ -2014,7 +2014,7 @@ export default function InspectionWorkspace({
     if (!response.ok) {
       setScheduleTasks(previousTasks);
       const error = (await response.json().catch(() => null)) as { message?: string } | null;
-      window.alert(error?.message || "Scheduled item could not be updated.");
+      window.alert(error?.message || "Visit could not be updated.");
       return;
     }
 
@@ -3161,23 +3161,42 @@ export default function InspectionWorkspace({
         <aside className={`estate-panel rounded-lg p-4 sm:p-5 ${activeExperience === "Reports" ? "" : "hidden"}`}>
           <div className="mb-4 flex flex-col gap-3 rounded-lg border border-gold/15 bg-[#eae4d8] p-4 shadow-soft lg:flex-row lg:items-center lg:justify-between">
             <div>
-              <p className="mb-2 text-xs font-extrabold uppercase tracking-[0.1em] text-clay">
-                Reports
-              </p>
-              <h2 className="font-serif text-2xl font-semibold leading-tight text-ink">
-                Reports
-              </h2>
+              <h2 className="font-serif text-2xl font-semibold leading-tight text-ink">Homeowner report</h2>
+              {activeReport ? (
+                <p className="mt-1 text-sm font-semibold leading-6 text-slate-600">
+                  {formatDateTime(activeReport.timestamp)}
+                </p>
+              ) : null}
             </div>
             <div className="flex flex-wrap gap-2 lg:justify-end">
               {activeReport ? (
+                <>
+                  <a
+                    href={`/reports/${reportRouteId(activeReport)}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="button-soft grid min-h-11 place-items-center rounded-lg px-4 text-sm font-extrabold"
+                  >
+                    Open Report
+                  </a>
+                  <a
+                    href={`/api/reports/${reportRouteId(activeReport)}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="button-soft grid min-h-11 place-items-center rounded-lg px-4 text-sm font-extrabold"
+                  >
+                    Download PDF
+                  </a>
+                </>
+              ) : (
                 <button
                   type="button"
-                  onClick={() => setSelectedReportActionId(activeReport.id)}
+                  onClick={() => setActiveExperience("Inspection")}
                   className="button-soft min-h-11 rounded-lg px-4 text-sm font-extrabold"
                 >
-                  Share / Export
+                  Go To Inspection
                 </button>
-              ) : null}
+              )}
               <button
                 type="button"
                 onClick={() => window.print()}
@@ -3189,27 +3208,6 @@ export default function InspectionWorkspace({
           </div>
 
           <ReportCard property={selectedProperty} inspection={activeReport} />
-
-          {activeReport ? (
-            <div className="no-print mt-4 grid gap-2 rounded-lg border border-gold/15 bg-[#eae4d8] p-4 shadow-soft sm:grid-cols-2">
-              <a
-                href={`/reports/${reportRouteId(activeReport)}`}
-                target="_blank"
-                rel="noreferrer"
-                className="button-soft grid min-h-11 place-items-center rounded-lg px-4 text-sm font-extrabold"
-              >
-                Open Web Report
-              </a>
-              <a
-                href={`/api/reports/${reportRouteId(activeReport)}`}
-                target="_blank"
-                rel="noreferrer"
-                className="button-soft grid min-h-11 place-items-center rounded-lg px-4 text-sm font-extrabold"
-              >
-                Download PDF
-              </a>
-            </div>
-          ) : null}
 
           <div className="no-print mt-4 rounded-lg border border-gold/15 bg-[#eae4d8] p-4 shadow-soft">
             <div className="mb-3 flex items-center justify-between gap-3">
@@ -3233,7 +3231,6 @@ export default function InspectionWorkspace({
                     type="button"
                     onClick={() => {
                       setActiveReportId(inspection.id);
-                      setSelectedReportActionId(inspection.id);
                     }}
                     className={`rounded-lg border px-3 py-3 transition ${
                       activeReport?.id === inspection.id
@@ -4024,6 +4021,9 @@ function LuxuryExperiencePanel({
   const activeScheduleTasks = scheduleTasks
     .filter((task) => !["Complete", "Skipped"].includes(task.status))
     .sort((first, second) => new Date(first.scheduledFor).getTime() - new Date(second.scheduledFor).getTime());
+  const remainingScheduleTasks = activeScheduleTasks[0]
+    ? scheduleTasks.filter((task) => task.id !== activeScheduleTasks[0].id)
+    : scheduleTasks;
   const nextArrivalTask = activeScheduleTasks.find(
     (task) => task.type === "Pre-Guest Arrival" || /arrival|arrive|guest/i.test(`${task.title} ${task.notes}`)
   );
@@ -4514,90 +4514,79 @@ function LuxuryExperiencePanel({
 
       {activeExperience === "Schedule" ? (
         <>
-          <div className="grid gap-5">
-            <div className="grid gap-5 lg:grid-cols-[minmax(0,1.25fr)_minmax(280px,0.75fr)]">
-              <section className="rounded-lg border border-gold/25 bg-[#eae4d8] p-4 shadow-soft">
-                <div className="mb-4 flex flex-wrap items-start justify-between gap-3 border-b border-gold/20 pb-4">
-                  <div>
-                    <p className="mb-2 text-xs font-extrabold uppercase tracking-[0.1em] text-gold">
-                      Schedule
-                    </p>
-                    <h2 className="font-serif text-3xl font-semibold leading-tight text-ink">
-                      Schedule the next visit
-                    </h2>
-                    <p className="mt-2 max-w-2xl text-sm font-semibold leading-6 text-muted">
-                      Confirm the next home watch, vendor, cleaner, or arrival-prep appointment for {selectedProperty?.name || "this property"}.
-                    </p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setScheduleTaskForm(emptyScheduleTaskForm);
-                      setShowScheduleForm(true);
-                    }}
-                    className="button-soft min-h-11 rounded-lg px-4 text-sm font-extrabold"
-                  >
-                    Add Visit
-                  </button>
-                </div>
-                {activeScheduleTasks[0] ? (
-                  <div className="mb-4 rounded-lg border border-gold/20 bg-cream p-4 shadow-soft">
-                    <span className="text-xs font-extrabold uppercase tracking-[0.1em] text-gold">
-                      Next scheduled
-                    </span>
-                    <h3 className="mt-2 font-serif text-2xl font-semibold leading-tight text-ink">
-                      {activeScheduleTasks[0].title}
-                    </h3>
-                    <p className="mt-1 text-sm font-semibold leading-6 text-muted">
-                      {formatDateTime(activeScheduleTasks[0].scheduledFor)} / {activeScheduleTasks[0].assignedTo || "Unassigned"}
-                    </p>
-                  </div>
-                ) : null}
-                <div className="grid gap-3">
-                  {scheduleTasks.length ? (
-                    scheduleTasks.map((task) => (
-                      <ScheduleTaskListItem
-                        key={task.id}
-                        task={task}
-                        onSelect={() => setSelectedScheduleTaskId(task.id)}
-                      />
-                    ))
-                  ) : (
-                    <div className="rounded-lg border border-gold/15 bg-cream/80 p-4 shadow-soft">
-                      <p className="text-sm font-semibold leading-6 text-muted">
-                        No work has been scheduled for this property yet. Add the next visit to place it on the property calendar.
-                      </p>
-                      <button
-                        type="button"
-                        onClick={() => prepareScheduleTemplate("Home Watch")}
-                        className="button-soft mt-4 min-h-10 rounded-lg px-4 text-sm font-extrabold"
-                      >
-                        Plan Home Watch
-                      </button>
-                    </div>
-                  )}
-                </div>
-              </section>
+          <div className="grid gap-4">
+            <section className="rounded-lg border border-gold/25 bg-[#eae4d8] p-4 shadow-soft">
+              <div className="mb-4 flex flex-wrap items-center justify-between gap-3 border-b border-gold/20 pb-4">
+                <h2 className="font-serif text-3xl font-semibold leading-tight text-ink">Next visit</h2>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setScheduleTaskForm(emptyScheduleTaskForm);
+                    setShowScheduleForm(true);
+                  }}
+                  className="button-soft min-h-11 rounded-lg px-4 text-sm font-extrabold"
+                >
+                  Add Visit
+                </button>
+              </div>
 
-              <section className="rounded-lg border border-gold/15 bg-[#eae4d8] p-4 shadow-soft">
-                <div className="mb-3">
-                  <p className="text-xs font-extrabold uppercase tracking-[0.1em] text-gold">
-                    Optional templates
-                  </p>
-                  <h3 className="mt-1 font-serif text-2xl font-semibold leading-tight text-ink">Start from a visit type</h3>
-                  <p className="mt-1 text-sm font-semibold leading-6 text-muted">
-                    Use one when you need to create a new visit quickly.
-                  </p>
-                </div>
-                <div className="grid gap-2">
+              {activeScheduleTasks[0] ? (
+                <button
+                  type="button"
+                  onClick={() => setSelectedScheduleTaskId(activeScheduleTasks[0].id)}
+                  className="mb-3 grid w-full gap-2 rounded-lg border border-gold/20 bg-cream p-4 text-left shadow-soft transition hover:border-gold/50 hover:shadow-lift sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center"
+                >
+                  <span className="min-w-0">
+                    <span className="text-xs font-extrabold uppercase tracking-[0.1em] text-gold">Up next</span>
+                    <strong className="mt-1 block truncate font-serif text-2xl font-semibold leading-tight text-ink">
+                      {activeScheduleTasks[0].title}
+                    </strong>
+                    <span className="mt-1 block text-sm font-semibold leading-6 text-muted">
+                      {formatDateTime(activeScheduleTasks[0].scheduledFor)} / {activeScheduleTasks[0].assignedTo || "Unassigned"}
+                    </span>
+                  </span>
+                  <span className="w-fit rounded-full border border-gold/25 px-3 py-1 text-xs font-extrabold text-ink">
+                    {activeScheduleTasks[0].status}
+                  </span>
+                </button>
+              ) : null}
+
+              <div className="grid gap-2">
+                {remainingScheduleTasks.length ? (
+                  remainingScheduleTasks.map((task) => (
+                    <ScheduleTaskListItem
+                      key={task.id}
+                      task={task}
+                      onSelect={() => setSelectedScheduleTaskId(task.id)}
+                    />
+                  ))
+                ) : activeScheduleTasks[0] ? null : (
+                  <div className="rounded-lg border border-gold/15 bg-cream/80 p-4 shadow-soft">
+                    <p className="text-sm font-semibold leading-6 text-muted">No visits are on the calendar yet.</p>
+                    <button
+                      type="button"
+                      onClick={() => prepareScheduleTemplate("Home Watch")}
+                      className="button-soft mt-4 min-h-10 rounded-lg px-4 text-sm font-extrabold"
+                    >
+                      Add First Visit
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              <div className="mt-4 border-t border-gold/20 pt-4">
+                <p className="mb-2 text-xs font-extrabold uppercase tracking-[0.1em] text-gold">Quick start</p>
+                <div className="grid gap-2 sm:grid-cols-5">
                   {(["Home Watch", "Pre-Guest Arrival", "Post-Checkout", "Cleaner", "Vendor"] as ScheduleTaskType[]).map(
                     (type) => (
                       <button
                         key={type}
                         type="button"
                         onClick={() => prepareScheduleTemplate(type)}
-                        className={`min-h-11 rounded-lg border px-4 text-left text-sm font-extrabold transition hover:border-gold/50 hover:shadow-lift ${
-                          scheduleTaskForm.type === type ? "border-gold bg-cream text-ink shadow-[inset_4px_0_0_#d4af37]" : "border-gold/20 bg-cream text-ink"
+                        className={`min-h-10 rounded-lg border px-3 text-left text-xs font-extrabold transition hover:border-gold/50 hover:shadow-lift ${
+                          scheduleTaskForm.type === type
+                            ? "border-gold bg-cream text-ink shadow-[inset_3px_0_0_#d4af37]"
+                            : "border-gold/20 bg-cream/80 text-ink"
                         }`}
                       >
                         {type}
@@ -4605,13 +4594,14 @@ function LuxuryExperiencePanel({
                     )
                   )}
                 </div>
-                {scheduleSaveMessage ? (
-                  <div className="mt-4 rounded-lg border border-gold/20 bg-cream p-3 text-sm font-semibold text-ink">
-                    {scheduleSaveMessage}
-                  </div>
-                ) : null}
-              </section>
-            </div>
+              </div>
+
+              {scheduleSaveMessage ? (
+                <div className="mt-4 rounded-lg border border-gold/20 bg-cream p-3 text-sm font-semibold text-ink">
+                  {scheduleSaveMessage}
+                </div>
+              ) : null}
+            </section>
           </div>
 
           {showScheduleForm ? (
@@ -4626,13 +4616,7 @@ function LuxuryExperiencePanel({
               >
                 <div className="mb-1 flex items-start justify-between gap-3 border-b border-gold/20 pb-4">
                   <div>
-                    <span className="text-xs font-extrabold uppercase tracking-[0.1em] text-clay">
-                      Schedule work
-                    </span>
-                    <h3 className="mt-1 font-serif text-3xl font-semibold leading-tight text-ink">Add scheduled work</h3>
-                    <p className="mt-1 text-sm font-semibold leading-6 text-slate-600">
-                      Confirm who is going, when they are expected, and any property-specific instructions.
-                    </p>
+                    <h3 className="mt-1 font-serif text-3xl font-semibold leading-tight text-ink">Add visit</h3>
                   </div>
                   <button
                     type="button"
@@ -4643,7 +4627,7 @@ function LuxuryExperiencePanel({
                   </button>
                 </div>
                 <label className="grid gap-2 text-sm font-extrabold">
-                  Task title
+                  Visit
                   <input
                     required
                     value={scheduleTaskForm.title}
@@ -4656,7 +4640,7 @@ function LuxuryExperiencePanel({
                 </label>
                 <div className="grid gap-3 sm:grid-cols-2">
                   <label className="grid gap-2 text-sm font-extrabold">
-                    Work type
+                    Type
                     <select
                       value={scheduleTaskForm.type}
                       onChange={(event) =>
@@ -4673,7 +4657,7 @@ function LuxuryExperiencePanel({
                     </select>
                   </label>
                   <label className="grid gap-2 text-sm font-extrabold">
-                    Date and time
+                    When
                     <input
                       required
                       type="datetime-local"
@@ -4687,7 +4671,7 @@ function LuxuryExperiencePanel({
                 </div>
                 <div className="grid gap-3 sm:grid-cols-2">
                   <label className="grid gap-2 text-sm font-extrabold">
-                    Assigned to
+                    Assigned
                     <input
                       value={scheduleTaskForm.assignedTo}
                       onChange={(event) =>
@@ -4716,7 +4700,7 @@ function LuxuryExperiencePanel({
                   </label>
                 </div>
                 <label className="grid gap-2 text-sm font-extrabold">
-                  Notes
+                  Instructions
                   <textarea
                     rows={4}
                     value={scheduleTaskForm.notes}
@@ -4730,9 +4714,9 @@ function LuxuryExperiencePanel({
                 <button
                   type="submit"
                   disabled={isSavingScheduleTask}
-                  className="button-primary min-h-12 rounded-lg px-5 font-extrabold disabled:cursor-not-allowed disabled:opacity-60"
+                  className="min-h-12 rounded-lg border border-gold/25 bg-[#252525] px-5 font-extrabold text-cream shadow-soft transition hover:border-gold/60 hover:bg-[#1f1f1f] disabled:cursor-not-allowed disabled:opacity-60"
                 >
-                  {isSavingScheduleTask ? "Saving..." : "Save Task"}
+                  {isSavingScheduleTask ? "Saving..." : "Save Visit"}
                 </button>
               </form>
             </div>
@@ -4744,7 +4728,7 @@ function LuxuryExperiencePanel({
                 <div className="mb-4 flex items-start justify-between gap-3 border-b border-gold/20 pb-4">
                   <div>
                     <span className="text-xs font-extrabold uppercase tracking-[0.1em] text-clay">
-                      Schedule detail
+                      Visit detail
                     </span>
                     <h3 className="mt-1 font-serif text-3xl font-semibold leading-tight text-ink">{selectedScheduleTask.title}</h3>
                   </div>
@@ -5163,7 +5147,7 @@ function LuxuryExperiencePanel({
               <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(31,31,31,0.72),rgba(31,31,31,0.34),rgba(31,31,31,0.08)),linear-gradient(0deg,rgba(31,31,31,0.66),rgba(31,31,31,0.02)_58%)]" />
               <div className="relative flex min-h-[22rem] flex-col justify-between p-5 sm:min-h-[25rem] sm:p-7">
                 <div>
-                  <p className="type-eyebrow">Private Owner View</p>
+                  <p className="type-eyebrow">Owner Portal</p>
                   <p className="mt-3 text-sm font-semibold leading-6 text-[#eae4d8] sm:text-base">
                     Welcome back, {homeownerFirstName}.
                   </p>
@@ -5179,7 +5163,7 @@ function LuxuryExperiencePanel({
                       {selectedProperty?.address || "No property selected"}
                     </p>
                     <p className="mt-2 max-w-xl text-sm font-semibold leading-6 text-[#4f473c]">
-                      Your property is being watched, documented, and cared for with discreet estate-level service.
+                      Watched, documented, and cared for with discreet estate-level service.
                     </p>
                   </div>
                   <div className="border-t border-gold/20 pt-4 lg:border-l lg:border-t-0 lg:pl-5 lg:pt-0">
@@ -5203,17 +5187,14 @@ function LuxuryExperiencePanel({
               <section className="rounded-lg border border-gold/20 bg-[#eae4d8] p-4 shadow-soft">
                 <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
                   <div>
-                    <p className="type-eyebrow">Proof Of Care</p>
+                    <p className="type-eyebrow">Proof of care</p>
                     <h3 className="mt-1 font-serif text-3xl font-semibold leading-tight text-ink">
-                      Your home was checked and documented.
+                      Checked and documented.
                     </h3>
-                    <p className="mt-2 max-w-3xl text-sm font-semibold leading-6 text-[#4f473c]">
-                      Weekly evidence, security confidence, photo documentation, and flagged items in one calm view.
-                    </p>
                   </div>
                   {recentReport ? (
                     <span className="w-fit rounded-full border border-gold/25 bg-cream px-4 py-2 text-xs font-extrabold uppercase tracking-[0.08em] text-ink">
-                      Verified Visit
+                      Verified visit
                     </span>
                   ) : null}
                 </div>
@@ -5228,9 +5209,9 @@ function LuxuryExperiencePanel({
                   <div className="rounded-lg border border-gold/15 bg-cream/85 p-4 shadow-soft">
                     <div className="mb-3 flex items-center justify-between gap-3">
                       <div>
-                        <p className="type-eyebrow">Weekly Photos</p>
+                        <p className="type-eyebrow">Latest photos</p>
                         <h4 className="mt-1 font-serif text-2xl font-semibold leading-tight text-ink">
-                          Latest visual record
+                          Visual record
                         </h4>
                       </div>
                       <span className="rounded-full border border-gold/20 bg-warning-soft px-3 py-1 text-xs font-extrabold text-ink">
@@ -5263,7 +5244,7 @@ function LuxuryExperiencePanel({
                   </div>
 
                   <div className="rounded-lg border border-gold/15 bg-cream/85 p-4 shadow-soft">
-                    <p className="type-eyebrow">Care Timeline</p>
+                    <p className="type-eyebrow">Care log</p>
                     <h4 className="mt-1 font-serif text-2xl font-semibold leading-tight text-ink">
                       Recent activity
                     </h4>
@@ -5301,8 +5282,8 @@ function LuxuryExperiencePanel({
               <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(320px,0.72fr)]">
               <section>
                 <div className="mb-3">
-                  <p className="type-eyebrow">Latest Report</p>
-                  <h3 className="mt-1 font-serif text-2xl font-semibold leading-tight text-ink">Homeowner summary</h3>
+                  <p className="type-eyebrow">Latest summary</p>
+                  <h3 className="mt-1 font-serif text-2xl font-semibold leading-tight text-ink">Report snapshot</h3>
                 </div>
                 {recentReport ? (
                   <div className="grid gap-4">
@@ -5333,15 +5314,15 @@ function LuxuryExperiencePanel({
                   </div>
                 ) : (
                   <p className="rounded-lg border border-gold/15 bg-cream/80 p-4 text-sm leading-6 text-slate-600">
-                    No homeowner report is ready yet.
+                    No report is ready yet.
                   </p>
                 )}
               </section>
 
               <section>
                 <div className="mb-3">
-                  <p className="type-eyebrow">Open Items</p>
-                  <h3 className="mt-1 font-serif text-2xl font-semibold leading-tight text-ink">Needs attention</h3>
+                  <p className="type-eyebrow">Attention</p>
+                  <h3 className="mt-1 font-serif text-2xl font-semibold leading-tight text-ink">Open items</h3>
                 </div>
                 {activeMaintenanceIssues.length ? (
                   <div className="grid gap-2">
@@ -5375,13 +5356,10 @@ function LuxuryExperiencePanel({
           <section className="estate-panel rounded-lg p-5">
             <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
               <div>
-                <p className="type-eyebrow">Concierge Desk</p>
+                <p className="type-eyebrow">Concierge</p>
                 <h3 className="mt-1 font-serif text-3xl font-semibold leading-tight text-ink">
-                  Recommended for your property
+                  Recommended services
                 </h3>
-                <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
-                  Thoughtful service suggestions and private requests, reviewed by the estate team before any next step.
-                </p>
               </div>
               <button
                 type="button"
@@ -5392,7 +5370,7 @@ function LuxuryExperiencePanel({
                 }}
                 className="button-soft min-h-11 rounded-lg px-5 text-sm font-extrabold"
               >
-                Custom Request
+                New Request
               </button>
             </div>
             <div className="grid gap-3 lg:grid-cols-2">
@@ -5445,8 +5423,8 @@ function LuxuryExperiencePanel({
           <section className="estate-panel rounded-lg p-5">
             <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
               <div>
-                <p className="type-eyebrow">Owner Communication</p>
-                <h3 className="mt-1 font-serif text-2xl font-semibold leading-tight text-ink">Shared messages</h3>
+                <p className="type-eyebrow">Team tools</p>
+                <h3 className="mt-1 font-serif text-2xl font-semibold leading-tight text-ink">Owner notes</h3>
               </div>
               <div className="grid gap-2 sm:flex">
                 <button
@@ -5457,21 +5435,21 @@ function LuxuryExperiencePanel({
                   }}
                   className="button-soft min-h-10 rounded-lg px-4 text-sm font-extrabold"
                 >
-                  Prepare Update
+                  New Note
                 </button>
                 <button
                   type="button"
                   onClick={draftLatestInspectionOwnerUpdate}
                   className="button-soft min-h-10 rounded-lg px-4 text-sm font-extrabold"
                 >
-                  Prepare Visit Note
+                  Visit Note
                 </button>
                 <button
                   type="button"
                   onClick={draftMaintenanceOwnerUpdate}
                   className="button-soft min-h-10 rounded-lg px-4 text-sm font-extrabold"
                 >
-                  Maintenance Note
+                  Issue Note
                 </button>
               </div>
             </div>
@@ -6345,9 +6323,9 @@ function ScheduleTaskCard({
       <button
         type="button"
         onClick={() => onStartInspection(task)}
-        className="button-primary mt-4 min-h-11 w-full rounded-lg px-4 text-sm font-extrabold"
+        className="mt-4 min-h-11 w-full rounded-lg border border-gold/25 bg-[#252525] px-4 text-sm font-extrabold text-cream shadow-soft transition hover:border-gold/60 hover:bg-[#1f1f1f]"
       >
-        Start Related Inspection
+        Start Inspection
       </button>
       <label className="mt-4 grid gap-2 text-sm font-extrabold">
         Update status
@@ -6728,14 +6706,14 @@ function OwnerConciergePrompt({
     <button
       type="button"
       onClick={onClick}
-      className="grid gap-4 rounded-lg border border-gold/20 bg-cream/85 p-4 text-left shadow-soft transition hover:border-gold/50 hover:shadow-lift"
+      className="grid gap-3 rounded-lg border border-gold/20 bg-cream/85 p-4 text-left shadow-soft transition hover:border-gold/50 hover:shadow-lift"
     >
       <span>
         <span className="type-eyebrow">{eyebrow}</span>
-        <strong className="mt-2 block font-serif text-2xl font-semibold leading-tight text-ink">{title}</strong>
+        <strong className="mt-2 block font-serif text-xl font-semibold leading-tight text-ink sm:text-2xl">{title}</strong>
       </span>
-      <span className="text-sm leading-6 text-slate-600">{description}</span>
-      <span className="inline-flex min-h-10 w-fit items-center rounded-lg border border-gold/25 bg-warning-soft px-4 text-sm font-extrabold text-ink">
+      <span className="text-sm font-semibold leading-6 text-slate-600">{description}</span>
+      <span className="inline-flex min-h-10 w-fit items-center rounded-lg border border-gold/25 bg-[#252525] px-4 text-sm font-extrabold text-cream">
         {actionLabel}
       </span>
     </button>
@@ -6797,9 +6775,6 @@ function ReportCard({
     <article className="rounded-lg border border-gold/15 bg-cream p-4 shadow-soft">
       <div className="mb-4 grid gap-3 border-b border-line pb-4 lg:grid-cols-[minmax(0,1fr)_220px] lg:items-start">
         <div className="min-w-0">
-          <p className="mb-2 text-xs font-extrabold uppercase tracking-[0.1em] text-clay">
-            Current report
-          </p>
           <h3 className="font-serif text-3xl font-semibold leading-tight text-ink">{property.name}</h3>
           <p className="mt-2 text-sm text-slate-600">
             {property.owner} / {property.address}
@@ -6822,10 +6797,10 @@ function ReportCard({
           />
         ) : null}
       </div>
-      <div className="mb-4 overflow-hidden rounded-lg border border-gold/20 bg-[#eae4d8] text-ink shadow-soft">
-        <div className="grid gap-0 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)]">
-          <section className="border-b border-gold/20 p-4 lg:border-b-0 lg:border-r">
-            <span className="type-eyebrow text-gold">Property Status</span>
+      <div className="mb-4 overflow-hidden rounded-lg border border-gold/15 bg-[#eae4d8] text-ink shadow-soft">
+        <div className="grid gap-0 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,1fr)]">
+          <section className="border-b border-gold/15 bg-cream/75 p-4 lg:border-b-0 lg:border-r">
+            <span className="type-eyebrow text-gold">Condition</span>
             <strong className="mt-2 block font-serif text-2xl font-semibold leading-tight text-ink">
               {status.label}
             </strong>
@@ -6839,7 +6814,7 @@ function ReportCard({
             <ReportRow
               label="Urgent"
               value={inspection.urgent}
-              valueClassName={inspection.urgent === "Yes" ? "text-[#f0b7ae] font-black" : ""}
+              valueClassName={inspection.urgent === "Yes" ? "text-[#9f352e] font-black" : ""}
             />
             <ReportRow label="Photos" value={`${inspection.photos.length}`} />
           </div>
@@ -6847,13 +6822,13 @@ function ReportCard({
       </div>
 
       {inspection.executiveSummary ? (
-        <>
-          <h4 className="mb-2 mt-5 text-sm font-extrabold uppercase">Executive Summary</h4>
-          <p className="leading-7">{inspection.executiveSummary}</p>
-        </>
+        <section className="rounded-lg border border-gold/15 bg-[#eae4d8] p-4 shadow-soft">
+          <h4 className="font-serif text-2xl font-semibold leading-tight text-ink">Summary</h4>
+          <p className="mt-2 text-sm font-semibold leading-7 text-slate-700">{inspection.executiveSummary}</p>
+        </section>
       ) : null}
 
-      <h4 className="mb-2 mt-5 text-sm font-extrabold uppercase">Completed Checks</h4>
+      <h4 className="mb-2 mt-5 font-serif text-2xl font-semibold leading-tight text-ink">Completed checks</h4>
       {visibleChecklistItems(inspection.checklist).length ? (
         <div className="grid gap-3 lg:grid-cols-2">
           {groupChecklistItems(inspection.checklist).map((section) =>
@@ -6880,13 +6855,15 @@ function ReportCard({
         <p className="text-sm text-slate-600">No checklist items were marked complete.</p>
       )}
 
-      <h4 className="mb-2 mt-5 text-sm font-extrabold uppercase">Notes / Issues</h4>
-      <p>{inspection.notes || "No issues were noted during this visit."}</p>
+      <h4 className="mb-2 mt-5 font-serif text-2xl font-semibold leading-tight text-ink">Notes / issues</h4>
+      <p className="rounded-lg border border-gold/15 bg-[#eae4d8] p-4 text-sm font-semibold leading-7 text-slate-700 shadow-soft">
+        {inspection.notes || "No issues were noted during this visit."}
+      </p>
 
       {inspection.photos.length ? (
         <>
           <div className="mb-2 mt-5 flex items-center justify-between gap-3">
-            <h4 className="text-sm font-extrabold uppercase">Photos</h4>
+            <h4 className="font-serif text-2xl font-semibold leading-tight text-ink">Photos</h4>
             <span className="rounded-full border border-line bg-[#fbfcfb] px-3 py-1 text-xs font-extrabold text-slate-600">
               {inspection.photos.length}
             </span>
