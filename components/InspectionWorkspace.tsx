@@ -554,6 +554,15 @@ export default function InspectionWorkspace({
     () => vendors.filter((vendor) => vendor.propertyId === selectedProperty?.id),
     [vendors, selectedProperty?.id]
   );
+  const selectedMaintenanceVendor = useMemo(
+    () =>
+      selectedMaintenanceIssue?.vendor
+        ? selectedVendors.find(
+            (vendor) => vendor.name.trim().toLowerCase() === selectedMaintenanceIssue.vendor.trim().toLowerCase()
+          ) ?? null
+        : null,
+    [selectedMaintenanceIssue, selectedVendors]
+  );
   const selectedVendor = useMemo(
     () => selectedVendors.find((vendor) => vendor.id === selectedVendorId) ?? null,
     [selectedVendorId, selectedVendors]
@@ -3397,6 +3406,20 @@ export default function InspectionWorkspace({
                   Issue details
                 </p>
                 <h3 className="truncate text-2xl font-extrabold text-ink">{selectedMaintenanceIssue.title}</h3>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <span
+                    className={`rounded-full border px-3 py-1 text-xs font-extrabold ${
+                      selectedMaintenanceIssue.priority === "Urgent" || selectedMaintenanceIssue.priority === "High"
+                        ? "border-[#e7cbc4] bg-[#fff8f6] text-[#9f352e]"
+                        : "border-gold/25 bg-warning-soft text-ink"
+                    }`}
+                  >
+                    {selectedMaintenanceIssue.priority}
+                  </span>
+                  <span className="rounded-full border border-gold/20 bg-cream px-3 py-1 text-xs font-extrabold text-ink">
+                    {selectedMaintenanceIssue.status}
+                  </span>
+                </div>
               </div>
               <button
                 type="button"
@@ -3407,13 +3430,24 @@ export default function InspectionWorkspace({
               </button>
             </div>
             <div className="grid gap-3">
-              <div className="grid gap-3 sm:grid-cols-2">
-                <DetailStrip label="Priority" value={selectedMaintenanceIssue.priority} />
-                <DetailStrip label="Status" value={selectedMaintenanceIssue.status} />
+              <div className="rounded-lg border border-gold/15 bg-cream/80 p-3">
+                <span className="text-xs font-extrabold uppercase tracking-[0.08em] text-gold">Description</span>
+                <p className="mt-2 text-sm font-semibold leading-6 text-slate-700">
+                  {selectedMaintenanceIssue.description || "No description saved."}
+                </p>
               </div>
-              <DetailStrip label="Description" value={selectedMaintenanceIssue.description || "No description saved."} />
-              <DetailStrip label="Vendor" value={selectedMaintenanceIssue.vendor || "Not assigned"} />
-              <DetailStrip label="Next Step" value={selectedMaintenanceIssue.nextStep || "Review needed"} />
+              <div className="rounded-lg border border-gold/15 bg-cream/80 p-3">
+                <span className="text-xs font-extrabold uppercase tracking-[0.08em] text-gold">Next step</span>
+                <p className="mt-2 text-sm font-semibold leading-6 text-slate-700">
+                  {selectedMaintenanceIssue.nextStep || "Review needed"}
+                </p>
+              </div>
+              <div className="rounded-lg border border-gold/15 bg-cream/80 p-3">
+                <span className="text-xs font-extrabold uppercase tracking-[0.08em] text-gold">Vendor</span>
+                <p className="mt-2 text-sm font-semibold leading-6 text-slate-700">
+                  {selectedMaintenanceIssue.vendor || "Not assigned"}
+                </p>
+              </div>
               <label className="grid gap-2 text-sm font-extrabold text-ink">
                 Update status
                 <select
@@ -3428,10 +3462,10 @@ export default function InspectionWorkspace({
                   ))}
                 </select>
               </label>
-              {selectedVendors.find((vendor) => vendor.name === selectedMaintenanceIssue.vendor)?.phone ? (
+              {selectedMaintenanceVendor?.phone ? (
                 <a
-                  href={`tel:${selectedVendors.find((vendor) => vendor.name === selectedMaintenanceIssue.vendor)?.phone}`}
-                  className="button-primary grid min-h-11 place-items-center rounded-lg px-4 text-sm font-extrabold"
+                  href={`tel:${selectedMaintenanceVendor.phone}`}
+                  className="grid min-h-11 place-items-center rounded-lg border border-gold/25 bg-[#252525] px-4 text-sm font-extrabold text-cream shadow-soft transition hover:border-gold/60 hover:bg-[#1f1f1f]"
                 >
                   Call Vendor
                 </a>
@@ -4738,7 +4772,7 @@ function LuxuryExperiencePanel({
 
       {activeExperience === "Maintenance" ? (
         <div className="grid gap-4">
-          <div className="grid gap-4 lg:grid-cols-[minmax(0,1.25fr)_minmax(280px,0.75fr)]">
+          <div className="grid gap-4 lg:grid-cols-[minmax(0,1.35fr)_minmax(260px,0.65fr)]">
             <section className="rounded-lg border border-gold/25 bg-[#eae4d8] p-4 shadow-soft">
               <div className="mb-4 flex flex-wrap items-start justify-between gap-3 border-b border-gold/20 pb-4">
                 <div>
@@ -4746,7 +4780,7 @@ function LuxuryExperiencePanel({
                     Issues
                   </p>
                   <h3 className="font-serif text-3xl font-semibold leading-tight text-ink">
-                    Issues
+                    Open items
                   </h3>
                 </div>
                 <button
@@ -4763,23 +4797,25 @@ function LuxuryExperiencePanel({
                   Add Issue
                 </button>
               </div>
-              <div className="mb-4 flex flex-wrap gap-2">
-                <span className="rounded-full border border-gold/25 bg-cream px-3 py-1 text-xs font-extrabold text-ink">
-                  {openMaintenanceCount} open
-                </span>
-                <span
-                  className={`rounded-full border px-3 py-1 text-xs font-extrabold ${
-                    urgentMaintenanceCount > 0
-                      ? "border-[#e7cbc4] bg-[#fff8f6] text-[#9f352e]"
-                      : "border-gold/25 bg-cream text-ink"
-                  }`}
-                >
-                  {urgentMaintenanceCount} urgent
-                </span>
-                <span className="rounded-full border border-gold/25 bg-cream px-3 py-1 text-xs font-extrabold text-ink">
-                  {assignedMaintenanceCount} assigned
-                </span>
-              </div>
+              {maintenanceIssues.length ? (
+                <div className="mb-4 flex flex-wrap gap-2">
+                  <span className="rounded-full border border-gold/25 bg-cream px-3 py-1 text-xs font-extrabold text-ink">
+                    {openMaintenanceCount} open
+                  </span>
+                  <span
+                    className={`rounded-full border px-3 py-1 text-xs font-extrabold ${
+                      urgentMaintenanceCount > 0
+                        ? "border-[#e7cbc4] bg-[#fff8f6] text-[#9f352e]"
+                        : "border-gold/25 bg-cream text-ink"
+                    }`}
+                  >
+                    {urgentMaintenanceCount} urgent
+                  </span>
+                  <span className="rounded-full border border-gold/25 bg-cream px-3 py-1 text-xs font-extrabold text-ink">
+                    {assignedMaintenanceCount} assigned
+                  </span>
+                </div>
+              ) : null}
               <div className="overflow-hidden rounded-lg border border-gold/15 bg-cream shadow-soft">
                 {maintenanceIssues.length ? (
                   maintenanceIssues.map((issue) => (
@@ -4792,23 +4828,20 @@ function LuxuryExperiencePanel({
                 ) : (
                   <div className="p-4">
                     <p className="text-sm leading-6 text-slate-600">
-                      No maintenance issues have been saved for this property yet. Start with a common repair workflow,
-                      then add photos and save the item.
+                      No open issues are currently saved for this property.
                     </p>
                     <button
                       type="button"
-                      onClick={() =>
-                        prepareMaintenanceTemplate(
-                          "Landscape or irrigation issue",
-                          "Medium",
-                          "Landscape",
-                          "Landscape or irrigation condition requires attention. Document affected area, visible leaks, flooding, dry spots, or plant stress.",
-                          "Coordinate with landscape vendor and verify condition at the next property visit."
-                        )
-                      }
+                      onClick={() => {
+                        setMaintenanceIssueForm(emptyMaintenanceIssueForm);
+                        setMaintenanceRecommendation(null);
+                        setMaintenanceRecommendationMessage("");
+                        setMaintenanceSaveMessage("");
+                        setShowMaintenanceForm(true);
+                      }}
                       className="button-soft mt-4 min-h-10 rounded-lg px-4 text-sm font-extrabold"
                     >
-                      Start First Issue
+                      Add First Issue
                     </button>
                   </div>
                 )}
@@ -4818,12 +4851,9 @@ function LuxuryExperiencePanel({
             <section className="rounded-lg border border-gold/15 bg-[#eae4d8] p-4 shadow-soft">
               <div className="mb-3">
                 <p className="text-xs font-extrabold uppercase tracking-[0.1em] text-gold">
-                  Add from template
+                  Common issues
                 </p>
-                <h3 className="mt-1 font-serif text-2xl font-semibold leading-tight text-ink">New issue starters</h3>
-                <p className="mt-1 text-sm font-semibold leading-6 text-muted">
-                  Use only when the issue is not already in the work queue.
-                </p>
+                <h3 className="mt-1 font-serif text-2xl font-semibold leading-tight text-ink">Quick start</h3>
               </div>
               <div className="grid gap-2">
                 <button
@@ -4837,9 +4867,10 @@ function LuxuryExperiencePanel({
                       "Contact HVAC vendor for availability and update homeowner once service timing is confirmed."
                     )
                   }
-                  className="min-h-11 rounded-lg border border-gold/20 bg-cream px-4 text-left text-sm font-extrabold text-ink transition hover:border-gold/50 hover:shadow-lift"
+                  className="flex min-h-10 items-center justify-between gap-3 rounded-lg border border-gold/20 bg-cream/85 px-3 text-left text-sm font-extrabold text-ink transition hover:border-gold/50 hover:shadow-lift"
                 >
-                  HVAC Concern
+                  <span>HVAC</span>
+                  <span className="rounded-full border border-gold/20 bg-warning-soft px-2 py-0.5 text-[0.68rem] text-slate-600">High</span>
                 </button>
                 <button
                   type="button"
@@ -4852,9 +4883,10 @@ function LuxuryExperiencePanel({
                       "Request pool vendor review and continue monitoring until service is complete."
                     )
                   }
-                  className="min-h-11 rounded-lg border border-gold/20 bg-cream px-4 text-left text-sm font-extrabold text-ink transition hover:border-gold/50 hover:shadow-lift"
+                  className="flex min-h-10 items-center justify-between gap-3 rounded-lg border border-gold/20 bg-cream/85 px-3 text-left text-sm font-extrabold text-ink transition hover:border-gold/50 hover:shadow-lift"
                 >
-                  Pool / Spa
+                  <span>Pool / Spa</span>
+                  <span className="rounded-full border border-gold/20 bg-warning-soft px-2 py-0.5 text-[0.68rem] text-slate-600">Medium</span>
                 </button>
                 <button
                   type="button"
@@ -4867,9 +4899,10 @@ function LuxuryExperiencePanel({
                       "Coordinate with landscape vendor and verify condition at the next property visit."
                     )
                   }
-                  className="min-h-11 rounded-lg border border-gold/20 bg-cream px-4 text-left text-sm font-extrabold text-ink transition hover:border-gold/50 hover:shadow-lift"
+                  className="flex min-h-10 items-center justify-between gap-3 rounded-lg border border-gold/20 bg-cream/85 px-3 text-left text-sm font-extrabold text-ink transition hover:border-gold/50 hover:shadow-lift"
                 >
-                  Landscape / Irrigation
+                  <span>Landscape</span>
+                  <span className="rounded-full border border-gold/20 bg-warning-soft px-2 py-0.5 text-[0.68rem] text-slate-600">Medium</span>
                 </button>
                 <button
                   type="button"
@@ -4882,9 +4915,10 @@ function LuxuryExperiencePanel({
                       "Review immediately, document with photos, and notify homeowner with recommended next steps."
                     )
                   }
-                  className="min-h-11 rounded-lg border border-[#e7cbc4] bg-[#fff8f6] px-4 text-left text-sm font-extrabold text-[#9f352e] transition hover:bg-[#ffecea]"
+                  className="flex min-h-10 items-center justify-between gap-3 rounded-lg border border-[#d9a5a0] bg-cream/85 px-3 text-left text-sm font-extrabold text-ink transition hover:bg-[#fff8f6]"
                 >
-                  Security Concern
+                  <span>Security</span>
+                  <span className="rounded-full border border-[#e7cbc4] bg-[#fff8f6] px-2 py-0.5 text-[0.68rem] text-[#9f352e]">Urgent</span>
                 </button>
               </div>
             </section>
@@ -5008,36 +5042,28 @@ function LuxuryExperiencePanel({
                   </button>
                 </div>
               ) : null}
-              <div className="rounded-lg border border-gold/15 bg-cream/80 p-4 shadow-soft">
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+              <div className="rounded-lg border border-gold/15 bg-cream/80 p-3 shadow-soft">
+                <div className="flex flex-wrap items-center justify-between gap-3">
                   <div>
-                    <p className="mb-1 text-xs font-extrabold uppercase tracking-[0.1em] text-gold">
-                      Recommended Next Step
-                    </p>
-                    <h3 className="font-serif text-2xl font-semibold leading-tight text-ink">Issue guidance</h3>
-                    <p className="mt-1 text-sm leading-6 text-slate-600">
-                      Suggests priority, vendor type, and owner-facing wording for review.
-                    </p>
+                    <h3 className="font-serif text-xl font-semibold leading-tight text-ink">Issue guidance</h3>
                   </div>
                   <button
                     type="button"
                     onClick={suggestMaintenanceRecommendation}
-                    className="button-soft min-h-11 rounded-lg px-4 text-sm font-extrabold"
+                    className="button-soft min-h-10 rounded-lg px-4 text-sm font-extrabold"
                   >
-                    Suggest Next Step
+                    Prepare Step
                   </button>
                 </div>
                 {maintenanceRecommendation ? (
-                  <div className="mt-4 grid gap-3 rounded-lg border border-gold/15 bg-white/60 p-4">
-                    <div className="grid gap-3 sm:grid-cols-2">
+                  <div className="mt-3 grid gap-3 rounded-lg border border-gold/15 bg-white/60 p-3">
+                    <div className="grid gap-2 sm:grid-cols-2">
                       <DetailStrip label="Priority" value={maintenanceRecommendation.priority} />
                       <DetailStrip label="Vendor Type" value={maintenanceRecommendation.vendorType} />
                     </div>
                     <DetailStrip label="Next Step" value={maintenanceRecommendation.nextStep} />
                     <div className="rounded-lg border border-gold/15 bg-cream/80 p-3">
-                      <span className="block text-xs font-extrabold uppercase tracking-[0.08em] text-gold">
-                        Owner-facing note
-                      </span>
+                      <span className="block text-xs font-extrabold uppercase tracking-[0.08em] text-gold">Owner note</span>
                       <p className="mt-2 text-sm leading-6 text-slate-700">
                         {maintenanceRecommendation.ownerExplanation}
                       </p>
@@ -5045,9 +5071,9 @@ function LuxuryExperiencePanel({
                     <button
                       type="button"
                       onClick={applyMaintenanceRecommendation}
-                      className="button-primary min-h-10 rounded-lg px-4 text-sm font-extrabold"
+                      className="min-h-10 rounded-lg border border-gold/25 bg-[#252525] px-4 text-sm font-extrabold text-cream shadow-soft transition hover:border-gold/60 hover:bg-[#1f1f1f]"
                     >
-                      Apply Recommendation
+                      Use Recommendation
                     </button>
                   </div>
                 ) : null}
@@ -5066,21 +5092,24 @@ function LuxuryExperiencePanel({
                   placeholder="Call vendor, request estimate, monitor next visit..."
                 />
               </label>
-              <label className="grid min-h-28 content-center gap-2 rounded-lg border border-dashed border-gold/40 bg-warning-soft/60 p-4 text-sm font-extrabold shadow-soft transition hover:bg-warning-soft">
-                Damage photos
+              <label className="flex cursor-pointer flex-wrap items-center justify-between gap-3 rounded-lg border border-gold/20 bg-cream/80 p-3 text-sm font-extrabold text-ink shadow-soft transition hover:border-gold/50">
+                <span>Issue photos</span>
+                <span className="rounded-lg border border-gold/25 bg-[#252525] px-4 py-2 text-xs font-extrabold text-cream">
+                  Add Photos
+                </span>
                 <input
                   type="file"
                   accept="image/*"
                   multiple
                   onChange={(event) => addMaintenanceIssuePhotoFiles(event.target.files)}
-                  className="text-xs font-medium"
+                  className="sr-only"
                 />
               </label>
               {maintenanceIssueForm.photoFiles.length ? (
                 <div className="rounded-lg border border-line bg-[#fbfcfb] p-3 text-sm text-slate-600">
                   <div className="flex flex-wrap items-center justify-between gap-3">
                     <strong className="text-ink">
-                      {maintenanceIssueForm.photoFiles.length} maintenance photo selected
+                      {maintenanceIssueForm.photoFiles.length} photo selected
                       {maintenanceIssueForm.photoFiles.length === 1 ? "" : "s"}
                     </strong>
                     <button
@@ -5110,7 +5139,7 @@ function LuxuryExperiencePanel({
               <button
                 type="submit"
                 disabled={isSavingMaintenanceIssue}
-                className="button-primary min-h-12 rounded-lg px-5 font-extrabold disabled:cursor-not-allowed disabled:opacity-60"
+                className="min-h-12 rounded-lg border border-gold/25 bg-[#252525] px-5 font-extrabold text-cream shadow-soft transition hover:border-gold/60 hover:bg-[#1f1f1f] disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {isSavingMaintenanceIssue ? "Saving..." : "Save Maintenance Issue"}
               </button>
@@ -6473,7 +6502,7 @@ function MaintenanceIssueCard({
       {assignedVendor?.phone ? (
         <a
           href={`tel:${assignedVendor.phone}`}
-          className="button-primary mt-4 grid min-h-11 place-items-center rounded-lg px-4 text-sm font-extrabold lg:hidden"
+          className="mt-4 grid min-h-11 place-items-center rounded-lg border border-gold/25 bg-[#252525] px-4 text-sm font-extrabold text-cream shadow-soft transition hover:border-gold/60 hover:bg-[#1f1f1f] lg:hidden"
         >
           Call {assignedVendor.name}
         </a>
@@ -6568,12 +6597,12 @@ function MaintenanceIssueCard({
           onClick={() => onPlanVendorVisit(issue)}
           className="button-soft min-h-11 rounded-lg px-4 text-sm font-extrabold"
         >
-          Plan Vendor Visit
+          Plan Vendor
         </button>
         <button
           type="button"
           onClick={() => onDraftOwnerUpdate(issue)}
-          className="button-primary min-h-11 rounded-lg px-4 text-sm font-extrabold"
+          className="min-h-11 rounded-lg border border-gold/25 bg-[#252525] px-4 text-sm font-extrabold text-cream shadow-soft transition hover:border-gold/60 hover:bg-[#1f1f1f]"
         >
           Prepare Owner Update
         </button>
@@ -6661,7 +6690,7 @@ function MaintenanceIssueCard({
             <button
               type="submit"
               disabled={isSaving}
-              className="button-primary min-h-11 rounded-lg px-4 font-extrabold disabled:cursor-not-allowed disabled:opacity-60"
+              className="min-h-11 rounded-lg border border-gold/25 bg-[#252525] px-4 font-extrabold text-cream shadow-soft transition hover:border-gold/60 hover:bg-[#1f1f1f] disabled:cursor-not-allowed disabled:opacity-60"
             >
               {isSaving ? "Saving..." : "Save Changes"}
             </button>
