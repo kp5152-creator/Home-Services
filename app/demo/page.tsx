@@ -20,13 +20,8 @@ function resolveInitialDemoRole(params: { demo?: string; role?: string } | undef
 
 function resolveInitialRole(params: { demo?: string; role?: string } | undefined): AppRole | undefined {
   const demo = params?.demo?.toLowerCase();
-  const role = params?.role?.toLowerCase();
 
   if (demo) return undefined;
-
-  if (role === "admin") return "Admin";
-  if (role === "inspector") return "Inspector";
-  if (role === "homeowner") return "Homeowner";
 
   return undefined;
 }

@@ -2090,8 +2090,10 @@ export default function InspectionWorkspace({
 
   if (activeExperience === "Login") {
     return (
-      <main className={`grid min-h-screen place-items-center px-4 py-8 ${darkMode ? "luxury-dark" : ""}`}>
-        <section className="estate-panel w-full max-w-[440px] rounded-lg p-6 shadow-estate sm:p-8">
+      <main
+        className={`grid min-h-screen place-items-center bg-[#1f1f1f] bg-[radial-gradient(circle_at_top_left,rgba(212,175,55,0.16),transparent_26rem),linear-gradient(135deg,#1f1f1f,#2c2c2c)] px-4 py-8 ${darkMode ? "luxury-dark" : ""}`}
+      >
+        <section className="w-full max-w-[440px] rounded-lg border border-gold/20 bg-[#eae4d8] p-6 shadow-estate sm:p-8">
           <div className="mb-8 text-center">
             <img
               src="/estateiq-logo-clean.png"
@@ -2101,7 +2103,9 @@ export default function InspectionWorkspace({
             <p className="mb-2 text-xs font-extrabold uppercase tracking-[0.16em] text-clay">
               Property Intelligence. Peace of Mind.
             </p>
-            <h1 className="font-serif text-4xl font-extrabold leading-tight text-ink">EstateIQ</h1>
+            <p className="mt-3 text-sm font-semibold leading-6 text-slate-600">
+              Select your access type, then sign in.
+            </p>
           </div>
 
           <form className="grid gap-4">
@@ -2116,37 +2120,48 @@ export default function InspectionWorkspace({
             <button
               type="button"
               onClick={() => enterRole(activeRole)}
-              className="button-primary mt-2 min-h-12 rounded-lg px-5 font-extrabold"
+              className="mt-2 min-h-12 rounded-lg border border-gold/25 bg-[#252525] px-5 font-extrabold text-cream shadow-soft transition hover:border-gold/60 hover:bg-[#1f1f1f]"
             >
               Sign In
             </button>
           </form>
 
-          <div className="mt-5 grid gap-2">
-            {(Object.keys(roleLabels) as AppRole[]).map((role) => (
-              <button
-                key={role}
-                type="button"
-                onClick={() => enterRole(role)}
-                className={`rounded-lg border p-3 text-left transition ${
-                  activeRole === role
-                    ? "border-gold bg-warning-soft shadow-[inset_4px_0_0_#d4af37]"
-                    : "border-line bg-cream hover:border-gold/50 hover:bg-warning-soft/60"
-                }`}
-              >
-                <strong className="block text-sm text-ink">{roleLabels[role].title}</strong>
-                <span className="mt-1 block text-xs leading-5 text-slate-600">{roleLabels[role].description}</span>
-              </button>
-            ))}
+          <div className="mt-5 border-t border-gold/15 pt-5">
+            <p className="mb-3 text-xs font-extrabold uppercase tracking-[0.12em] text-clay">
+              App access
+            </p>
+            <div className="grid gap-2">
+              {(Object.keys(roleLabels) as AppRole[]).map((role) => (
+                <button
+                  key={role}
+                  type="button"
+                  onClick={() => setActiveRole(role)}
+                  className={`rounded-lg border p-3 text-left transition ${
+                    activeRole === role
+                      ? "border-gold/40 bg-cream shadow-[inset_4px_0_0_#d4af37]"
+                      : "border-gold/15 bg-[#f5f2ea]/75 hover:border-gold/40 hover:bg-cream"
+                  }`}
+                >
+                  <span className="flex items-center justify-between gap-3">
+                    <strong className="block text-sm text-ink">{roleLabels[role].title}</strong>
+                    {activeRole === role ? (
+                      <span className="rounded-full border border-gold/30 bg-cream px-2 py-0.5 text-[0.65rem] font-extrabold uppercase tracking-[0.08em] text-ink">
+                        Selected
+                      </span>
+                    ) : null}
+                  </span>
+                  <span className="mt-1 block text-xs leading-5 text-slate-600">{roleLabels[role].description}</span>
+                </button>
+              ))}
+            </div>
           </div>
 
-          <div className="mt-5 rounded-lg border border-[#ead2a8] bg-[#fff8ed] p-4">
-            <span className="block text-xs font-extrabold uppercase tracking-[0.1em] text-[#7b5426]">
-              Customer demo mode
+          <div className="mt-5 rounded-lg border border-gold/15 bg-[#f5f2ea]/75 p-4">
+            <span className="block text-xs font-extrabold uppercase tracking-[0.1em] text-clay">
+              Sample estate
             </span>
             <p className="mt-2 text-sm leading-6 text-slate-700">
-              Launch a polished sample estate with demo inspections, photos, maintenance, schedules, reports, and owner
-              updates. No real client data is shown.
+              Launch a polished sample estate. No real client data is shown.
             </p>
             <div className="mt-3 grid gap-2 sm:grid-cols-3">
               {(Object.keys(roleLabels) as AppRole[]).map((role) => (
@@ -2154,17 +2169,20 @@ export default function InspectionWorkspace({
                   key={`demo-${role}`}
                   type="button"
                   onClick={() => loadDemoMode(role)}
-                  className="button-primary min-h-10 rounded-lg px-3 text-xs font-extrabold"
+                  className="min-h-10 rounded-lg border border-gold/25 bg-[#252525] px-3 text-xs font-extrabold text-cream shadow-soft transition hover:border-gold/60 hover:bg-[#1f1f1f]"
                 >
-                  Demo {role}
+                  {role} Demo
                 </button>
               ))}
             </div>
           </div>
 
-          <p className="mt-5 text-center text-sm leading-6 text-slate-600">
-            Shared platform access for admins, inspectors, and homeowners.
-          </p>
+          <a
+            href="/"
+            className="mt-5 grid min-h-10 place-items-center rounded-lg border border-gold/15 bg-[#f5f2ea]/75 px-4 text-center text-sm font-extrabold text-ink transition hover:border-gold/40 hover:bg-cream hover:shadow-soft"
+          >
+            Back to EstateIQ
+          </a>
         </section>
       </main>
     );
