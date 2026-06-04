@@ -68,6 +68,8 @@ Example tone:
 
 EstateIQ currently uses an Inspection Co-Pilot pattern inside the inspector flow.
 
+Current implementation lives in `ai/inspectionCoPilot.ts`. It is a rules-assisted drafting layer that uses typed inspection facts, notes, narration text, checklist progress, and photo counts. It does not yet perform real AI photo or video analysis.
+
 The Co-Pilot should:
 
 - help the inspector draft a visit summary from notes, checklist progress, photo count, urgent flag, temperature, and narration text
@@ -97,6 +99,8 @@ Pilot metrics should track:
 
 Goal: help the operator decide the next best maintenance step.
 
+Current implementation lives in `ai/maintenanceRecommendations.ts`. It is a rules-assisted recommendation layer that uses issue title, issue description, and available vendor types. It does not yet perform image analysis, predictive scoring, or external AI-provider reasoning.
+
 Inputs:
 
 - issue title
@@ -121,6 +125,7 @@ Rules:
 - Never imply a repair is confirmed unless the inspector/vendor confirmed it.
 - Use language like "recommend", "monitor", "vendor review", or "appears consistent with".
 - Avoid medical/legal/insurance-style certainty.
+- Require the operator to review and apply recommendations before saving changes to an issue.
 
 ## Phase 3: AI-Generated Owner Reports
 
@@ -313,7 +318,7 @@ Use professional caution:
 
 ## Implementation Guidance
 
-Recommended future files:
+Recommended AI files:
 
 - `ai/prompts.ts`
 - `ai/inspectionSummary.ts`

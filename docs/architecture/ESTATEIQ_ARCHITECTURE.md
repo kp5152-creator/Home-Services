@@ -18,7 +18,7 @@ Current structure:
 - `utils/`: Shared types, checklists, design tokens, and pure helpers.
 - `reports/`: Demo report data and PDF report generation.
 - `auth/`: Reserved for future authentication and authorization logic.
-- `ai/`: Reserved for future AI feature logic.
+- `ai/`: Inspection Co-Pilot helpers and future AI feature logic.
 - `data/`: Local JSON storage for early local/demo workflows.
 - `public/`: Static assets, demo images, logo, PWA assets, and local upload output.
 
@@ -219,10 +219,11 @@ property-photos/
 
 Current state:
 
-- EstateIQ currently has AI-like drafting behavior in the UI, but no required live AI provider dependency.
-- The `ai/` folder is reserved for future AI logic.
+- EstateIQ currently has a Stage 1 Inspection Co-Pilot helper layer and an early rules-assisted maintenance recommendation helper, but no required live AI provider dependency.
+- The `ai/` folder contains rules-assisted drafting, readiness, checklist suggestion, issue suggestion, and maintenance recommendation helpers.
 - `docs/product/AI_OPERATING_MANUAL.md` defines the product rules.
 - AI output must be human-reviewed before becoming homeowner-facing.
+- Current Co-Pilot behavior uses typed inspection facts, notes, narration text, checklist progress, and photo counts. It does not yet perform real photo or video analysis.
 
 Recommended AI roadmap:
 

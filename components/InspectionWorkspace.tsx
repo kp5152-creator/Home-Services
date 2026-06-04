@@ -12,6 +12,21 @@ import {
 } from "@/utils/checklists";
 import type { InspectionType } from "@/utils/checklists";
 import { trackAnalyticsEvent, useWorkflowAnalytics } from "@/hooks/useAnalytics";
+import {
+  buildInspectionEvidenceText,
+  buildVisitSummaryEvidenceSignature,
+  draftOwnerUpdateFromInspectionReport,
+  draftVisitSummary,
+  draftWalkthroughCaptureNote,
+  getInspectionEvidenceReadiness,
+  suggestChecklistItemsFromInspectionEvidence,
+  suggestIssueFromInspectionEvidence
+} from "@/ai/inspectionCoPilot";
+import {
+  appendMaintenanceOwnerExplanation,
+  suggestMaintenanceRecommendationFromIssue,
+  type MaintenanceRecommendation
+} from "@/ai/maintenanceRecommendations";
 import { demoDatabase } from "@/reports/demoData";
 import type {
   Database,
@@ -64,13 +79,6 @@ type InspectionPhotoCategory = "Exterior" | "Interior" | "Issues";
 type CategorizedPhotoFile = {
   file: File;
   category: InspectionPhotoCategory;
-};
-
-type MaintenanceRecommendation = {
-  priority: MaintenancePriority;
-  vendorType: VendorType;
-  nextStep: string;
-  ownerExplanation: string;
 };
 
 type VendorForm = {
@@ -625,19 +633,26 @@ export default function InspectionWorkspace({
   const inspectionReady = !inspectionReadyMessage;
   const allInspectionChecklistItems = activeInspectionTemplate.sections.flatMap((section) => section.items);
   const transcriptCaptured = Boolean(walkthroughTranscript.trim());
-  const reviewReady = Boolean(
-    inspectionForm.photoFiles.length || inspectionForm.checklist.length || inspectionForm.notes.trim() || transcriptCaptured
-  );
-  const issueReady = Boolean(inspectionForm.notes.trim() || transcriptCaptured);
-  const summaryEvidenceSignature = [
-    walkthroughTranscript.trim(),
-    inspectionForm.notes.trim(),
-    inspectionForm.checklist.join("|"),
-    inspectionForm.photoFiles.length,
-    inspectionForm.urgent,
-    inspectionForm.interiorTemperature,
-    inspectionForm.inspectionType
-  ].join("::");
+  const evidenceReadiness = getInspectionEvidenceReadiness({
+    narration: walkthroughTranscript,
+    notes: inspectionForm.notes,
+    checklistCount: inspectionForm.checklist.length,
+    photoCount: inspectionForm.photoFiles.length
+  });
+  const reviewReady = evidenceReadiness.reviewReady;
+  const issueReady = evidenceReadiness.issueReady;
+  const inspectionEvidenceText = buildInspectionEvidenceText({
+    narration: walkthroughTranscript,
+    notes: inspectionForm.notes
+  });
+  const summaryEvidenceSignature = buildVisitSummaryEvidenceSignature({
+    evidenceText: inspectionEvidenceText,
+    checklist: inspectionForm.checklist,
+    photoCount: inspectionForm.photoFiles.length,
+    urgent: inspectionForm.urgent,
+    interiorTemperature: inspectionForm.interiorTemperature,
+    inspectionType: inspectionForm.inspectionType
+  });
 
   useEffect(() => {
     if (!suggestedSummary) {
@@ -658,22 +673,9 @@ export default function InspectionWorkspace({
   }, [suggestedSummary, summaryEvidenceSignature, summaryReviewed]);
 
   function draftOwnerUpdateFromReport(inspection: Inspection) {
-    const status = reportConditionStatus(inspection);
-    const summary =
-      inspection.executiveSummary ||
-      status.description ||
-      "The latest inspection report is ready for homeowner review.";
-
     setOwnerUpdateForm((current) => ({
       ...current,
-      category: "Inspection",
-      status: "Draft",
-      title: `${selectedProperty?.name || "Property"} inspection report ready`,
-      message: `${summary} The homeowner report is available for review and includes ${visibleChecklistItems(
-        inspection.checklist
-      ).length} completed checklist items and ${inspection.photos.length} photo${
-        inspection.photos.length === 1 ? "" : "s"
-      }.`
+      ...draftOwnerUpdateFromInspectionReport(inspection, selectedProperty?.name || "Property")
     }));
     setActiveExperience("Owner Portal");
   }
@@ -794,7 +796,11 @@ export default function InspectionWorkspace({
     const reportTemperature =
       demoMode && (!Number.isFinite(temperature) || temperature < 40 || temperature > 120) ? 76 : temperature;
     const reportChecklist = demoMode ? demoChecklist : inspectionForm.checklist;
-    const reportNotes = [inspectionForm.notes.trim(), walkthroughTranscript.trim()].filter(Boolean).join("\n\n");
+    const reportNotes = buildInspectionEvidenceText({
+      narration: walkthroughTranscript,
+      notes: inspectionForm.notes,
+      separator: "\n\n"
+    });
 
     if (!demoMode && !inspectorName) {
       setInspectionSaveMessage("Add the inspector name before generating the homeowner report.");
@@ -1597,38 +1603,18 @@ export default function InspectionWorkspace({
 
     const completedCount = inspectionForm.checklist.length;
     const totalCount = activeInspectionTemplate.sections.flatMap((section) => section.items).length;
-    const completionPhrase =
-      completedCount === totalCount
-        ? "All planned inspection items were completed"
-        : `${completedCount} of ${totalCount} planned inspection items were completed`;
-    const temperaturePhrase = inspectionForm.interiorTemperature
-      ? `Interior temperature was recorded at ${inspectionForm.interiorTemperature} F`
-      : "Interior temperature was not recorded";
-    const photoPhrase = inspectionForm.photoFiles.length
-      ? `${inspectionForm.photoFiles.length} supporting photo${inspectionForm.photoFiles.length === 1 ? " was" : "s were"} documented`
-      : "No photos have been attached yet";
-    const issuePhrase =
-      inspectionForm.urgent === "Yes"
-        ? "Immediate homeowner attention is recommended based on the urgent issue flag"
-        : "No urgent homeowner action is indicated from this inspection";
-    const transcriptPhrase = walkthroughTranscript.trim()
-      ? `Walkthrough narration reviewed: ${walkthroughTranscript.trim()}`
-      : "";
-    const notesPhrase = inspectionForm.notes.trim()
-      ? `Inspector notes: ${inspectionForm.notes.trim()}`
-      : "No additional issues were noted by the inspector";
-
-    const summary = [
-      `${selectedProperty.name} received a ${inspectionForm.inspectionType.toLowerCase()} by ${
-        inspectionForm.inspectorName || "the inspection team"
-      }.`,
-      `${completionPhrase}. ${temperaturePhrase}, and ${photoPhrase}.`,
-      issuePhrase,
-      transcriptPhrase,
-      notesPhrase
-    ]
-      .filter(Boolean)
-      .join(" ");
+    const summary = draftVisitSummary({
+      propertyName: selectedProperty.name,
+      inspectionType: inspectionForm.inspectionType,
+      inspectorName: inspectionForm.inspectorName,
+      completedCount,
+      totalCount,
+      interiorTemperature: inspectionForm.interiorTemperature,
+      photoCount: inspectionForm.photoFiles.length,
+      urgent: inspectionForm.urgent,
+      narration: walkthroughTranscript,
+      notes: inspectionForm.notes
+    });
 
     setSuggestedSummary(summary);
     setSummaryReviewed(false);
@@ -1654,53 +1640,18 @@ export default function InspectionWorkspace({
   }
 
   function suggestMaintenanceRecommendation() {
-    const issueText = `${maintenanceIssueForm.title} ${maintenanceIssueForm.description}`.toLowerCase();
+    const recommendation = suggestMaintenanceRecommendationFromIssue(
+      maintenanceIssueForm.title,
+      maintenanceIssueForm.description,
+      selectedVendors
+    );
 
-    if (!issueText.trim()) {
+    if (!recommendation) {
       setMaintenanceRecommendationMessage("Add an issue title or description before requesting a recommendation.");
       return;
     }
 
-    const vendorType: VendorType =
-      /pool|spa|heater|water feature/.test(issueText)
-        ? "Pool"
-        : /irrigation|landscape|sprinkler|plant|tree|lawn|drip/.test(issueText)
-          ? "Landscape"
-          : /hvac|air|thermostat|temperature|ac|a\/c|cooling|heating/.test(issueText)
-            ? "HVAC"
-            : /clean|trash|linen|laundry|stain/.test(issueText)
-              ? "Cleaning"
-              : /plumb|leak|toilet|sink|shower|faucet|water/.test(issueText)
-                ? "Plumbing"
-                : /electric|breaker|outlet|light|lighting|power/.test(issueText)
-                  ? "Electrical"
-                  : "Handyman";
-
-    const priority: MaintenancePriority =
-      /active leak|flood|no air|no ac|no a\/c|electrical smell|sparking|security|forced entry|urgent/.test(issueText)
-        ? "Urgent"
-        : /leak|not working|broken|damage|alarm|hvac|pool equipment/.test(issueText)
-          ? "High"
-          : /wear|loose|slow|minor|monitor/.test(issueText)
-            ? "Medium"
-            : "Medium";
-
-    const matchingVendor = selectedVendors.find((vendor) => vendor.type === vendorType);
-    const vendorLabel = matchingVendor ? matchingVendor.name : `${vendorType} vendor`;
-    const nextStep =
-      priority === "Urgent"
-        ? `Contact ${vendorLabel} immediately and notify the homeowner with photo documentation.`
-        : priority === "High"
-          ? `Request availability from ${vendorLabel} and monitor until the repair is scheduled.`
-          : `Add to the next service visit for ${vendorLabel} and continue monitoring.`;
-    const ownerExplanation = `A ${vendorType.toLowerCase()} item was identified and is recommended for ${priority.toLowerCase()} follow-up. EstateIQ recommends documenting the condition, coordinating with ${vendorLabel}, and keeping the homeowner updated once timing is confirmed.`;
-
-    setMaintenanceRecommendation({
-      priority,
-      vendorType,
-      nextStep,
-      ownerExplanation
-    });
+    setMaintenanceRecommendation(recommendation);
     setMaintenanceRecommendationMessage("Recommendation drafted. Review before applying.");
   }
 
@@ -1714,9 +1665,7 @@ export default function InspectionWorkspace({
       priority: maintenanceRecommendation.priority,
       vendor: matchingVendor?.name ?? current.vendor,
       nextStep: maintenanceRecommendation.nextStep,
-      description: current.description.trim()
-        ? `${current.description.trim()}\n\nOwner-facing note: ${maintenanceRecommendation.ownerExplanation}`
-        : maintenanceRecommendation.ownerExplanation
+      description: appendMaintenanceOwnerExplanation(current.description, maintenanceRecommendation.ownerExplanation)
     }));
     setMaintenanceRecommendationMessage("Recommendation applied. You can edit before saving.");
   }
@@ -1754,9 +1703,7 @@ export default function InspectionWorkspace({
 
     setWalkthroughVideoName(file.name);
     setTranscriptReviewMessage("Walkthrough captured for review.");
-    appendInspectionNote(
-      `Walkthrough video captured for future AI-assisted review: ${file.name}. Use this recording to support the final notes, photo documentation, issue detection, and owner summary.`
-    );
+    appendInspectionNote(draftWalkthroughCaptureNote(file.name));
     setQuickCaptureMessage("Walkthrough captured for review.");
   }
 
@@ -1767,98 +1714,15 @@ export default function InspectionWorkspace({
   }
 
   function suggestChecklistFromInspectionEvidence() {
-    const evidenceText = `${walkthroughTranscript} ${inspectionForm.notes}`.trim().toLowerCase();
-
-    if (!evidenceText) {
+    if (!inspectionEvidenceText) {
       setChecklistAssistMessage("Add a note before preparing checklist items.");
       return;
     }
 
-    const suggestionRules: Array<{ pattern: RegExp; items: string[] }> = [
-      {
-        pattern: /perimeter|walked around|walk around|exterior|outside|yard|property grounds/,
-        items: ["Walk perimeter of property", "Check driveway and entry appearance", "Inspect exterior condition"]
-      },
-      {
-        pattern: /gate|fence|latch|access|entry|lock|door|window|secured|secure/,
-        items: [
-          "Check gates/fencing",
-          "Inspect windows and doors",
-          "Confirm entry access is working",
-          "Secure doors and windows",
-          "Confirm property is secured",
-          "Confirm area is safe/secured"
-        ]
-      },
-      {
-        pattern: /forced entry|security|alarm|panel|break.?in|unlocked/,
-        items: ["Look for signs of forced entry", "Inspect alarm panel status", "Confirm property is secured"]
-      },
-      {
-        pattern: /thermostat|temperature|hvac|air|a\/c|ac|cooling|heating/,
-        items: [
-          "Check thermostat and HVAC operation",
-          "Set thermostat to arrival temperature",
-          "Check thermostat setting",
-          "Check for HVAC concern"
-        ]
-      },
-      {
-        pattern: /leak|water|plumb|sink|shower|toilet|faucet|drip|disposal/,
-        items: [
-          "Run water at sinks/showers",
-          "Flush toilets",
-          "Check for plumbing leaks",
-          "Run garbage disposal",
-          "Check for active water leak"
-        ]
-      },
-      {
-        pattern: /ceiling|wall|water intrusion|mold|mildew|odor|odour/,
-        items: ["Inspect ceilings/walls for water intrusion", "Look for mold/mildew odors"]
-      },
-      {
-        pattern: /irrigation|sprinkler|landscape|plant|lawn|tree|flooding|dry spot/,
-        items: ["Check irrigation leaks or flooding", "Verify landscape condition"]
-      },
-      {
-        pattern: /pool|spa|water feature/,
-        items: ["Inspect pool/spa area", "Inspect pool/spa presentation"]
-      },
-      {
-        pattern: /light|lighting|outdoor lighting|interior lights|power|breaker|electrical/,
-        items: ["Verify outdoor lighting functionality", "Turn on required interior lights", "Check electrical breakers if needed", "Check for electrical safety concern"]
-      },
-      {
-        pattern: /package|flyer|mail|delivery/,
-        items: ["Check for package deliveries/flyers", "Remove flyers/packages from entry"]
-      },
-      {
-        pattern: /fridge|refrigerator|freezer|appliance|kitchen/,
-        items: ["Verify refrigerator/freezer operation", "Check kitchen and appliance condition", "Check for appliance concern"]
-      },
-      {
-        pattern: /wifi|internet|router|network/,
-        items: ["Check internet/WiFi system"]
-      },
-      {
-        pattern: /smoke|carbon|co detector|detector/,
-        items: ["Inspect smoke/CO detectors"]
-      },
-      {
-        pattern: /pest|insect|bug|rodent/,
-        items: ["Look for pest activity", "Check for insect activity"]
-      },
-      {
-        pattern: /photo|picture|image|documented|documentation/,
-        items: ["Photograph damage or maintenance concern", "Photograph any cleaning concerns", "Photograph any visible damage"]
-      }
-    ];
-    const activeChecklistItems = new Set<string>(allInspectionChecklistItems);
-    const suggestedItems = suggestionRules.flatMap((rule) =>
-      rule.pattern.test(evidenceText) ? rule.items.filter((item) => activeChecklistItems.has(item)) : []
+    const uniqueSuggestedItems = suggestChecklistItemsFromInspectionEvidence(
+      inspectionEvidenceText,
+      allInspectionChecklistItems
     );
-    const uniqueSuggestedItems = Array.from(new Set(suggestedItems));
 
     if (!uniqueSuggestedItems.length) {
       setChecklistAssistMessage("No checklist changes needed yet.");
@@ -1884,8 +1748,7 @@ export default function InspectionWorkspace({
   }
 
   function reviewInspectionEvidence() {
-    const evidenceText = `${walkthroughTranscript} ${inspectionForm.notes}`.trim();
-    if (evidenceText) {
+    if (inspectionEvidenceText) {
       suggestChecklistFromInspectionEvidence();
     } else {
       setChecklistAssistMessage("");
@@ -1894,72 +1757,17 @@ export default function InspectionWorkspace({
   }
 
   function draftIssueFromInspectionEvidence() {
-    const evidenceText = `${walkthroughTranscript} ${inspectionForm.notes}`.trim();
-    const issueText = evidenceText.toLowerCase();
+    const issueDraft = suggestIssueFromInspectionEvidence(inspectionEvidenceText);
 
-    if (!issueText) {
+    if (!issueDraft) {
       setQuickCaptureMessage("Add narration or notes before creating an issue.");
       return;
     }
-
-    const issueDraft = /security|gate|lock|door|window|access|alarm|forced entry/.test(issueText)
-      ? {
-          title: "Security or access concern",
-          priority: /forced entry|unlocked|open door|alarm|security/.test(issueText) ? "Urgent" : "High",
-          vendorType: "Handyman" as VendorType,
-          description:
-            "Security or access concern identified from inspection narration. Review doors, gates, locks, windows, panels, and any visible signs of concern.",
-          nextStep: "Document with photos, verify the affected access point, and notify the homeowner with recommended next steps."
-        }
-      : /leak|water|plumb|toilet|sink|shower|faucet|drip/.test(issueText)
-        ? {
-            title: "Water or plumbing concern",
-            priority: /active leak|flood|standing water|water intrusion/.test(issueText) ? "Urgent" : "High",
-            vendorType: "Plumbing" as VendorType,
-            description:
-              "Water or plumbing condition identified from inspection narration. Confirm the location, source, visible damage, and whether active water is present.",
-            nextStep: "Capture photos, contact the plumbing vendor for availability, and update the homeowner once timing is confirmed."
-          }
-        : /hvac|air|thermostat|temperature|ac|a\/c|cooling|heating/.test(issueText)
-          ? {
-              title: "HVAC performance concern",
-              priority: /no air|no ac|no a\/c|not cooling|not heating/.test(issueText) ? "Urgent" : "High",
-              vendorType: "HVAC" as VendorType,
-              description:
-                "HVAC performance concern identified from inspection narration. Confirm thermostat reading, airflow, abnormal noise, and interior temperature trend.",
-              nextStep: "Request HVAC vendor review and keep the homeowner updated once service timing is confirmed."
-            }
-          : /pool|spa|water feature|heater/.test(issueText)
-            ? {
-                title: "Pool or spa service item",
-                priority: /equipment|heater|leak|pump|not working/.test(issueText) ? "High" : "Medium",
-                vendorType: "Pool" as VendorType,
-                description:
-                  "Pool or spa condition identified from inspection narration. Review water clarity, equipment status, visible leaks, and surrounding condition.",
-                nextStep: "Request pool vendor review and continue monitoring until service is complete."
-              }
-            : /irrigation|landscape|sprinkler|plant|tree|lawn|drip/.test(issueText)
-              ? {
-                  title: "Landscape or irrigation issue",
-                  priority: /leak|flood|broken|dead|major/.test(issueText) ? "High" : "Medium",
-                  vendorType: "Landscape" as VendorType,
-                  description:
-                    "Landscape or irrigation condition identified from inspection narration. Review affected area, visible leaks, dry spots, plant stress, or water waste.",
-                  nextStep: "Coordinate with the landscape vendor and verify the condition at the next property visit."
-                }
-              : {
-                  title: "Inspection follow-up item",
-                  priority: "Medium" as MaintenancePriority,
-                  vendorType: "Handyman" as VendorType,
-                  description:
-                    "Follow-up item identified from inspection narration. Review the location, condition, photos, and recommended homeowner/vendor next step.",
-                  nextStep: "Document the item, assign the appropriate vendor if needed, and monitor until resolved."
-                };
     const matchingVendor = selectedVendors.find((vendor) => vendor.type === issueDraft.vendorType);
 
     setMaintenanceIssueForm({
       title: issueDraft.title,
-      description: `${issueDraft.description}\n\nEvidence reviewed: ${evidenceText}`,
+      description: `${issueDraft.description}\n\nEvidence reviewed: ${inspectionEvidenceText}`,
       priority: issueDraft.priority as MaintenancePriority,
       status: "Open",
       vendor: matchingVendor?.name ?? "",
@@ -2908,28 +2716,7 @@ export default function InspectionWorkspace({
                       className="field-shell min-h-24 rounded-lg border border-gold/30 bg-white p-3 text-sm font-semibold leading-6 text-ink shadow-[inset_0_1px_0_rgba(255,255,255,0.8)] sm:min-h-28"
                     />
                     <div className="grid gap-2 rounded-lg border border-gold/15 bg-[#eae4d8] p-3 sm:grid-cols-4">
-                      {[
-                        {
-                          readyLabel: "Notes captured",
-                          waitingLabel: "Notes needed",
-                          ready: Boolean(walkthroughTranscript.trim() || inspectionForm.notes.trim())
-                        },
-                        {
-                          readyLabel: "Checklist started",
-                          waitingLabel: "Checklist needed",
-                          ready: Boolean(inspectionForm.checklist.length)
-                        },
-                        {
-                          readyLabel: "Photos added",
-                          waitingLabel: "Photos optional",
-                          ready: Boolean(inspectionForm.photoFiles.length)
-                        },
-                        {
-                          readyLabel: "Issue cue found",
-                          waitingLabel: "No issue cue",
-                          ready: issueReady
-                        }
-                      ].map((item) => (
+                      {evidenceReadiness.chips.map((item) => (
                         <span
                           key={item.readyLabel}
                           className={`rounded-lg border px-3 py-2 text-xs font-extrabold ${
