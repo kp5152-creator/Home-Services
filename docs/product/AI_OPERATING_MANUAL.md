@@ -91,6 +91,7 @@ Pilot metrics should track:
 - whether the draft was reviewed
 - whether narration was included
 - whether issue suggestions are used
+- suggested issue priority and vendor type when available
 
 ## Phase 2: AI Maintenance Recommendations
 

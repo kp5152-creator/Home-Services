@@ -1972,6 +1972,19 @@ export default function InspectionWorkspace({
     setSelectedMaintenanceIssueId("");
     setActiveExperience("Maintenance");
     setShowMaintenanceForm(true);
+    trackAnalyticsEvent({
+      name: "workflow_step",
+      role: activeRole,
+      screen: activeExperience,
+      workflow: "ai_assist",
+      target: "issue_suggested",
+      demoMode,
+      metadata: {
+        priority: issueDraft.priority,
+        vendorType: issueDraft.vendorType,
+        narrationIncluded: transcriptCaptured
+      }
+    });
     window.setTimeout(() => setActiveExperience("Maintenance"), 0);
   }
 
@@ -5980,6 +5993,7 @@ function PilotAdminConsole({
             <MetricCard label="Desktop" value={`${pilotUsageSummary?.desktopEvents ?? 0}`} detail="Desktop events" />
             <MetricCard label="Co-Pilot drafts" value={`${pilotUsageSummary?.coPilotDrafts ?? 0}`} detail="Reports with draft help" />
             <MetricCard label="Drafts reviewed" value={`${pilotUsageSummary?.coPilotReviewed ?? 0}`} detail="Human-approved drafts" />
+            <MetricCard label="Issue suggestions" value={`${pilotUsageSummary?.coPilotIssueSuggestions ?? 0}`} detail="Drafted from notes" />
             <MetricCard label="Narration" value={`${pilotUsageSummary?.narrationReports ?? 0}`} detail="Reports using notes/audio" />
           </div>
           <div className="mt-4 grid gap-3 md:grid-cols-2">

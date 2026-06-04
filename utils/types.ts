@@ -205,6 +205,7 @@ export type PilotUsageSummary = {
   photosUploaded: number;
   coPilotDrafts: number;
   coPilotReviewed: number;
+  coPilotIssueSuggestions: number;
   narrationReports: number;
   onboardingCompletion: number;
   mobileEvents: number;

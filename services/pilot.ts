@@ -141,6 +141,7 @@ export function buildUsageFromAnalytics(events: AnalyticsEvent[]) {
     }, 0),
     coPilotDrafts: reportCreatedEvents.filter((event) => event.metadata?.coPilotDrafted === true).length,
     coPilotReviewed: reportCreatedEvents.filter((event) => event.metadata?.coPilotReviewed === true).length,
+    coPilotIssueSuggestions: workflowEvents.filter((event) => event.target === "issue_suggested").length,
     narrationReports: reportCreatedEvents.filter((event) => event.metadata?.narrationIncluded === true).length,
     onboardingCompletion: workflowEvents.filter((event) => event.target === "onboarding_completed").length,
     mobileEvents: events.filter((event) => event.metadata?.deviceType === "mobile").length,
