@@ -33,10 +33,10 @@ export default function ReportPageActions({ pdfUrl }: { pdfUrl: string }) {
         target="_blank"
         rel="noreferrer"
       >
-        Download PDF File
+        Download PDF
       </ButtonLink>
-      <ButtonLink href="/demo" onClick={() => trackReportAction("back_to_app")} size="lg">
-        Back
+      <ButtonLink href="/demo" onClick={() => trackReportAction("back_to_app")} variant="ghost" size="lg">
+        Back to App
       </ButtonLink>
     </div>
   );

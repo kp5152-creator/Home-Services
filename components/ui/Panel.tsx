@@ -7,7 +7,7 @@ const toneClasses: Record<PanelTone, string> = {
   default: "estate-panel",
   paper: "border border-gold/20 bg-cream/90 shadow-soft",
   ink: "border border-gold/20 bg-ink text-white shadow-estate",
-  warning: "border border-gold/35 bg-warning-soft",
+  warning: "border border-gold/20 bg-[#eae4d8]",
   danger: "border border-[#e7cbc4] bg-danger-soft text-danger"
 };
 

@@ -199,9 +199,10 @@ textarea {
   }
 
   .button-primary {
-    background: linear-gradient(135deg, #f2d98a 0%, #d4af37 45%, #a97f16 100%);
-    color: #1f1f1f;
-    box-shadow: var(--shadow-button);
+    border: 1px solid rgba(212, 175, 55, 0.36);
+    background: linear-gradient(180deg, rgba(31, 31, 31, 0.98), rgba(44, 44, 44, 0.94));
+    color: var(--cream);
+    box-shadow: var(--shadow-soft);
   }
 
   .button-soft {

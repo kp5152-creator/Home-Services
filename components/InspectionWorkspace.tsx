@@ -2135,20 +2135,11 @@ export default function InspectionWorkspace({
                 <button
                   key={role}
                   type="button"
-                  onClick={() => setActiveRole(role)}
-                  className={`rounded-lg border p-3 text-left transition ${
-                    activeRole === role
-                      ? "border-gold/40 bg-cream shadow-[inset_4px_0_0_#d4af37]"
-                      : "border-gold/15 bg-[#f5f2ea]/75 hover:border-gold/40 hover:bg-cream"
-                  }`}
+                  onClick={() => enterRole(role)}
+                  className="rounded-lg border border-gold/15 bg-[#f5f2ea]/75 p-3 text-left transition hover:border-gold/40 hover:bg-cream hover:shadow-soft"
                 >
                   <span className="flex items-center justify-between gap-3">
-                    <strong className="block text-sm text-ink">{roleLabels[role].title}</strong>
-                    {activeRole === role ? (
-                      <span className="rounded-full border border-gold/30 bg-cream px-2 py-0.5 text-[0.65rem] font-extrabold uppercase tracking-[0.08em] text-ink">
-                        Selected
-                      </span>
-                    ) : null}
+                    <strong className="block text-sm text-ink">Open {roleLabels[role].title}</strong>
                   </span>
                   <span className="mt-1 block text-xs leading-5 text-slate-600">{roleLabels[role].description}</span>
                 </button>
@@ -2372,8 +2363,8 @@ export default function InspectionWorkspace({
                 onClick={() => setActiveExperience(screen)}
                 className={`min-h-10 shrink-0 rounded-lg border px-4 text-sm font-extrabold transition ${
                   activeExperience === screen
-                    ? "border-gold bg-[linear-gradient(135deg,#f2d98a,#d4af37)] text-ink shadow-button"
-                    : "border-gold/20 bg-cream/80 text-slate-700 hover:border-gold hover:bg-warning-soft"
+                    ? "border-gold/45 bg-[#252525] text-cream shadow-soft"
+                    : "border-gold/20 bg-cream/80 text-slate-700 hover:border-gold/45 hover:bg-cream"
                 }`}
               >
                 {screenLabel(screen)}
@@ -2394,13 +2385,13 @@ export default function InspectionWorkspace({
         <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
           <div>
             <p className="mb-1 text-xs font-extrabold uppercase tracking-[0.12em] text-gold">
-              Workflow
+              Current view
             </p>
             <h2 className="font-serif text-2xl font-semibold text-ink">
               {screenLabel(activeExperience)}
             </h2>
             <p className="mt-1 text-sm font-semibold text-slate-600">
-              {roleLabels[activeRole].title} / Step {currentFlowIndex + 1} of {workflowExperienceScreens.length}
+              {selectedProperty?.name || roleLabels[activeRole].title}
             </p>
           </div>
           {nextFlowScreen ? (
@@ -2409,7 +2400,7 @@ export default function InspectionWorkspace({
               onClick={() => setActiveExperience(nextFlowScreen)}
               className="button-soft min-h-11 rounded-lg px-5 text-sm font-extrabold"
             >
-              Continue to {screenLabel(nextFlowScreen)}
+              Next: {screenLabel(nextFlowScreen)}
             </button>
           ) : activeExperience !== "Reports" ? (
             <button
@@ -2574,9 +2565,9 @@ export default function InspectionWorkspace({
                 <p className="mb-2 text-xs font-extrabold uppercase tracking-[0.1em] text-gold">
                   Vendors
                 </p>
-                <h2 className="font-serif text-2xl font-semibold leading-tight text-ink">Property Contacts</h2>
+                <h2 className="font-serif text-2xl font-semibold leading-tight text-ink">Contacts</h2>
                 <p className="mt-1 text-sm leading-6 text-slate-600">
-                  Keep key service providers tied to this home.
+                  Service providers for this property.
                 </p>
               </div>
               <button
@@ -2603,7 +2594,7 @@ export default function InspectionWorkspace({
                     type="button"
                     onClick={() => setVendorForm((current) => ({ ...current, type }))}
                     className={`min-h-10 rounded-lg border px-3 text-left text-sm font-extrabold transition hover:border-gold/50 hover:shadow-lift ${
-                      vendorForm.type === type ? "border-gold bg-warning-soft text-ink" : "border-line bg-cream text-ink"
+                      vendorForm.type === type ? "border-gold/45 bg-[#252525] text-cream" : "border-line bg-cream text-ink"
                     }`}
                   >
                     {type}
@@ -2682,7 +2673,7 @@ export default function InspectionWorkspace({
                 />
               </label>
               {vendorSaveMessage ? (
-                <div className="rounded-lg border border-gold/20 bg-warning-soft/50 p-3 text-sm font-semibold text-slate-600">
+                <div className="rounded-lg border border-gold/20 bg-[#eae4d8] p-3 text-sm font-semibold text-slate-700">
                   {vendorSaveMessage}
                 </div>
               ) : null}
@@ -2718,7 +2709,7 @@ export default function InspectionWorkspace({
               <div>
                 <h2 className="font-serif text-2xl font-semibold leading-tight text-ink sm:text-3xl">Inspect</h2>
               </div>
-              <span className="hidden rounded-full border border-gold/25 bg-warning-soft px-3 py-2 text-xs font-extrabold text-ink sm:inline-flex">
+              <span className="hidden rounded-full border border-gold/20 bg-[#eae4d8] px-3 py-2 text-xs font-extrabold text-ink sm:inline-flex">
                 {formatDateTime(now)}
               </span>
             </div>
@@ -2844,7 +2835,7 @@ export default function InspectionWorkspace({
                   <div className="mt-3 grid gap-3 rounded-lg border border-gold/20 bg-cream/85 p-3 sm:p-4">
                     {walkthroughVideoName ? (
                       <div className="flex justify-end">
-                        <span className="rounded-full border border-gold/25 bg-warning-soft px-3 py-1 text-xs font-extrabold text-ink">
+                        <span className="rounded-full border border-gold/20 bg-[#eae4d8] px-3 py-1 text-xs font-extrabold text-ink">
                           {walkthroughVideoName}
                         </span>
                       </div>
@@ -2885,7 +2876,7 @@ export default function InspectionWorkspace({
                     </div>
                   </div>
                   {suggestedSummary ? (
-                    <div className="mt-4 rounded-lg border border-gold/20 bg-warning-soft/50 p-4">
+                    <div className="mt-4 rounded-lg border border-gold/20 bg-[#eae4d8] p-4">
                       <span className="type-eyebrow">Owner Summary</span>
                       <p className="mt-2 text-sm font-semibold leading-6 text-ink">{suggestedSummary}</p>
                     </div>
@@ -2903,7 +2894,7 @@ export default function InspectionWorkspace({
                             inspectionForm.urgent === value
                               ? value === "Yes"
                                 ? "border-[#e7cbc4] bg-[#fff8f6] text-[#9f352e]"
-                                : "border-gold bg-cream text-ink shadow-[inset_0_0_0_1px_rgba(212,175,55,0.32)]"
+                                : "border-gold/45 bg-[#252525] text-cream"
                               : "border-line bg-white text-ink"
                           }`}
                         >
@@ -2933,14 +2924,14 @@ export default function InspectionWorkspace({
                     type="button"
                     onClick={() => void saveInspection()}
                     disabled={isSavingInspection}
-                    className="button-soft min-h-11 rounded-lg px-3 text-sm font-extrabold disabled:cursor-not-allowed disabled:opacity-60 sm:min-h-12 sm:px-5"
+                    className="min-h-11 rounded-lg border border-gold/25 bg-[#252525] px-3 text-sm font-extrabold text-cream shadow-soft transition hover:border-gold/60 hover:bg-[#1f1f1f] disabled:cursor-not-allowed disabled:opacity-60 sm:min-h-12 sm:px-5"
                   >
                     {isSavingInspection ? "Generating..." : "Generate Report"}
                   </button>
                 </div>
               </section>
 
-              <fieldset className="order-2 grid gap-3 rounded-lg border border-gold/30 bg-warning-soft/70 p-3 shadow-soft sm:p-4">
+              <fieldset className="order-2 grid gap-3 rounded-lg border border-gold/20 bg-[#eae4d8] p-3 shadow-soft sm:p-4">
                 <div className="border-b border-gold/20 pb-3">
                   <div>
                     <h3 className="font-serif text-lg font-semibold leading-tight text-ink sm:text-xl">Visit type</h3>
@@ -2972,7 +2963,7 @@ export default function InspectionWorkspace({
                         key={template.title}
                         className={`grid cursor-pointer gap-2 rounded-lg border p-3 transition ${
                           active
-                            ? "border-gold bg-cream shadow-[inset_0_0_0_1px_rgba(212,175,55,0.32)]"
+                            ? "border-gold/45 bg-[#252525] text-cream shadow-soft"
                             : "border-line bg-cream/75 hover:border-gold/50 hover:shadow-lift"
                         }`}
                       >
@@ -2991,9 +2982,9 @@ export default function InspectionWorkspace({
                             }
                             className="mt-1 accent-gold"
                           />
-                          <span className="font-extrabold text-ink">{template.title}</span>
+                          <span className={`font-extrabold ${active ? "text-cream" : "text-ink"}`}>{template.title}</span>
                         </span>
-                        <span className="pl-7 text-sm font-medium leading-5 text-slate-600">{template.description}</span>
+                        <span className={`pl-7 text-sm font-medium leading-5 ${active ? "text-[#d8d0c2]" : "text-slate-600"}`}>{template.description}</span>
                       </label>
                     );
                   })}
@@ -3052,7 +3043,7 @@ export default function InspectionWorkspace({
                       </span>{" "}
                       complete
                     </p>
-                    <span className="rounded-full border border-gold/25 bg-warning-soft px-3 py-1 text-xs font-extrabold text-ink">
+                    <span className="rounded-full border border-gold/20 bg-[#eae4d8] px-3 py-1 text-xs font-extrabold text-ink">
                       {Math.round((inspectionForm.checklist.length / inspectionTotalChecks) * 100)}%
                     </span>
                   </div>
@@ -3252,7 +3243,7 @@ export default function InspectionWorkspace({
                     }}
                     className={`rounded-lg border px-3 py-3 transition ${
                       activeReport?.id === inspection.id
-                        ? "border-gold bg-warning-soft shadow-[inset_4px_0_0_#d4af37]"
+                        ? "border-charcoal bg-cream shadow-[inset_4px_0_0_#252525]"
                         : "border-line bg-cream hover:border-gold/50 hover:shadow-lift"
                     }`}
                   >
@@ -3267,7 +3258,7 @@ export default function InspectionWorkspace({
                         className={`rounded-full border px-3 py-1 text-xs font-extrabold ${
                           inspection.urgent === "Yes"
                             ? "border-[#e7cbc4] bg-[#fff8f6] text-[#9f352e]"
-                            : "border-gold/25 bg-warning-soft text-ink"
+                            : "border-gold/20 bg-[#eae4d8] text-ink"
                         }`}
                       >
                         {reportConditionStatus(inspection).label}
@@ -3321,7 +3312,7 @@ export default function InspectionWorkspace({
                   rel="noreferrer"
                   className="button-soft grid min-h-11 place-items-center rounded-lg px-4 text-sm font-extrabold"
                 >
-                  Open Web Report
+                  Open Report
                 </a>
                 <a
                   href={`/api/reports/${reportRouteId(selectedReportAction)}`}
@@ -3398,7 +3389,10 @@ export default function InspectionWorkspace({
             </div>
             <div className="mt-5 grid gap-2 sm:grid-cols-2">
               {selectedVendor.phone ? (
-                <a href={`tel:${selectedVendor.phone}`} className="button-primary grid min-h-11 place-items-center rounded-lg px-4 text-sm font-extrabold">
+                <a
+                  href={`tel:${selectedVendor.phone}`}
+                  className="grid min-h-11 place-items-center rounded-lg border border-gold/25 bg-[#252525] px-4 text-sm font-extrabold text-cream shadow-soft transition hover:border-gold/60 hover:bg-[#1f1f1f]"
+                >
                   Call Vendor
                 </a>
               ) : null}
@@ -3426,7 +3420,7 @@ export default function InspectionWorkspace({
                     className={`rounded-full border px-3 py-1 text-xs font-extrabold ${
                       selectedMaintenanceIssue.priority === "Urgent" || selectedMaintenanceIssue.priority === "High"
                         ? "border-[#e7cbc4] bg-[#fff8f6] text-[#9f352e]"
-                        : "border-gold/25 bg-warning-soft text-ink"
+                        : "border-gold/20 bg-[#eae4d8] text-ink"
                     }`}
                   >
                     {selectedMaintenanceIssue.priority}
@@ -3501,7 +3495,7 @@ export default function InspectionWorkspace({
                 {editingPropertyId ? "Edit Property" : "New Property"}
               </p>
               <h2 className="text-xl font-extrabold">
-                {editingPropertyId ? "Update Property Profile" : "Add Homeowner Profile"}
+                {editingPropertyId ? "Update Property" : "Add Property"}
               </h2>
               {propertySaveMessage ? (
                 <p className="mt-2 rounded-lg border border-line bg-[#fbfcfb] p-3 text-sm font-semibold text-slate-600">
@@ -3609,7 +3603,7 @@ export default function InspectionWorkspace({
               <button
                 type="submit"
                 disabled={isSavingProperty}
-                className="button-soft min-h-11 flex-1 rounded-lg px-5 font-extrabold disabled:cursor-not-allowed disabled:opacity-60 sm:flex-none"
+                className="min-h-11 flex-1 rounded-lg border border-gold/25 bg-[#252525] px-5 font-extrabold text-cream shadow-soft transition hover:border-gold/60 hover:bg-[#1f1f1f] disabled:cursor-not-allowed disabled:opacity-60 sm:flex-none"
               >
                 {isSavingProperty ? "Saving..." : editingPropertyId ? "Update Property" : "Save Property"}
               </button>
@@ -4270,7 +4264,7 @@ function LuxuryExperiencePanel({
             <button
               type="button"
               onClick={() => setActiveExperience("Dashboard")}
-              className="button-primary min-h-10 rounded-lg px-4 text-sm font-extrabold shadow-lift"
+              className="min-h-10 rounded-lg border border-gold/25 bg-[#252525] px-4 text-sm font-extrabold text-cream shadow-soft transition hover:border-gold/60 hover:bg-[#1f1f1f]"
             >
               Home
             </button>
@@ -4310,7 +4304,7 @@ function LuxuryExperiencePanel({
                 Password
                 <input className="field-shell min-h-12 rounded-lg p-3" placeholder="Password" type="password" />
               </label>
-              <button type="button" className="button-primary mt-2 min-h-12 rounded-lg px-5 font-extrabold">
+              <button type="button" className="mt-2 min-h-12 rounded-lg border border-gold/25 bg-[#252525] px-5 font-extrabold text-cream shadow-soft transition hover:border-gold/60 hover:bg-[#1f1f1f]">
                 Sign In
               </button>
             </form>
@@ -4347,7 +4341,7 @@ function LuxuryExperiencePanel({
                 className={`mt-4 rounded-lg border p-4 ${
                   ownerAttentionCount > 0
                     ? "border-[#e7cbc4] bg-[#fff8f6]"
-                    : "border-gold/25 bg-warning-soft/60"
+                    : "border-gold/20 bg-[#eae4d8]"
                 }`}
               >
                 <span className="text-xs font-extrabold uppercase tracking-[0.1em] text-slate-500">
@@ -4365,7 +4359,7 @@ function LuxuryExperiencePanel({
               <button
                 type="button"
                 onClick={() => setActiveExperience("Owner Portal")}
-                className="button-primary mt-4 min-h-11 w-full rounded-lg px-4 text-sm font-extrabold"
+                className="mt-4 min-h-11 w-full rounded-lg border border-gold/25 bg-[#252525] px-4 text-sm font-extrabold text-cream shadow-soft transition hover:border-gold/60 hover:bg-[#1f1f1f]"
               >
                 View Owner Portal
               </button>
@@ -4378,9 +4372,9 @@ function LuxuryExperiencePanel({
                   <p className="mb-2 text-xs font-extrabold uppercase tracking-[0.12em] text-clay">
                     Home
                   </p>
-                  <h2 className="font-serif text-4xl font-semibold leading-tight text-ink">Property portfolio</h2>
+                  <h2 className="font-serif text-4xl font-semibold leading-tight text-ink">Properties</h2>
                   <p className="mt-2 max-w-3xl text-sm font-semibold leading-6 text-slate-600">
-                    Search, filter, and open the right property quickly as the portfolio grows.
+                    Open the property that needs attention today.
                   </p>
                 </div>
                 <button
@@ -4399,7 +4393,7 @@ function LuxuryExperiencePanel({
                   <DetailStrip label="Showing" value={`${filteredPortfolioProperties.length}`} />
                 </div>
                 <label className="grid gap-2 text-sm font-extrabold text-ink lg:min-w-80">
-                  Search portfolio
+                  Search
                   <input
                     value={propertySearch}
                     onChange={(event) => setPropertySearch(event.target.value)}
@@ -4417,8 +4411,8 @@ function LuxuryExperiencePanel({
                     onClick={() => setPropertyFilter(filter)}
                     className={`min-h-10 rounded-lg border px-4 text-sm font-extrabold transition ${
                       propertyFilter === filter
-                        ? "border-gold bg-warning-soft text-ink shadow-[inset_0_0_0_1px_rgba(212,175,55,0.32)]"
-                        : "border-gold/20 bg-cream text-ink hover:border-gold/50"
+                        ? "border-gold/45 bg-[#252525] text-cream shadow-soft"
+                        : "border-gold/20 bg-cream text-ink hover:border-gold/45 hover:bg-cream/90"
                     }`}
                   >
                     {filter}
@@ -4474,7 +4468,7 @@ function LuxuryExperiencePanel({
                                 className={`shrink-0 rounded-full border px-2.5 py-1 text-[0.68rem] font-extrabold ${
                                   issueSummary.urgentCount
                                     ? "border-[#e7cbc4] bg-[#fff8f6] text-[#9f352e]"
-                                    : "border-gold/25 bg-warning-soft text-ink"
+                                    : "border-gold/20 bg-[#eae4d8] text-ink"
                                 }`}
                               >
                                 {issueSummary.urgentCount
@@ -4484,11 +4478,8 @@ function LuxuryExperiencePanel({
                             ) : null}
                           </span>
                           <span className="grid gap-2 sm:flex sm:flex-wrap">
-                            <span className="rounded-full border border-gold/20 bg-warning-soft px-3 py-1 text-xs font-extrabold text-ink">
+                            <span className="rounded-full border border-gold/20 bg-cream px-3 py-1 text-xs font-extrabold text-ink">
                               {property.status}
-                            </span>
-                            <span className="rounded-full border border-gold/15 bg-cream px-3 py-1 text-xs font-extrabold text-slate-600">
-                              {property.owner}
                             </span>
                           </span>
                         </span>
@@ -4593,7 +4584,7 @@ function LuxuryExperiencePanel({
               </div>
 
               <div className="mt-4 border-t border-gold/20 pt-4">
-                <p className="mb-2 text-xs font-extrabold uppercase tracking-[0.1em] text-gold">Quick start</p>
+                <p className="mb-2 text-xs font-extrabold uppercase tracking-[0.1em] text-gold">Templates</p>
                 <div className="grid gap-2 sm:grid-cols-5">
                   {(["Home Watch", "Pre-Guest Arrival", "Post-Checkout", "Cleaner", "Vendor"] as ScheduleTaskType[]).map(
                     (type) => (
@@ -4603,7 +4594,7 @@ function LuxuryExperiencePanel({
                         onClick={() => prepareScheduleTemplate(type)}
                         className={`min-h-10 rounded-lg border px-3 text-left text-xs font-extrabold transition hover:border-gold/50 hover:shadow-lift ${
                           scheduleTaskForm.type === type
-                            ? "border-gold bg-cream text-ink shadow-[inset_3px_0_0_#d4af37]"
+                            ? "border-gold/45 bg-[#252525] text-cream shadow-soft"
                             : "border-gold/20 bg-cream/80 text-ink"
                         }`}
                       >
@@ -4853,9 +4844,9 @@ function LuxuryExperiencePanel({
             <section className="rounded-lg border border-gold/15 bg-[#eae4d8] p-4 shadow-soft">
               <div className="mb-3">
                 <p className="text-xs font-extrabold uppercase tracking-[0.1em] text-gold">
-                  Common issues
+                  Templates
                 </p>
-                <h3 className="mt-1 font-serif text-2xl font-semibold leading-tight text-ink">Quick start</h3>
+                <h3 className="mt-1 font-serif text-2xl font-semibold leading-tight text-ink">Start from type</h3>
               </div>
               <div className="grid gap-2">
                 <button
@@ -4872,7 +4863,7 @@ function LuxuryExperiencePanel({
                   className="flex min-h-10 items-center justify-between gap-3 rounded-lg border border-gold/20 bg-cream/85 px-3 text-left text-sm font-extrabold text-ink transition hover:border-gold/50 hover:shadow-lift"
                 >
                   <span>HVAC</span>
-                  <span className="rounded-full border border-gold/20 bg-warning-soft px-2 py-0.5 text-[0.68rem] text-slate-600">High</span>
+                  <span className="rounded-full border border-gold/20 bg-cream px-2 py-0.5 text-[0.68rem] text-slate-600">High</span>
                 </button>
                 <button
                   type="button"
@@ -4888,7 +4879,7 @@ function LuxuryExperiencePanel({
                   className="flex min-h-10 items-center justify-between gap-3 rounded-lg border border-gold/20 bg-cream/85 px-3 text-left text-sm font-extrabold text-ink transition hover:border-gold/50 hover:shadow-lift"
                 >
                   <span>Pool / Spa</span>
-                  <span className="rounded-full border border-gold/20 bg-warning-soft px-2 py-0.5 text-[0.68rem] text-slate-600">Medium</span>
+                  <span className="rounded-full border border-gold/20 bg-cream px-2 py-0.5 text-[0.68rem] text-slate-600">Medium</span>
                 </button>
                 <button
                   type="button"
@@ -4904,7 +4895,7 @@ function LuxuryExperiencePanel({
                   className="flex min-h-10 items-center justify-between gap-3 rounded-lg border border-gold/20 bg-cream/85 px-3 text-left text-sm font-extrabold text-ink transition hover:border-gold/50 hover:shadow-lift"
                 >
                   <span>Landscape</span>
-                  <span className="rounded-full border border-gold/20 bg-warning-soft px-2 py-0.5 text-[0.68rem] text-slate-600">Medium</span>
+                  <span className="rounded-full border border-gold/20 bg-cream px-2 py-0.5 text-[0.68rem] text-slate-600">Medium</span>
                 </button>
                 <button
                   type="button"
@@ -4938,10 +4929,7 @@ function LuxuryExperiencePanel({
                   <p className="mb-2 text-xs font-extrabold uppercase tracking-[0.1em] text-clay">
                     New issue
                   </p>
-                  <h3 className="font-serif text-3xl font-semibold leading-tight text-ink">Create repair task</h3>
-                  <p className="mt-1 text-sm font-semibold leading-6 text-slate-600">
-                    Capture the condition, assign the right vendor, and prepare the next homeowner-facing step.
-                  </p>
+                  <h3 className="font-serif text-3xl font-semibold leading-tight text-ink">Add issue</h3>
                 </div>
                 <button
                   type="button"
@@ -5032,7 +5020,7 @@ function LuxuryExperiencePanel({
                 </select>
               </label>
               {!selectedVendors.length ? (
-                <div className="rounded-lg border border-gold/15 bg-warning-soft/50 p-3 text-sm font-semibold text-slate-600">
+                <div className="rounded-lg border border-gold/15 bg-[#eae4d8] p-3 text-sm font-semibold text-slate-600">
                   Vendors are saved per property. Add a vendor to {selectedProperty?.name || "this property"} first, then
                   it will appear here.
                   <button
@@ -5054,7 +5042,7 @@ function LuxuryExperiencePanel({
                     onClick={suggestMaintenanceRecommendation}
                     className="button-soft min-h-10 rounded-lg px-4 text-sm font-extrabold"
                   >
-                    Prepare Step
+                    Prepare
                   </button>
                 </div>
                 {maintenanceRecommendation ? (
@@ -5134,7 +5122,7 @@ function LuxuryExperiencePanel({
                 </div>
               ) : null}
               {maintenanceSaveMessage ? (
-                <div className="rounded-lg border border-gold/20 bg-warning-soft/50 p-3 text-sm font-semibold text-slate-600">
+                <div className="rounded-lg border border-gold/20 bg-[#eae4d8] p-3 text-sm font-semibold text-slate-600">
                   {maintenanceSaveMessage}
                 </div>
               ) : null}
@@ -5232,7 +5220,7 @@ function LuxuryExperiencePanel({
                           Visual record
                         </h4>
                       </div>
-                      <span className="rounded-full border border-gold/20 bg-warning-soft px-3 py-1 text-xs font-extrabold text-ink">
+                      <span className="rounded-full border border-gold/20 bg-cream px-3 py-1 text-xs font-extrabold text-ink">
                         {recentReportPhotos.length} shown
                       </span>
                     </div>
@@ -5431,7 +5419,7 @@ function LuxuryExperiencePanel({
               />
             </div>
             {ownerRequestMessage ? (
-              <p className="mt-4 rounded-lg border border-gold/20 bg-warning-soft/60 p-3 text-sm font-semibold leading-5 text-slate-600">
+              <p className="mt-4 rounded-lg border border-gold/20 bg-[#eae4d8] p-3 text-sm font-semibold leading-5 text-slate-700">
                 {ownerRequestMessage}
               </p>
             ) : null}
@@ -5503,7 +5491,7 @@ function LuxuryExperiencePanel({
               ) : null}
 
               {ownerUpdateSaveMessage ? (
-                <div className="rounded-lg border border-gold/20 bg-warning-soft/50 p-3 text-sm font-semibold text-slate-600">
+                <div className="rounded-lg border border-gold/20 bg-[#eae4d8] p-3 text-sm font-semibold text-slate-700">
                   {ownerUpdateSaveMessage}
                 </div>
               ) : null}
@@ -5702,7 +5690,7 @@ function LuxuryExperiencePanel({
                   />
                 </label>
 
-                <label className="grid min-h-24 content-center gap-2 rounded-lg border border-dashed border-gold/40 bg-warning-soft/50 p-4 text-sm font-extrabold text-ink shadow-soft transition hover:border-gold">
+                <label className="grid min-h-24 content-center gap-2 rounded-lg border border-dashed border-gold/40 bg-[#eae4d8] p-4 text-sm font-extrabold text-ink shadow-soft transition hover:border-gold">
                   Attach photos
                   <input
                     type="file"
@@ -5741,7 +5729,7 @@ function LuxuryExperiencePanel({
                 ) : null}
 
                 {ownerRequestMessage ? (
-                  <p className="rounded-lg border border-gold/20 bg-warning-soft/50 p-3 text-sm font-semibold text-slate-600">
+                  <p className="rounded-lg border border-gold/20 bg-[#eae4d8] p-3 text-sm font-semibold text-slate-700">
                     {ownerRequestMessage}
                   </p>
                 ) : null}
@@ -5858,7 +5846,7 @@ function PilotAdminConsole({
                       {organization.contactName} / expires {formatDateTime(organization.expiresAt)}
                     </span>
                   </div>
-                  <span className="rounded-full border border-gold/20 bg-warning-soft px-3 py-1 text-xs font-extrabold text-ink">
+                  <span className="rounded-full border border-gold/20 bg-[#eae4d8] px-3 py-1 text-xs font-extrabold text-ink">
                     {organization.status}
                   </span>
                 </div>
@@ -5889,7 +5877,7 @@ function PilotAdminConsole({
                       <strong className="block text-sm text-ink">{user.name}</strong>
                       <span className="text-xs font-semibold text-slate-500">{user.email}</span>
                     </div>
-                    <span className="rounded-full border border-gold/25 bg-warning-soft px-3 py-1 text-xs font-extrabold text-ink">
+                    <span className="rounded-full border border-gold/20 bg-[#eae4d8] px-3 py-1 text-xs font-extrabold text-ink">
                       {user.role}
                     </span>
                   </div>
@@ -5912,7 +5900,7 @@ function PilotAdminConsole({
               >
                 <span className="flex items-start justify-between gap-3">
                   <strong className="text-ink">{flag.label}</strong>
-                  <span className={`rounded-full px-3 py-1 text-xs font-extrabold ${flag.enabled ? "border border-gold/25 bg-warning-soft text-ink" : "border border-line bg-cream/80 text-muted"}`}>
+                  <span className={`rounded-full px-3 py-1 text-xs font-extrabold ${flag.enabled ? "border border-gold/20 bg-[#eae4d8] text-ink" : "border border-line bg-cream/80 text-muted"}`}>
                     {flag.enabled ? "On" : "Off"}
                   </span>
                 </span>
@@ -5932,7 +5920,7 @@ function PilotAdminConsole({
                       <strong className="text-ink">{item.type}</strong>
                       <span className="ml-2 text-sm font-semibold text-slate-500">{item.role} / {item.screen}</span>
                     </div>
-                    <span className="rounded-full border border-gold/20 bg-warning-soft px-3 py-1 text-xs font-extrabold text-ink">
+                    <span className="rounded-full border border-gold/20 bg-[#eae4d8] px-3 py-1 text-xs font-extrabold text-ink">
                       {item.sentiment}
                     </span>
                   </div>
@@ -5967,31 +5955,31 @@ function FeedbackPanel({
   const [showFeedbackForm, setShowFeedbackForm] = useState(false);
 
   return (
-    <ConceptCard eyebrow="Pilot feedback" title="Help improve EstateIQ">
+    <ConceptCard eyebrow="" title="Feedback">
       <div className="flex flex-wrap gap-2">
         <button
           type="button"
           onClick={() => saveFeedback(undefined, "Thumbs Up", "Positive")}
           className="button-soft min-h-10 rounded-lg px-4 text-sm font-extrabold"
         >
-          Thumbs Up
+          Works Well
         </button>
         <button
           type="button"
           onClick={() => saveFeedback(undefined, "Thumbs Down", "Negative")}
           className="button-soft min-h-10 rounded-lg px-4 text-sm font-extrabold"
         >
-          Thumbs Down
+          Needs Work
         </button>
         <button
           type="button"
           onClick={() => setShowFeedbackForm(true)}
           className="button-soft min-h-10 rounded-lg px-4 text-sm font-extrabold"
         >
-          Share Feedback
+          Add Note
         </button>
       </div>
-      {message ? <p className="mt-3 rounded-lg border border-gold/20 bg-warning-soft/50 p-3 text-sm font-semibold text-slate-600">{message}</p> : null}
+      {message ? <p className="mt-3 rounded-lg border border-gold/20 bg-[#eae4d8] p-3 text-sm font-semibold text-slate-700">{message}</p> : null}
 
       {showFeedbackForm ? (
         <div className="estate-modal-backdrop">
@@ -6005,9 +5993,9 @@ function FeedbackPanel({
             <div className="mb-1 flex items-start justify-between gap-3 border-b border-line pb-4">
               <div>
                 <span className="text-xs font-extrabold uppercase tracking-[0.1em] text-clay">
-                  Pilot feedback
+                  Feedback
                 </span>
-                <h3 className="mt-1 text-2xl font-extrabold text-ink">Share feedback</h3>
+                <h3 className="mt-1 font-serif text-3xl font-semibold leading-tight text-ink">Add a note</h3>
               </div>
               <button
                 type="button"
@@ -6079,9 +6067,9 @@ function FeedbackPanel({
             <button
               type="submit"
               disabled={isSaving}
-              className="button-primary min-h-11 rounded-lg px-4 text-sm font-extrabold disabled:cursor-not-allowed disabled:opacity-60"
+              className="min-h-11 rounded-lg border border-gold/25 bg-[#252525] px-4 text-sm font-extrabold text-cream shadow-soft transition hover:border-gold/60 hover:bg-[#1f1f1f] disabled:cursor-not-allowed disabled:opacity-60"
             >
-              {isSaving ? "Saving..." : "Send Feedback"}
+              {isSaving ? "Saving..." : "Send Note"}
             </button>
           </form>
         </div>
@@ -6129,7 +6117,7 @@ function ConceptCard({
 }) {
   return (
     <article className="estate-panel motion-reveal rounded-lg p-5">
-      <p className="mb-2 text-xs font-extrabold uppercase tracking-[0.12em] text-clay">{eyebrow}</p>
+      {eyebrow ? <p className="mb-2 text-xs font-extrabold uppercase tracking-[0.12em] text-clay">{eyebrow}</p> : null}
       <h3 className="mb-4 font-serif text-3xl font-semibold leading-tight text-ink">{title}</h3>
       {children}
     </article>
@@ -6161,7 +6149,7 @@ function MobileActionButton({
         </strong>
         <span className="mt-1 block text-sm font-semibold text-slate-600">{detail}</span>
       </span>
-      <span className="grid h-9 w-9 place-items-center rounded-full bg-[linear-gradient(135deg,#f2d98a,#d4af37)] text-lg font-extrabold text-ink shadow-button">
+      <span className="grid h-9 w-9 place-items-center rounded-full border border-gold/25 bg-[#252525] text-lg font-extrabold text-cream shadow-soft">
         {">"}
       </span>
     </button>
@@ -6212,10 +6200,10 @@ function MetricCard({
 function OwnerUpdateListItem({ update, onSelect }: { update: OwnerUpdate; onSelect: () => void }) {
   const statusClass =
     update.status === "Shared"
-      ? "border-gold/25 bg-warning-soft text-ink"
+      ? "border-gold/20 bg-[#eae4d8] text-ink"
       : update.status === "Archived"
         ? "border-line bg-[#fbfcfb] text-slate-600"
-        : "border-[#ead2a8] bg-[#fff8ed] text-[#7b5426]";
+        : "border-gold/20 bg-cream text-ink";
 
   return (
     <button
@@ -6248,10 +6236,10 @@ function OwnerPortalDetail({ label, value, urgent = false }: { label: string; va
 function OwnerUpdateCard({ update }: { update: OwnerUpdate }) {
   const statusClass =
     update.status === "Shared"
-      ? "border-gold/25 bg-warning-soft text-ink"
+      ? "border-gold/20 bg-[#eae4d8] text-ink"
       : update.status === "Archived"
         ? "border-line bg-[#fbfcfb] text-slate-600"
-        : "border-[#ead2a8] bg-[#fff8ed] text-[#7b5426]";
+        : "border-gold/20 bg-cream text-ink";
 
   return (
     <article className={`rounded-lg border p-4 ${statusClass}`}>
@@ -6277,7 +6265,7 @@ function OwnerUpdateCard({ update }: { update: OwnerUpdate }) {
 function ScheduleTaskListItem({ task, onSelect }: { task: ScheduleTask; onSelect: () => void }) {
   const statusClass =
     task.status === "Complete"
-      ? "border-gold/25 bg-warning-soft text-ink"
+      ? "border-gold/25 bg-[#eae4d8] text-ink"
       : task.status === "Skipped"
         ? "border-[#e7cbc4] bg-[#fff8f6] text-[#9f352e]"
         : "border-line bg-cream text-ink";
@@ -6314,7 +6302,7 @@ function ScheduleTaskCard({
 }) {
   const statusClass =
     task.status === "Complete"
-      ? "border-gold/25 bg-warning-soft text-ink"
+      ? "border-gold/25 bg-[#eae4d8] text-ink"
       : task.status === "Skipped"
         ? "border-[#e7cbc4] bg-[#fff8f6] text-[#9f352e]"
         : "border-line bg-cream text-ink";
@@ -6366,7 +6354,7 @@ function VendorListItem({ vendor, onSelect }: { vendor: VendorContact; onSelect:
     <button
       type="button"
       onClick={onSelect}
-      className="grid min-h-16 w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-3 border-b border-gold/15 bg-cream px-4 py-3 text-left transition last:border-b-0 hover:bg-warning-soft/45"
+      className="grid min-h-16 w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-3 border-b border-gold/15 bg-cream px-4 py-3 text-left transition last:border-b-0 hover:bg-[#eae4d8]"
     >
       <span className="min-w-0">
         <strong className="block truncate font-serif text-lg font-semibold leading-tight text-ink">{vendor.name}</strong>
@@ -6388,14 +6376,14 @@ function MaintenanceIssueListItem({ issue, onSelect }: { issue: MaintenanceIssue
     <button
       type="button"
       onClick={onSelect}
-      className="grid min-h-16 w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-3 border-b border-gold/15 bg-cream px-4 py-3 text-left transition last:border-b-0 hover:bg-warning-soft/45"
+      className="grid min-h-16 w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-3 border-b border-gold/15 bg-cream px-4 py-3 text-left transition last:border-b-0 hover:bg-[#eae4d8]/55"
     >
       <span className="min-w-0">
         <span className="mb-1 flex flex-wrap items-center gap-2">
           <strong className="truncate font-serif text-lg font-semibold leading-tight text-ink">{issue.title}</strong>
           <span
             className={`rounded-full border px-2 py-0.5 text-[0.68rem] font-extrabold ${
-              urgent ? "border-[#e7cbc4] bg-[#fff8f6] text-[#9f352e]" : "border-gold/20 bg-warning-soft text-ink"
+              urgent ? "border-[#e7cbc4] bg-[#fff8f6] text-[#9f352e]" : "border-gold/20 bg-cream text-ink"
             }`}
           >
             {issue.priority}
@@ -6444,8 +6432,8 @@ function MaintenanceIssueCard({
   const priorityClass =
     issue.priority === "Urgent"
       ? "border-[#d9a5a0] bg-[#fff8f6] text-[#9f352e]"
-      : issue.priority === "High"
-        ? "border-[#ead2a8] bg-[#fff8ed] text-[#7b5426]"
+    : issue.priority === "High"
+        ? "border-[#d9a5a0] bg-[#fff8f6] text-[#9f352e]"
         : "border-line bg-white text-ink";
 
   async function saveIssueEdits(event: FormEvent<HTMLFormElement>) {
@@ -6801,7 +6789,7 @@ function ReportCard({
             className={`mt-3 inline-flex rounded-lg border px-4 py-2 text-sm font-extrabold ${
               status.tone === "urgent"
                 ? "border-[#e7cbc4] bg-[#fff8f6] text-[#9f352e]"
-                : "border-gold/25 bg-warning-soft text-ink"
+                : "border-gold/20 bg-[#eae4d8] text-ink"
             }`}
           >
             {status.label}

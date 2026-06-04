@@ -29,17 +29,17 @@ const appEntryPoints = [
   {
     title: "Command Center",
     description: "Manage properties, reports, vendors, schedules, and owner communication.",
-    href: "/demo"
+    href: "/demo?demo=admin"
   },
   {
     title: "Inspector",
     description: "Run a real property visit, capture issues, upload photos, and generate reports.",
-    href: "/demo"
+    href: "/demo?demo=inspector"
   },
   {
     title: "Owner Portal",
     description: "Preview the homeowner-facing view for reports, updates, and property status.",
-    href: "/demo"
+    href: "/demo?demo=homeowner"
   }
 ];
 
@@ -214,9 +214,6 @@ export default function Home() {
                 </a>
               ))}
             </div>
-            <ButtonLink href="/demo?demo=admin" size="lg" className="mt-4">
-              Open Demo Mode
-            </ButtonLink>
           </div>
         </div>
       </section>

@@ -6,9 +6,9 @@ type BadgeTone = "neutral" | "success" | "warning" | "danger" | "gold";
 const toneClasses: Record<BadgeTone, string> = {
   neutral: "border border-gold/20 bg-cream/80 text-charcoal",
   success: "border border-gold/25 bg-success-soft text-ink",
-  warning: "border border-gold/35 bg-warning-soft text-[#7b5426]",
+  warning: "border border-gold/20 bg-[#eae4d8] text-charcoal",
   danger: "border border-[#e7cbc4] bg-danger-soft text-danger",
-  gold: "border border-gold/40 bg-[linear-gradient(135deg,#f2d98a,#d4af37)] text-ink shadow-button"
+  gold: "border border-gold/35 bg-[#252525] text-cream shadow-soft"
 };
 
 export function Badge({

@@ -5,7 +5,7 @@ type ButtonVariant = "primary" | "soft" | "ghost" | "danger";
 type ButtonSize = "sm" | "md" | "lg" | "icon";
 
 const variantClasses: Record<ButtonVariant, string> = {
-  primary: "button-primary border border-transparent text-ink",
+  primary: "button-primary text-cream",
   soft: "button-soft border border-transparent text-cream",
   ghost: "button-ghost",
   danger: "button-danger"
