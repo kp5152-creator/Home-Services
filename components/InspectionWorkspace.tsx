@@ -2609,17 +2609,18 @@ export default function InspectionWorkspace({
                   </select>
                 </label>
               </div>
-              <div className="grid gap-3 sm:grid-cols-3">
+              <div className="grid gap-3 rounded-lg border border-gold/15 bg-cream/70 p-3 sm:grid-cols-3">
                 <label className="grid gap-2 text-sm font-extrabold">
-                  Contact
+                  Contact name
                   <input
                     value={vendorForm.contactName}
                     onChange={(event) => setVendorForm((current) => ({ ...current, contactName: event.target.value }))}
                     className="field-shell rounded-lg p-3"
+                    placeholder="Primary contact"
                   />
                 </label>
                 <label className="grid gap-2 text-sm font-extrabold">
-                  Phone
+                  Vendor phone
                   <input
                     type="tel"
                     inputMode="tel"
@@ -2629,15 +2630,17 @@ export default function InspectionWorkspace({
                       setVendorForm((current) => ({ ...current, phone: formatPhoneNumber(event.target.value) }))
                     }
                     className="field-shell rounded-lg p-3"
+                    placeholder="(555) 555-5555"
                   />
                 </label>
                 <label className="grid gap-2 text-sm font-extrabold">
-                  Email
+                  Vendor email
                   <input
                     type="email"
                     value={vendorForm.email}
                     onChange={(event) => setVendorForm((current) => ({ ...current, email: event.target.value }))}
                     className="field-shell rounded-lg p-3"
+                    placeholder="vendor@example.com"
                   />
                 </label>
               </div>
@@ -2659,7 +2662,7 @@ export default function InspectionWorkspace({
               <button
                 type="submit"
                 disabled={isSavingVendor}
-                className="button-primary min-h-11 rounded-lg px-4 font-extrabold disabled:cursor-not-allowed disabled:opacity-60"
+                className="min-h-11 rounded-lg border border-gold/25 bg-[#252525] px-4 font-extrabold text-cream shadow-soft transition hover:border-gold/60 hover:bg-[#1f1f1f] disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {isSavingVendor ? "Saving..." : "Save Vendor"}
               </button>
@@ -4378,7 +4381,7 @@ function LuxuryExperiencePanel({
                   return (
                     <article
                       key={property.id}
-                      className={`motion-hover-lift overflow-hidden rounded-lg border bg-cream/90 shadow-soft transition ${
+                      className={`motion-hover-lift flex h-full flex-col overflow-hidden rounded-lg border bg-cream/90 shadow-soft transition ${
                         selectedProperty?.id === property.id
                           ? "border-gold shadow-[inset_4px_0_0_#d4af37]"
                           : "border-gold/20 hover:border-gold/50 hover:shadow-lift"
@@ -4390,18 +4393,18 @@ function LuxuryExperiencePanel({
                           onSelectProperty(property.id);
                           setActiveExperience("Property");
                         }}
-                        className="grid w-full text-left sm:grid-cols-[148px_minmax(0,1fr)]"
+                        className="grid w-full flex-1 text-left sm:min-h-44 sm:grid-cols-[148px_minmax(0,1fr)]"
                       >
-                        <span className="block overflow-hidden border-b border-gold/15 bg-[#252525] sm:border-b-0 sm:border-r">
+                        <span className="block h-40 overflow-hidden border-b border-gold/15 bg-[#252525] sm:h-full sm:border-b-0 sm:border-r">
                         {property.photoUrl ? (
-                          <img src={property.photoUrl} alt={property.name} className="aspect-[16/10] w-full object-cover sm:h-full sm:min-h-36 sm:aspect-auto" />
+                          <img src={property.photoUrl} alt={property.name} className="h-full w-full object-cover" />
                         ) : (
-                          <span className="grid aspect-[16/10] place-items-center text-xs font-extrabold text-[#d8d0c2] sm:h-full sm:min-h-36 sm:aspect-auto">
+                          <span className="grid h-full place-items-center text-xs font-extrabold text-[#d8d0c2]">
                             Home
                           </span>
                         )}
                         </span>
-                        <span className="grid min-w-0 gap-3 p-3">
+                        <span className="grid min-w-0 content-between gap-3 p-3">
                           <span className="flex items-start justify-between gap-3">
                             <span className="min-w-0">
                               <strong className="block truncate font-serif text-xl font-semibold leading-tight text-ink">
@@ -5425,14 +5428,14 @@ function LuxuryExperiencePanel({
                   }}
                   className="button-soft min-h-10 rounded-lg px-4 text-sm font-extrabold"
                 >
-                  Draft Update
+                  Prepare Update
                 </button>
                 <button
                   type="button"
                   onClick={draftLatestInspectionOwnerUpdate}
                   className="button-soft min-h-10 rounded-lg px-4 text-sm font-extrabold"
                 >
-                  Draft Visit Note
+                  Prepare Visit Note
                 </button>
                 <button
                   type="button"
@@ -5498,7 +5501,7 @@ function LuxuryExperiencePanel({
                     <span className="text-xs font-extrabold uppercase tracking-[0.1em] text-clay">
                       Owner update
                     </span>
-                    <h3 className="mt-1 text-2xl font-extrabold text-ink">Draft homeowner note</h3>
+                    <h3 className="mt-1 text-2xl font-extrabold text-ink">Prepare homeowner note</h3>
                   </div>
                   <button
                     type="button"
@@ -6572,7 +6575,7 @@ function MaintenanceIssueCard({
           onClick={() => onDraftOwnerUpdate(issue)}
           className="button-primary min-h-11 rounded-lg px-4 text-sm font-extrabold"
         >
-          Draft Owner Update
+          Prepare Owner Update
         </button>
       </div>
       {isEditing ? (
