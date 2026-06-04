@@ -1,5 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import { isAiProviderEnabled } from "@/services/aiClient";
+import { readDatabase } from "@/services/database";
 import { hasSupabaseConfig, storageBucket, supabaseAdmin } from "@/services/supabaseAdmin";
 
 type HealthResponse = {
@@ -11,6 +12,7 @@ type HealthResponse = {
     configured: boolean;
     storageBucket: string;
     bucketReachable: boolean | null;
+    databaseReachable: boolean | null;
     message: string;
   };
   ai: {
@@ -30,6 +32,7 @@ export default async function handler(request: NextApiRequest, response: NextApi
   const configured = hasSupabaseConfig();
   const bucket = storageBucket();
   let bucketReachable: boolean | null = null;
+  let databaseReachable: boolean | null = null;
   let message = configured ? "Supabase environment variables are present." : "Using local JSON storage.";
 
   if (configured) {
@@ -43,10 +46,19 @@ export default async function handler(request: NextApiRequest, response: NextApi
       bucketReachable = false;
       message = error instanceof Error ? error.message : "Supabase health check failed.";
     }
+
+    try {
+      await readDatabase();
+      databaseReachable = true;
+    } catch (error) {
+      databaseReachable = false;
+      const databaseMessage = error instanceof Error ? error.message : "Supabase database read failed.";
+      message = bucketReachable === false ? `${message} Database: ${databaseMessage}` : databaseMessage;
+    }
   }
 
   response.status(200).json({
-    ok: !configured || bucketReachable === true,
+    ok: !configured || (bucketReachable === true && databaseReachable === true),
     checkedAt: new Date().toISOString(),
     databaseMode: configured ? "supabase" : "local-json",
     passwordProtectionEnabled: Boolean(process.env.APP_PASSWORD),
@@ -54,6 +66,7 @@ export default async function handler(request: NextApiRequest, response: NextApi
       configured,
       storageBucket: bucket,
       bucketReachable,
+      databaseReachable,
       message
     },
     ai: {
