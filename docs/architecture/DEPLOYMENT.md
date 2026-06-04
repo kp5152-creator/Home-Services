@@ -65,6 +65,15 @@ Use the same values for Production, Preview, and Development.
 
 `APP_PASSWORD` turns on password protection for the live app. Choose something private before adding real homeowner data.
 
+Optional future AI variables:
+
+```text
+ESTATEIQ_AI_ENABLED=false
+OPENAI_API_KEY=leave blank until live AI is intentionally enabled
+```
+
+EstateIQ's current Co-Pilot and maintenance recommendation helpers are rules-assisted and do not require these variables. Keep `ESTATEIQ_AI_ENABLED=false` during pilots unless live provider-backed AI has been intentionally connected, tested, and budgeted.
+
 ## 4. Deploy
 
 1. Push the project to GitHub.
@@ -83,6 +92,7 @@ https://your-project-name.vercel.app
 On the live URL:
 
 1. Open `/api/health` and confirm `ok` is `true`.
+   - During pilots, `ai.enabled` should normally be `false`.
 2. Add a property.
 3. Create an inspection.
 4. Upload one or two photos.

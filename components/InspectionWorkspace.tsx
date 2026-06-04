@@ -13,20 +13,18 @@ import {
 import type { InspectionType } from "@/utils/checklists";
 import { trackAnalyticsEvent, useWorkflowAnalytics } from "@/hooks/useAnalytics";
 import {
+  appendMaintenanceOwnerExplanation,
   buildInspectionEvidenceText,
   buildVisitSummaryEvidenceSignature,
   draftOwnerUpdateFromInspectionReport,
   draftVisitSummary,
   draftWalkthroughCaptureNote,
   getInspectionEvidenceReadiness,
-  suggestChecklistItemsFromInspectionEvidence,
-  suggestIssueFromInspectionEvidence
-} from "@/ai/inspectionCoPilot";
-import {
-  appendMaintenanceOwnerExplanation,
   suggestMaintenanceRecommendationFromIssue,
+  suggestChecklistItemsFromInspectionEvidence,
+  suggestIssueFromInspectionEvidence,
   type MaintenanceRecommendation
-} from "@/ai/maintenanceRecommendations";
+} from "@/ai";
 import { demoDatabase } from "@/reports/demoData";
 import type {
   Database,

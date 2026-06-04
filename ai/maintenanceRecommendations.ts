@@ -1,16 +1,5 @@
+import type { MaintenanceRecommendation, MaintenanceRecommendationVendor } from "@/ai/types";
 import type { MaintenancePriority, VendorType } from "@/utils/types";
-
-export type MaintenanceRecommendationVendor = {
-  name: string;
-  type: VendorType;
-};
-
-export type MaintenanceRecommendation = {
-  priority: MaintenancePriority;
-  vendorType: VendorType;
-  nextStep: string;
-  ownerExplanation: string;
-};
 
 type VendorRule = {
   pattern: RegExp;

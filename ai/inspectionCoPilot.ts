@@ -1,55 +1,18 @@
 import { visibleChecklistItems } from "@/utils/checklists";
-import type { InspectionType } from "@/utils/checklists";
-import type { Inspection, MaintenancePriority, UrgentStatus, VendorType } from "@/utils/types";
-
-export type VisitSummaryDraftInput = {
-  propertyName: string;
-  inspectionType: InspectionType;
-  inspectorName: string;
-  completedCount: number;
-  totalCount: number;
-  interiorTemperature: string;
-  photoCount: number;
-  urgent: UrgentStatus;
-  narration: string;
-  notes: string;
-};
-
-export type InspectionEvidenceReadinessInput = {
-  narration: string;
-  notes: string;
-  checklistCount: number;
-  photoCount: number;
-};
-
-export type InspectionEvidenceTextInput = {
-  narration: string;
-  notes: string;
-  separator?: string;
-};
-
-export type VisitSummaryEvidenceSignatureInput = {
-  evidenceText: string;
-  checklist: string[];
-  photoCount: number;
-  urgent: UrgentStatus;
-  interiorTemperature: string;
-  inspectionType: InspectionType;
-};
+import type {
+  InspectionEvidenceReadiness,
+  InspectionEvidenceReadinessInput,
+  InspectionEvidenceTextInput,
+  InspectionIssueSuggestion,
+  OwnerUpdateDraft,
+  VisitSummaryDraftInput,
+  VisitSummaryEvidenceSignatureInput
+} from "@/ai/types";
+import type { Inspection, VendorType } from "@/utils/types";
 
 export function draftWalkthroughCaptureNote(fileName: string): string {
   return `Walkthrough video captured for future AI-assisted review: ${fileName}. Use this recording to support the final notes, photo documentation, issue detection, and owner summary.`;
 }
-
-export type InspectionEvidenceReadiness = {
-  chips: Array<{
-    readyLabel: string;
-    waitingLabel: string;
-    ready: boolean;
-  }>;
-  reviewReady: boolean;
-  issueReady: boolean;
-};
 
 export function getInspectionEvidenceReadiness(
   input: InspectionEvidenceReadinessInput
@@ -139,13 +102,6 @@ export function draftVisitSummary(input: VisitSummaryDraftInput) {
     .filter(Boolean)
     .join(" ");
 }
-
-export type OwnerUpdateDraft = {
-  category: "Inspection";
-  status: "Draft";
-  title: string;
-  message: string;
-};
 
 type ChecklistSuggestionRule = {
   pattern: RegExp;
@@ -273,14 +229,6 @@ export function suggestChecklistItemsFromInspectionEvidence(
 
   return Array.from(new Set(suggestedItems));
 }
-
-export type InspectionIssueSuggestion = {
-  title: string;
-  priority: MaintenancePriority;
-  vendorType: VendorType;
-  description: string;
-  nextStep: string;
-};
 
 type IssueSuggestionRule = {
   pattern: RegExp;

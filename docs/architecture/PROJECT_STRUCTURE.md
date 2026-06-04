@@ -12,6 +12,6 @@ EstateIQ now uses a clearer structure so the same codebase can grow into an admi
 - `properties/`: Property-specific models, forms, and future property workflows.
 - `dashboard/`: Dashboard/operations-specific helpers and future command-center modules.
 - `auth/`: Future authentication, roles, and permissions.
-- `ai/`: Future AI summaries, maintenance recommendations, owner-report drafting, and scoring.
+- `ai/`: Rules-assisted Co-Pilot helpers, maintenance recommendations, shared AI types/prompts, and future provider-backed AI features.
 - `hooks/`: Shared React hooks as the UI is split into smaller modules.
 - `lib/`: Compatibility exports for older imports. New code should prefer `services/`, `utils/`, and feature folders.

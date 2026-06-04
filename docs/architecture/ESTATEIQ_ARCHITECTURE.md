@@ -221,6 +221,10 @@ Current state:
 
 - EstateIQ currently has a Stage 1 Inspection Co-Pilot helper layer and an early rules-assisted maintenance recommendation helper, but no required live AI provider dependency.
 - The `ai/` folder contains rules-assisted drafting, readiness, checklist suggestion, issue suggestion, and maintenance recommendation helpers.
+- `ai/index.ts` is the public import surface for AI helpers.
+- `ai/types.ts` contains shared AI-facing contracts.
+- `ai/prompts.ts` contains provider-neutral EstateIQ voice, privacy, output-quality, and human-review rules.
+- `services/aiClient.ts` is the future server-side AI provider boundary. It is disabled by default and does not make live provider calls yet.
 - `docs/product/AI_OPERATING_MANUAL.md` defines the product rules.
 - AI output must be human-reviewed before becoming homeowner-facing.
 - Current Co-Pilot behavior uses typed inspection facts, notes, narration text, checklist progress, and photo counts. It does not yet perform real photo or video analysis.

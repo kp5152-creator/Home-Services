@@ -253,6 +253,8 @@ EstateIQ has AI-like summary drafting concepts, but it does not yet rely on a li
 
 This is good for demo reliability.
 
+The codebase now has a server-side AI provider boundary, but it stays off unless `ESTATEIQ_AI_ENABLED=true` and a valid `OPENAI_API_KEY` are intentionally configured.
+
 Future AI should help with:
 
 - inspection summaries
@@ -775,4 +777,3 @@ Then: larger property operations platform
 ```
 
 EstateIQ should always feel like a trusted estate manager, not generic software.
-

@@ -1,4 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from "next";
+import { isAiProviderEnabled } from "@/services/aiClient";
 import { hasSupabaseConfig, storageBucket, supabaseAdmin } from "@/services/supabaseAdmin";
 
 type HealthResponse = {
@@ -10,6 +11,11 @@ type HealthResponse = {
     configured: boolean;
     storageBucket: string;
     bucketReachable: boolean | null;
+    message: string;
+  };
+  ai: {
+    configured: boolean;
+    enabled: boolean;
     message: string;
   };
 };
@@ -49,6 +55,13 @@ export default async function handler(request: NextApiRequest, response: NextApi
       storageBucket: bucket,
       bucketReachable,
       message
+    },
+    ai: {
+      configured: Boolean(process.env.OPENAI_API_KEY),
+      enabled: isAiProviderEnabled(),
+      message: isAiProviderEnabled()
+        ? "Live AI provider calls are enabled."
+        : "Live AI provider calls are disabled; rules-assisted helpers are active."
     }
   });
 }
