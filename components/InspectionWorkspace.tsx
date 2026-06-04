@@ -151,7 +151,7 @@ const roleLabels: Record<AppRole, { title: string; description: string; firstScr
   },
   Inspector: {
     title: "Inspector",
-    description: "Focused field workflow for inspections, photos, maintenance issues, and property confirmation.",
+    description: "Focused field visit for inspections, photos, maintenance issues, and property confirmation.",
     firstScreen: "Dashboard"
   },
   Homeowner: {
@@ -446,6 +446,7 @@ export default function InspectionWorkspace({
   const [isSavingOwnerUpdate, setIsSavingOwnerUpdate] = useState(false);
   const [suggestedSummary, setSuggestedSummary] = useState("");
   const [suggestedSummaryMessage, setSuggestedSummaryMessage] = useState("");
+  const [summaryReviewed, setSummaryReviewed] = useState(false);
   const [inspectionSaveMessage, setInspectionSaveMessage] = useState("");
   const [quickCaptureMessage, setQuickCaptureMessage] = useState("");
   const [walkthroughVideoName, setWalkthroughVideoName] = useState("");
@@ -484,6 +485,7 @@ export default function InspectionWorkspace({
   const [darkMode, setDarkMode] = useState(false);
   const [now] = useState(() => new Date());
   const walkthroughTranscriptRef = useRef<HTMLTextAreaElement | null>(null);
+  const summaryReviewEvidenceRef = useRef("");
   const visibleExperienceScreens = roleExperienceScreens(activeRole);
   const desktopNavigationScreens = visibleExperienceScreens.includes("Dashboard")
     ? (["Dashboard", ...visibleExperienceScreens.filter((screen) => screen !== "Dashboard")] as ExperienceScreen[])
@@ -627,6 +629,33 @@ export default function InspectionWorkspace({
     inspectionForm.photoFiles.length || inspectionForm.checklist.length || inspectionForm.notes.trim() || transcriptCaptured
   );
   const issueReady = Boolean(inspectionForm.notes.trim() || transcriptCaptured);
+  const summaryEvidenceSignature = [
+    walkthroughTranscript.trim(),
+    inspectionForm.notes.trim(),
+    inspectionForm.checklist.join("|"),
+    inspectionForm.photoFiles.length,
+    inspectionForm.urgent,
+    inspectionForm.interiorTemperature,
+    inspectionForm.inspectionType
+  ].join("::");
+
+  useEffect(() => {
+    if (!suggestedSummary) {
+      summaryReviewEvidenceRef.current = summaryEvidenceSignature;
+      return;
+    }
+
+    if (!summaryReviewEvidenceRef.current) {
+      summaryReviewEvidenceRef.current = summaryEvidenceSignature;
+      return;
+    }
+
+    if (summaryReviewed && summaryReviewEvidenceRef.current !== summaryEvidenceSignature) {
+      setSummaryReviewed(false);
+    }
+
+    summaryReviewEvidenceRef.current = summaryEvidenceSignature;
+  }, [suggestedSummary, summaryEvidenceSignature, summaryReviewed]);
 
   function draftOwnerUpdateFromReport(inspection: Inspection) {
     const status = reportConditionStatus(inspection);
@@ -640,7 +669,7 @@ export default function InspectionWorkspace({
       category: "Inspection",
       status: "Draft",
       title: `${selectedProperty?.name || "Property"} inspection report ready`,
-      message: `${summary} The homeowner packet is available for review and includes ${visibleChecklistItems(
+      message: `${summary} The homeowner report is available for review and includes ${visibleChecklistItems(
         inspection.checklist
       ).length} completed checklist items and ${inspection.photos.length} photo${
         inspection.photos.length === 1 ? "" : "s"
@@ -845,7 +874,13 @@ export default function InspectionWorkspace({
         workflow: "inspection",
         target: "report_created",
         demoMode: true,
-        metadata: { photoCount: inspection.photos.length, urgent: inspection.urgent === "Yes" }
+        metadata: {
+          photoCount: inspection.photos.length,
+          urgent: inspection.urgent === "Yes",
+          coPilotDrafted: Boolean(suggestedSummary),
+          coPilotReviewed: Boolean(suggestedSummary && summaryReviewed),
+          narrationIncluded: transcriptCaptured
+        }
       });
       return;
     }
@@ -889,7 +924,13 @@ export default function InspectionWorkspace({
         workflow: "inspection",
         target: "report_created",
         demoMode,
-        metadata: { photoCount: inspection.photos.length, urgent: inspection.urgent === "Yes" }
+        metadata: {
+          photoCount: inspection.photos.length,
+          urgent: inspection.urgent === "Yes",
+          coPilotDrafted: Boolean(suggestedSummary),
+          coPilotReviewed: Boolean(suggestedSummary && summaryReviewed),
+          narrationIncluded: transcriptCaptured
+        }
       });
     } catch (error) {
       const timedOut = error instanceof DOMException && error.name === "AbortError";
@@ -1590,11 +1631,12 @@ export default function InspectionWorkspace({
       .join(" ");
 
     setSuggestedSummary(summary);
+    setSummaryReviewed(false);
     setInspectionForm((current) => ({
       ...current,
       executiveSummary: summary
     }));
-    setSuggestedSummaryMessage("Owner summary prepared for the report.");
+    setSuggestedSummaryMessage("Draft prepared. Review before generating the report.");
     trackAnalyticsEvent({
       name: "workflow_step",
       role: activeRole,
@@ -1711,15 +1753,15 @@ export default function InspectionWorkspace({
     if (!file) return;
 
     setWalkthroughVideoName(file.name);
-    setTranscriptReviewMessage("Walkthrough captured.");
+    setTranscriptReviewMessage("Walkthrough captured for review.");
     appendInspectionNote(
       `Walkthrough video captured for future AI-assisted review: ${file.name}. Use this recording to support the final notes, photo documentation, issue detection, and owner summary.`
     );
-    setQuickCaptureMessage("Walkthrough captured.");
+    setQuickCaptureMessage("Walkthrough captured for review.");
   }
 
   function startInspectionDictation() {
-    setTranscriptReviewMessage("Ready for dictation.");
+    setTranscriptReviewMessage("Dictation ready. Use the keyboard microphone or type observations.");
     setQuickCaptureMessage("Dictation ready.");
     window.setTimeout(() => walkthroughTranscriptRef.current?.focus(), 0);
   }
@@ -1926,7 +1968,7 @@ export default function InspectionWorkspace({
     });
     setMaintenanceRecommendation(null);
     setMaintenanceRecommendationMessage("");
-    setMaintenanceSaveMessage("Issue prepared from the inspection notes. Review before saving.");
+    setMaintenanceSaveMessage("Issue suggested from the inspection notes. Review before saving.");
     setSelectedMaintenanceIssueId("");
     setActiveExperience("Maintenance");
     setShowMaintenanceForm(true);
@@ -2827,6 +2869,7 @@ export default function InspectionWorkspace({
                 <div>
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div>
+                      <p className="type-eyebrow">Inspection Co-Pilot</p>
                       <h3 className="mt-1 font-serif text-xl font-semibold leading-tight text-ink sm:text-2xl">
                         Review
                       </h3>
@@ -2851,6 +2894,41 @@ export default function InspectionWorkspace({
                       placeholder="Front entry secure. Thermostat stable. No visible leaks. Side gate latch needs repair."
                       className="field-shell min-h-24 rounded-lg border border-gold/30 bg-white p-3 text-sm font-semibold leading-6 text-ink shadow-[inset_0_1px_0_rgba(255,255,255,0.8)] sm:min-h-28"
                     />
+                    <div className="grid gap-2 rounded-lg border border-gold/15 bg-[#eae4d8] p-3 sm:grid-cols-4">
+                      {[
+                        {
+                          readyLabel: "Notes captured",
+                          waitingLabel: "Notes needed",
+                          ready: Boolean(walkthroughTranscript.trim() || inspectionForm.notes.trim())
+                        },
+                        {
+                          readyLabel: "Checklist started",
+                          waitingLabel: "Checklist needed",
+                          ready: Boolean(inspectionForm.checklist.length)
+                        },
+                        {
+                          readyLabel: "Photos added",
+                          waitingLabel: "Photos optional",
+                          ready: Boolean(inspectionForm.photoFiles.length)
+                        },
+                        {
+                          readyLabel: "Issue cue found",
+                          waitingLabel: "No issue cue",
+                          ready: issueReady
+                        }
+                      ].map((item) => (
+                        <span
+                          key={item.readyLabel}
+                          className={`rounded-lg border px-3 py-2 text-xs font-extrabold ${
+                            item.ready
+                              ? "border-gold/25 bg-cream text-ink"
+                              : "border-line bg-cream/55 text-slate-500"
+                          }`}
+                        >
+                          {item.ready ? item.readyLabel : item.waitingLabel}
+                        </span>
+                      ))}
+                    </div>
                     <div className="grid gap-2 sm:flex sm:flex-wrap sm:items-center sm:gap-3">
                       <button
                         type="button"
@@ -2865,7 +2943,7 @@ export default function InspectionWorkspace({
                         disabled={!reviewReady}
                         className="button-soft min-h-10 rounded-lg px-4 text-sm font-extrabold disabled:cursor-not-allowed disabled:opacity-55"
                       >
-                        Prepare Summary
+                        Draft Visit Summary
                       </button>
                       {transcriptReviewMessage ? (
                         <p className="text-sm font-semibold leading-6 text-slate-600">{transcriptReviewMessage}</p>
@@ -2877,8 +2955,57 @@ export default function InspectionWorkspace({
                   </div>
                   {suggestedSummary ? (
                     <div className="mt-4 rounded-lg border border-gold/20 bg-[#eae4d8] p-4">
-                      <span className="type-eyebrow">Owner Summary</span>
-                      <p className="mt-2 text-sm font-semibold leading-6 text-ink">{suggestedSummary}</p>
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <span className="type-eyebrow">Draft Visit Summary</span>
+                        <span
+                          className={`rounded-full border px-3 py-1 text-xs font-extrabold ${
+                            summaryReviewed
+                              ? "border-gold/25 bg-cream text-ink"
+                              : "border-gold/20 bg-[#252525] text-cream"
+                          }`}
+                        >
+                          {summaryReviewed ? "Reviewed" : "Needs Review"}
+                        </span>
+                      </div>
+                      <textarea
+                        value={inspectionForm.executiveSummary}
+                        onChange={(event) => {
+                          setInspectionForm((current) => ({ ...current, executiveSummary: event.target.value }));
+                          setSuggestedSummary(event.target.value);
+                          setSummaryReviewed(false);
+                        }}
+                        className="field-shell mt-2 min-h-28 w-full rounded-lg border border-gold/20 bg-cream p-3 text-sm font-semibold leading-6 text-ink"
+                        aria-label="Editable draft visit summary"
+                      />
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        <span className="rounded-full border border-gold/20 bg-cream px-3 py-1 text-xs font-extrabold text-ink">
+                          {inspectionForm.checklist.length}/{inspectionTotalChecks} checks
+                        </span>
+                        <span className="rounded-full border border-gold/20 bg-cream px-3 py-1 text-xs font-extrabold text-ink">
+                          {inspectionForm.photoFiles.length} photo{inspectionForm.photoFiles.length === 1 ? "" : "s"}
+                        </span>
+                        <span className="rounded-full border border-gold/20 bg-cream px-3 py-1 text-xs font-extrabold text-ink">
+                          {transcriptCaptured ? "Narration included" : "No narration"}
+                        </span>
+                        <span
+                          className={`rounded-full border px-3 py-1 text-xs font-extrabold ${
+                            inspectionForm.urgent === "Yes"
+                              ? "border-[#e7cbc4] bg-[#fff8f6] text-[#9f352e]"
+                              : "border-gold/20 bg-cream text-ink"
+                          }`}
+                        >
+                          {inspectionForm.urgent === "Yes" ? "Urgent flagged" : "No urgent flag"}
+                        </span>
+                      </div>
+                      <label className="mt-3 flex min-h-10 cursor-pointer items-center gap-3 rounded-lg border border-gold/20 bg-cream px-3 text-sm font-extrabold text-ink">
+                        <input
+                          type="checkbox"
+                          checked={summaryReviewed}
+                          onChange={(event) => setSummaryReviewed(event.target.checked)}
+                          className="accent-gold"
+                        />
+                        Draft reviewed by inspector
+                      </label>
                     </div>
                   ) : null}
                   {suggestedSummaryMessage ? (
@@ -2912,13 +3039,16 @@ export default function InspectionWorkspace({
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-2 lg:grid-cols-1 lg:gap-3">
+                  <p className="col-span-2 text-xs font-extrabold uppercase tracking-[0.1em] text-clay lg:col-span-1">
+                    Co-Pilot Actions
+                  </p>
                   <button
                     type="button"
                     onClick={draftIssueFromInspectionEvidence}
                     disabled={!issueReady}
                     className="min-h-11 rounded-lg border border-gold/25 bg-[#252525] px-3 text-sm font-extrabold text-cream shadow-soft transition hover:border-gold/60 hover:bg-[#1f1f1f] disabled:cursor-not-allowed disabled:opacity-55 sm:min-h-12 sm:px-5"
                   >
-                    Create Issue
+                    Suggest Issue
                   </button>
                   <button
                     type="button"
@@ -2926,8 +3056,19 @@ export default function InspectionWorkspace({
                     disabled={isSavingInspection}
                     className="min-h-11 rounded-lg border border-gold/25 bg-[#252525] px-3 text-sm font-extrabold text-cream shadow-soft transition hover:border-gold/60 hover:bg-[#1f1f1f] disabled:cursor-not-allowed disabled:opacity-60 sm:min-h-12 sm:px-5"
                   >
-                    {isSavingInspection ? "Generating..." : "Generate Report"}
+                    {isSavingInspection ? "Generating..." : "Generate Final Report"}
                   </button>
+                  {suggestedSummary ? (
+                    <p
+                      className={`col-span-2 rounded-lg border px-3 py-2 text-xs font-extrabold lg:col-span-1 ${
+                        summaryReviewed
+                          ? "border-gold/20 bg-cream text-ink"
+                          : "border-gold/20 bg-[#eae4d8] text-slate-700"
+                      }`}
+                    >
+                      {summaryReviewed ? "Draft reviewed" : "Review draft before sending"}
+                    </p>
+                  ) : null}
                 </div>
               </section>
 
@@ -4790,6 +4931,15 @@ function LuxuryExperiencePanel({
                   Add Issue
                 </button>
               </div>
+              {maintenanceSaveMessage.startsWith("Issue suggested") ? (
+                <div className="mb-4 rounded-lg border border-gold/20 bg-cream/85 p-4 shadow-soft">
+                  <p className="type-eyebrow">Co-Pilot Suggestion</p>
+                  <p className="mt-2 text-sm font-semibold leading-6 text-slate-700">
+                    A draft issue was prepared from the inspection notes. Review the title, priority, vendor, next step,
+                    and photos before saving it to the property record.
+                  </p>
+                </div>
+              ) : null}
               {maintenanceIssues.length ? (
                 <div className="mb-4 flex flex-wrap gap-2">
                   <span className="rounded-full border border-gold/25 bg-cream px-3 py-1 text-xs font-extrabold text-ink">
@@ -5585,7 +5735,7 @@ function LuxuryExperiencePanel({
                   disabled={isSavingOwnerUpdate}
                   className="button-soft min-h-12 rounded-lg px-5 font-extrabold disabled:cursor-not-allowed disabled:opacity-60"
                 >
-                  {isSavingOwnerUpdate ? "Saving..." : "Save Update"}
+                  {isSavingOwnerUpdate ? "Saving..." : "Save Note"}
                 </button>
               </form>
             </div>
@@ -5739,7 +5889,7 @@ function LuxuryExperiencePanel({
                   disabled={isSavingOwnerRequest}
                   className="button-soft min-h-12 rounded-lg px-5 font-extrabold disabled:cursor-not-allowed disabled:opacity-60"
                 >
-                  {isSavingOwnerRequest ? "Sending..." : "Send Concierge Request"}
+                  {isSavingOwnerRequest ? "Sending..." : "Send Request"}
                 </button>
               </form>
             </div>
@@ -5828,6 +5978,9 @@ function PilotAdminConsole({
             <MetricCard label="Photos" value={`${pilotUsageSummary?.photosUploaded ?? 0}`} detail="Uploaded in workflows" />
             <MetricCard label="Mobile" value={`${pilotUsageSummary?.mobileEvents ?? 0}`} detail="Mobile events" />
             <MetricCard label="Desktop" value={`${pilotUsageSummary?.desktopEvents ?? 0}`} detail="Desktop events" />
+            <MetricCard label="Co-Pilot drafts" value={`${pilotUsageSummary?.coPilotDrafts ?? 0}`} detail="Reports with draft help" />
+            <MetricCard label="Drafts reviewed" value={`${pilotUsageSummary?.coPilotReviewed ?? 0}`} detail="Human-approved drafts" />
+            <MetricCard label="Narration" value={`${pilotUsageSummary?.narrationReports ?? 0}`} detail="Reports using notes/audio" />
           </div>
           <div className="mt-4 grid gap-3 md:grid-cols-2">
             <RankedList title="Most-used features" items={pilotUsageSummary?.mostUsedFeatures ?? []} empty="No usage yet." />

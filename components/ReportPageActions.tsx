@@ -24,7 +24,7 @@ export default function ReportPageActions({ pdfUrl }: { pdfUrl: string }) {
         variant="soft"
         size="lg"
       >
-        Print / Save PDF
+        Print Report
       </Button>
       <ButtonLink
         href={pdfUrl}

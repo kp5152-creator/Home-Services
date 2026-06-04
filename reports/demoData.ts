@@ -215,7 +215,7 @@ export const demoDatabase: Database = {
       title: "Weekly estate inspection",
       status: "Scheduled",
       assignedTo: "Avery Stone",
-      notes: "Complete full interior/exterior home watch workflow and prepare homeowner packet."
+      notes: "Complete full interior/exterior home watch visit and prepare the homeowner report."
     },
     {
       id: "demo-schedule-vendor",

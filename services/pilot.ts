@@ -126,11 +126,12 @@ export async function resetPilotAccount(organizationId: string) {
 export function buildUsageFromAnalytics(events: AnalyticsEvent[]) {
   const sessions = new Set(events.map((event) => event.sessionId).filter(Boolean));
   const workflowEvents = events.filter((event) => event.name === "workflow_step");
+  const reportCreatedEvents = workflowEvents.filter((event) => event.target === "report_created");
 
   return {
     uniqueSessions: sessions.size,
     loginFrequency: workflowEvents.filter((event) => event.workflow === "onboarding").length,
-    inspectionsCompleted: workflowEvents.filter((event) => event.target === "report_created").length,
+    inspectionsCompleted: reportCreatedEvents.length,
     reportsViewed: events.filter(
       (event) => event.screen === "Report" || event.target === "download_pdf" || event.target === "print_or_save_pdf"
     ).length,
@@ -138,6 +139,9 @@ export function buildUsageFromAnalytics(events: AnalyticsEvent[]) {
       const photoCount = event.metadata?.photoCount;
       return total + (typeof photoCount === "number" ? photoCount : 0);
     }, 0),
+    coPilotDrafts: reportCreatedEvents.filter((event) => event.metadata?.coPilotDrafted === true).length,
+    coPilotReviewed: reportCreatedEvents.filter((event) => event.metadata?.coPilotReviewed === true).length,
+    narrationReports: reportCreatedEvents.filter((event) => event.metadata?.narrationIncluded === true).length,
     onboardingCompletion: workflowEvents.filter((event) => event.target === "onboarding_completed").length,
     mobileEvents: events.filter((event) => event.metadata?.deviceType === "mobile").length,
     desktopEvents: events.filter((event) => event.metadata?.deviceType === "desktop").length,

@@ -190,7 +190,7 @@ export default function Home() {
           <div>
             <p className="type-eyebrow text-gold">Concierge workflow</p>
             <h2 className="mt-3 font-serif text-4xl font-semibold leading-tight text-white sm:text-5xl">
-              From site visit to owner packet without losing the thread.
+              From site visit to owner report without losing the thread.
             </h2>
           </div>
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">

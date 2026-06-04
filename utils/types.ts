@@ -203,6 +203,9 @@ export type PilotUsageSummary = {
   inspectionsCompleted: number;
   reportsViewed: number;
   photosUploaded: number;
+  coPilotDrafts: number;
+  coPilotReviewed: number;
+  narrationReports: number;
   onboardingCompletion: number;
   mobileEvents: number;
   desktopEvents: number;

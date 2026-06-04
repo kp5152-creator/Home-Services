@@ -64,6 +64,34 @@ Example tone:
 
 "Cielo Vista Estate was inspected and remains in stable condition. Exterior access points were secure, interior systems were operating normally, and no urgent homeowner action was identified during this visit."
 
+### Current Stage 1 Implementation
+
+EstateIQ currently uses an Inspection Co-Pilot pattern inside the inspector flow.
+
+The Co-Pilot should:
+
+- help the inspector draft a visit summary from notes, checklist progress, photo count, urgent flag, temperature, and narration text
+- show evidence indicators before the draft is used
+- keep the draft editable
+- show a clear review status before final report generation
+- suggest a maintenance issue from inspection notes when evidence points to a likely concern
+- require the inspector to review suggested issues before saving
+
+The Co-Pilot should not:
+
+- claim it analyzed video or photos unless a real AI service has processed those assets
+- automatically send reports to homeowners
+- lock generated text from human editing
+- create issues without review
+- imply certainty beyond the captured facts
+
+Pilot metrics should track:
+
+- whether a Co-Pilot draft was created
+- whether the draft was reviewed
+- whether narration was included
+- whether issue suggestions are used
+
 ## Phase 2: AI Maintenance Recommendations
 
 Goal: help the operator decide the next best maintenance step.
