@@ -102,3 +102,9 @@ On the live URL:
 8. Add an issue, vendor, schedule item, and owner update.
 
 If photos do not show, check that `SUPABASE_SERVICE_ROLE_KEY` is set correctly in Vercel.
+
+Route safety checks:
+
+- Slow landing, app, or report loads should show branded EstateIQ loading screens.
+- App or report route failures should show branded EstateIQ recovery screens with Try Again, App/Home, and Health actions.
+- Bad links should show the branded EstateIQ not-found page, not a generic framework page.

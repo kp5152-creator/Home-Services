@@ -91,6 +91,9 @@ Use a narrow/mobile browser size or phone:
 - Confirm no client-side application error appears.
 - Confirm demo buttons still work after refresh.
 - Confirm the app does not show stale content after a rebuild/deploy.
+- Confirm app/report loading states use branded EstateIQ screens, not blank pages.
+- Open a bad URL and confirm the branded EstateIQ not-found page appears.
+- If a route fails, confirm the recovery screen includes Try Again and Health actions.
 
 ## 10. Security and Privacy Spot Check
 
@@ -107,4 +110,5 @@ For a pilot demo, all of these should pass:
 - Inspection can be completed on mobile.
 - PDF export works.
 - No app errors after refresh.
+- Loading, recovery, and not-found states feel branded and calm.
 - No real client data appears in demo mode.

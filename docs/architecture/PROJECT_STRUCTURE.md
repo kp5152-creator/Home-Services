@@ -2,7 +2,7 @@
 
 EstateIQ now uses a clearer structure so the same codebase can grow into an admin dashboard, mobile inspector flow, homeowner portal, reports, and AI features.
 
-- `app/`: Next.js App Router pages and global app shell.
+- `app/`: Next.js App Router pages, route loading/error/not-found states, and global app shell.
 - `pages/api/`: API endpoints that receive web requests. Keep these thin and delegate business logic to feature/service folders.
 - `components/`: Shared UI components used across screens.
 - `services/`: Data access and external service clients, including database and Supabase helpers.
