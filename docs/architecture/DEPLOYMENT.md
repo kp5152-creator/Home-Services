@@ -76,6 +76,8 @@ EstateIQ's current Co-Pilot and maintenance recommendation helpers are rules-ass
 
 ## 4. Deploy
 
+Before pushing, run `npm run verify` to perform the production build and TypeScript check in the correct order.
+
 1. Push the project to GitHub.
 2. Import the GitHub repo into Vercel.
 3. Vercel should detect Next.js automatically.
@@ -92,6 +94,7 @@ https://your-project-name.vercel.app
 On the live URL:
 
 1. Open `/api/health` and confirm `ok` is `true`.
+   - Confirm `deployment.environment` is `production` and `deployment.commitSha` matches the latest Vercel deployment.
    - During pilots, `ai.enabled` should normally be `false`.
 2. Add a property.
 3. Create an inspection.
@@ -108,3 +111,4 @@ Route safety checks:
 - Slow landing, app, or report loads should show branded EstateIQ loading screens.
 - App or report route failures should show branded EstateIQ recovery screens with Try Again, App/Home, and Health actions.
 - Bad links should show the branded EstateIQ not-found page, not a generic framework page.
+- `/api/health` and `/sw.js` should not be cached, so live troubleshooting and mobile app updates reflect the latest deployment.

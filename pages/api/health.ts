@@ -8,6 +8,12 @@ type HealthResponse = {
   checkedAt: string;
   databaseMode: "supabase" | "local-json";
   passwordProtectionEnabled: boolean;
+  deployment: {
+    environment: string;
+    commitSha: string | null;
+    branch: string | null;
+    region: string | null;
+  };
   supabase: {
     configured: boolean;
     storageBucket: string;
@@ -57,11 +63,18 @@ export default async function handler(request: NextApiRequest, response: NextApi
     }
   }
 
+  response.setHeader("Cache-Control", "no-store, max-age=0");
   response.status(200).json({
     ok: !configured || (bucketReachable === true && databaseReachable === true),
     checkedAt: new Date().toISOString(),
     databaseMode: configured ? "supabase" : "local-json",
     passwordProtectionEnabled: Boolean(process.env.APP_PASSWORD),
+    deployment: {
+      environment: process.env.VERCEL_ENV || process.env.NODE_ENV || "local",
+      commitSha: process.env.VERCEL_GIT_COMMIT_SHA || null,
+      branch: process.env.VERCEL_GIT_COMMIT_REF || null,
+      region: process.env.VERCEL_REGION || null
+    },
     supabase: {
       configured,
       storageBucket: bucket,

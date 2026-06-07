@@ -12,7 +12,7 @@
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
     "demo:check": "node scripts/check-local-demo.mjs",
-    "verify": "npm run typecheck && npm run build:check"
+    "verify": "npm run build:check && npm run typecheck"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.106.1",
