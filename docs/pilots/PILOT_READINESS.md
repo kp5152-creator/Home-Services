@@ -58,14 +58,16 @@ The first-property flow guides a new admin into creating the first homeowner/pro
 The inspection workflow is mobile-first and includes:
 
 - inspection type templates
-- exterior and interior checklist sections
-- select all / clear section controls
-- progress tiles
-- photo upload fields
-- photo preview thumbnails
+- a simplified Inspector > Visit type > Capture > Checklist > Review & Finish flow
+- mobile checklist sections that open one at a time
+- Mark Section / Reset Section controls
+- Mark All / Reset checklist progress controls
+- Exterior, Interior, and Issues photo categories
+- photo preview thumbnails with category badges
 - inspector name
 - interior temperature
-- notes/issues
+- dictated or typed observations
+- issue suggestions from captured observations
 - urgent issue flag
 - suggested owner-ready summary
 - report generation
@@ -76,6 +78,7 @@ Recent hardening added clearer validation before generating a report:
 - inspector name required
 - realistic interior temperature required
 - at least one checklist item required
+- readiness notes explain missing items before report generation
 - clearer photo-processing errors
 - safer save error handling
 

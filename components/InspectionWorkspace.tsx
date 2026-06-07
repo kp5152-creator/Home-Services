@@ -73,6 +73,7 @@ type MaintenanceIssueForm = {
 };
 
 type InspectionPhotoCategory = "Exterior" | "Interior" | "Issues";
+const inspectionPhotoCategories: InspectionPhotoCategory[] = ["Exterior", "Interior", "Issues"];
 
 type CategorizedPhotoFile = {
   file: File;
@@ -457,6 +458,10 @@ export default function InspectionWorkspace({
   const [quickCaptureMessage, setQuickCaptureMessage] = useState("");
   const [walkthroughVideoName, setWalkthroughVideoName] = useState("");
   const [walkthroughTranscript, setWalkthroughTranscript] = useState("");
+  const [inspectionPhotoCategory, setInspectionPhotoCategory] = useState<InspectionPhotoCategory>("Exterior");
+  const [expandedChecklistSectionTitle, setExpandedChecklistSectionTitle] = useState<string | null | undefined>(
+    undefined
+  );
   const [transcriptReviewMessage, setTranscriptReviewMessage] = useState("");
   const [checklistAssistMessage, setChecklistAssistMessage] = useState("");
   const [isSavingInspection, setIsSavingInspection] = useState(false);
@@ -618,6 +623,17 @@ export default function InspectionWorkspace({
     [inspectionForm.inspectionType]
   );
   const inspectionTotalChecks = activeInspectionTemplate.sections.flatMap((section) => section.items).length;
+  const inspectionCompletionPercent = inspectionTotalChecks
+    ? Math.round((inspectionForm.checklist.length / inspectionTotalChecks) * 100)
+    : 0;
+  const firstIncompleteChecklistSectionTitle =
+    activeInspectionTemplate.sections.find((section) =>
+      section.items.some((item) => !inspectionForm.checklist.includes(item))
+    )?.title ?? activeInspectionTemplate.sections[0]?.title;
+  const activeChecklistSectionTitle =
+    expandedChecklistSectionTitle === undefined
+      ? firstIncompleteChecklistSectionTitle
+      : expandedChecklistSectionTitle;
   const inspectionTemperature = Number(inspectionForm.interiorTemperature);
   const inspectionReadyMessage = !inspectionForm.inspectorName.trim()
     ? "Add inspector name to generate the homeowner report."
@@ -639,6 +655,8 @@ export default function InspectionWorkspace({
   });
   const reviewReady = evidenceReadiness.reviewReady;
   const issueReady = evidenceReadiness.issueReady;
+  const reviewReadyMessage = reviewReady ? "" : "Add notes, photos, or one checklist item to draft a summary.";
+  const issueReadyMessage = issueReady ? "" : "Add a note or dictated observation to suggest an issue.";
   const inspectionEvidenceText = buildInspectionEvidenceText({
     narration: walkthroughTranscript,
     notes: inspectionForm.notes
@@ -651,6 +669,10 @@ export default function InspectionWorkspace({
     interiorTemperature: inspectionForm.interiorTemperature,
     inspectionType: inspectionForm.inspectionType
   });
+
+  useEffect(() => {
+    setExpandedChecklistSectionTitle(undefined);
+  }, [inspectionForm.inspectionType]);
 
   useEffect(() => {
     if (!suggestedSummary) {
@@ -867,7 +889,7 @@ export default function InspectionWorkspace({
       setInspections((current) => [inspection, ...current]);
       setActiveReportId(inspection.id);
       setSelectedReportActionId(inspection.id);
-      setInspectionForm(emptyInspectionForm);
+      resetInspectionDraft();
       setActiveExperience("Reports");
       setInspectionSaveMessage("Demo report created locally and opened.");
       setIsSavingInspection(false);
@@ -918,7 +940,7 @@ export default function InspectionWorkspace({
       setInspections((current) => [inspection, ...current]);
       setActiveReportId(inspection.id);
       setSelectedReportActionId(inspection.id);
-      setInspectionForm(emptyInspectionForm);
+      resetInspectionDraft();
       setActiveExperience("Reports");
       setInspectionSaveMessage("Homeowner report generated and opened.");
       trackAnalyticsEvent({
@@ -1591,6 +1613,20 @@ export default function InspectionWorkspace({
         checklist: selected ? [...withoutSection, ...items] : withoutSection
       };
     });
+  }
+
+  function resetInspectionDraft() {
+    setInspectionForm(emptyInspectionForm);
+    setSuggestedSummary("");
+    setSuggestedSummaryMessage("");
+    setSummaryReviewed(false);
+    setQuickCaptureMessage("");
+    setWalkthroughVideoName("");
+    setWalkthroughTranscript("");
+    setInspectionPhotoCategory("Exterior");
+    setExpandedChecklistSectionTitle(undefined);
+    setTranscriptReviewMessage("");
+    setChecklistAssistMessage("");
   }
 
   function generateSuggestedSummary() {
@@ -2590,6 +2626,23 @@ export default function InspectionWorkspace({
                   ) : null}
                 </div>
 
+                <div className="mb-3 grid grid-cols-3 gap-2 rounded-lg border border-gold/15 bg-cream/70 p-1">
+                  {inspectionPhotoCategories.map((category) => (
+                    <button
+                      key={category}
+                      type="button"
+                      onClick={() => setInspectionPhotoCategory(category)}
+                      className={`min-h-9 rounded-md px-2 text-xs font-extrabold transition sm:text-sm ${
+                        inspectionPhotoCategory === category
+                          ? "bg-[#252525] text-cream shadow-soft"
+                          : "text-ink hover:bg-cream"
+                      }`}
+                    >
+                      {category}
+                    </button>
+                  ))}
+                </div>
+
                 <div className="grid gap-2 sm:grid-cols-2 lg:gap-3">
                   <label className="relative grid min-h-12 cursor-pointer content-center gap-1 overflow-hidden rounded-lg border border-gold/25 bg-cream p-3 text-center text-sm font-extrabold shadow-soft transition hover:border-gold/60 hover:shadow-lift sm:min-h-24 sm:gap-2 sm:p-4 sm:text-left">
                     <span>Start Walkthrough</span>
@@ -2609,16 +2662,16 @@ export default function InspectionWorkspace({
                   </label>
 
                   <label className="relative grid min-h-12 cursor-pointer content-center gap-1 overflow-hidden rounded-lg border border-gold/20 bg-cream/90 p-3 text-center text-sm font-extrabold shadow-soft transition hover:border-gold/50 hover:shadow-lift sm:hidden">
-                    <span>Add Photos</span>
+                    <span>Add {inspectionPhotoCategory}</span>
                     <input
                       type="file"
                       accept="image/*"
                       capture="environment"
                       onChange={(event) => {
-                        const count = addPhotoFiles(event.target.files);
+                        const count = addPhotoFiles(event.target.files, inspectionPhotoCategory);
                         setQuickCaptureMessage(
                           count
-                            ? `${count} photo${count === 1 ? "" : "s"} added.`
+                            ? `${count} ${inspectionPhotoCategory.toLowerCase()} photo${count === 1 ? "" : "s"} added.`
                             : "No photos were selected."
                         );
                         event.target.value = "";
@@ -2628,7 +2681,7 @@ export default function InspectionWorkspace({
                   </label>
 
                   <label className="relative hidden min-h-24 cursor-pointer content-center gap-2 overflow-hidden rounded-lg border border-gold/20 bg-cream/90 p-4 text-left text-sm font-extrabold shadow-soft transition hover:border-gold/50 hover:shadow-lift sm:grid">
-                    <span>Add Photos</span>
+                    <span>Add {inspectionPhotoCategory}</span>
                     <span className="text-xs font-semibold leading-5 text-slate-600">
                       Add field photos.
                     </span>
@@ -2637,10 +2690,10 @@ export default function InspectionWorkspace({
                       accept="image/*"
                       multiple
                       onChange={(event) => {
-                        const count = addPhotoFiles(event.target.files);
+                        const count = addPhotoFiles(event.target.files, inspectionPhotoCategory);
                         setQuickCaptureMessage(
                           count
-                            ? `${count} photo${count === 1 ? "" : "s"} added.`
+                            ? `${count} ${inspectionPhotoCategory.toLowerCase()} photo${count === 1 ? "" : "s"} added.`
                             : "No photos were selected."
                         );
                         event.target.value = "";
@@ -2671,8 +2724,23 @@ export default function InspectionWorkspace({
                         Clear photos
                       </button>
                     </div>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      {inspectionPhotoCategories.map((category) => {
+                        const count = inspectionForm.photoFiles.filter((photoFile) => photoFile.category === category).length;
+
+                        return count ? (
+                          <span
+                            key={category}
+                            className="rounded-full border border-gold/20 bg-cream px-3 py-1 text-xs font-extrabold text-ink"
+                          >
+                            {category}: {count}
+                          </span>
+                        ) : null;
+                      })}
+                    </div>
                     <SelectedPhotoPreviewGrid
                       files={inspectionForm.photoFiles.map((photoFile) => photoFile.file)}
+                      labels={inspectionForm.photoFiles.map((photoFile) => photoFile.category)}
                       onRemove={(removeIndex) =>
                         setInspectionForm((current) => ({
                           ...current,
@@ -2684,13 +2752,12 @@ export default function InspectionWorkspace({
                 ) : null}
               </section>
 
-              <section className="order-10 grid gap-3 rounded-lg border border-gold/20 bg-cream p-3 text-ink shadow-soft sm:p-4 lg:grid-cols-[minmax(0,1fr)_240px] lg:items-start">
+              <section className="order-10 grid gap-3 rounded-lg border border-gold/20 bg-cream p-3 text-ink shadow-soft sm:p-4 lg:grid-cols-[minmax(0,1fr)_220px] lg:items-start">
                 <div>
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div>
-                      <p className="type-eyebrow">Inspection Co-Pilot</p>
                       <h3 className="mt-1 font-serif text-xl font-semibold leading-tight text-ink sm:text-2xl">
-                        Review
+                        Review & Finish
                       </h3>
                     </div>
                   </div>
@@ -2713,7 +2780,7 @@ export default function InspectionWorkspace({
                       placeholder="Front entry secure. Thermostat stable. No visible leaks. Side gate latch needs repair."
                       className="field-shell min-h-24 rounded-lg border border-gold/30 bg-white p-3 text-sm font-semibold leading-6 text-ink shadow-[inset_0_1px_0_rgba(255,255,255,0.8)] sm:min-h-28"
                     />
-                    <div className="grid gap-2 rounded-lg border border-gold/15 bg-[#eae4d8] p-3 sm:grid-cols-4">
+                    <div className="hidden gap-2 rounded-lg border border-gold/15 bg-[#eae4d8] p-3 sm:grid sm:grid-cols-4">
                       {evidenceReadiness.chips.map((item) => (
                         <span
                           key={item.readyLabel}
@@ -2741,8 +2808,13 @@ export default function InspectionWorkspace({
                         disabled={!reviewReady}
                         className="button-soft min-h-10 rounded-lg px-4 text-sm font-extrabold disabled:cursor-not-allowed disabled:opacity-55"
                       >
-                        Draft Visit Summary
+                        Draft Summary
                       </button>
+                      {reviewReadyMessage ? (
+                        <p className="rounded-lg border border-gold/15 bg-[#eae4d8] px-3 py-2 text-xs font-extrabold leading-5 text-slate-700 sm:max-w-xs">
+                          {reviewReadyMessage}
+                        </p>
+                      ) : null}
                       {transcriptReviewMessage ? (
                         <p className="text-sm font-semibold leading-6 text-slate-600">{transcriptReviewMessage}</p>
                       ) : null}
@@ -2754,7 +2826,7 @@ export default function InspectionWorkspace({
                   {suggestedSummary ? (
                     <div className="mt-4 rounded-lg border border-gold/20 bg-[#eae4d8] p-4">
                       <div className="flex flex-wrap items-center justify-between gap-2">
-                        <span className="type-eyebrow">Draft Visit Summary</span>
+                        <span className="type-eyebrow">Visit Summary</span>
                         <span
                           className={`rounded-full border px-3 py-1 text-xs font-extrabold ${
                             summaryReviewed
@@ -2775,7 +2847,7 @@ export default function InspectionWorkspace({
                         className="field-shell mt-2 min-h-28 w-full rounded-lg border border-gold/20 bg-cream p-3 text-sm font-semibold leading-6 text-ink"
                         aria-label="Editable draft visit summary"
                       />
-                      <div className="mt-3 flex flex-wrap gap-2">
+                      <div className="mt-3 hidden flex-wrap gap-2 sm:flex">
                         <span className="rounded-full border border-gold/20 bg-cream px-3 py-1 text-xs font-extrabold text-ink">
                           {inspectionForm.checklist.length}/{inspectionTotalChecks} checks
                         </span>
@@ -2837,9 +2909,6 @@ export default function InspectionWorkspace({
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-2 lg:grid-cols-1 lg:gap-3">
-                  <p className="col-span-2 text-xs font-extrabold uppercase tracking-[0.1em] text-clay lg:col-span-1">
-                    Co-Pilot Actions
-                  </p>
                   <button
                     type="button"
                     onClick={draftIssueFromInspectionEvidence}
@@ -2848,14 +2917,28 @@ export default function InspectionWorkspace({
                   >
                     Suggest Issue
                   </button>
+                  {issueReadyMessage ? (
+                    <p className="col-span-2 rounded-lg border border-gold/15 bg-[#eae4d8] px-3 py-2 text-xs font-extrabold leading-5 text-slate-700 lg:col-span-1">
+                      {issueReadyMessage}
+                    </p>
+                  ) : null}
                   <button
                     type="button"
                     onClick={() => void saveInspection()}
                     disabled={isSavingInspection}
                     className="min-h-11 rounded-lg border border-gold/25 bg-[#252525] px-3 text-sm font-extrabold text-cream shadow-soft transition hover:border-gold/60 hover:bg-[#1f1f1f] disabled:cursor-not-allowed disabled:opacity-60 sm:min-h-12 sm:px-5"
                   >
-                    {isSavingInspection ? "Generating..." : "Generate Final Report"}
+                    {isSavingInspection ? "Generating..." : "Generate Report"}
                   </button>
+                  <p
+                    className={`col-span-2 rounded-lg border px-3 py-2 text-xs font-extrabold leading-5 lg:col-span-1 ${
+                      inspectionReady
+                        ? "border-gold/20 bg-cream text-ink"
+                        : "border-[#e7cbc4] bg-[#fff8f6] text-[#9f352e]"
+                    }`}
+                  >
+                    {inspectionReady ? "Ready to generate" : inspectionReadyMessage}
+                  </p>
                   {suggestedSummary ? (
                     <p
                       className={`col-span-2 rounded-lg border px-3 py-2 text-xs font-extrabold lg:col-span-1 ${
@@ -2974,17 +3057,20 @@ export default function InspectionWorkspace({
                     <h3 className="font-serif text-lg font-semibold leading-tight text-ink sm:text-xl">Checklist</h3>
                   </div>
                 </div>
-                <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-gold/15 bg-cream/90 p-3">
-                  <div className="flex items-center gap-2">
-                    <p className="text-sm font-semibold text-muted">
-                      <span className="font-extrabold text-ink">
-                        {inspectionForm.checklist.length}/{inspectionTotalChecks}
-                      </span>{" "}
-                      complete
-                    </p>
-                    <span className="rounded-full border border-gold/20 bg-[#eae4d8] px-3 py-1 text-xs font-extrabold text-ink">
-                      {Math.round((inspectionForm.checklist.length / inspectionTotalChecks) * 100)}%
-                    </span>
+                <div className="grid gap-3 rounded-lg border border-gold/15 bg-cream/90 p-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
+                  <div className="grid gap-2">
+                    <div className="flex items-center justify-between gap-3">
+                      <p className="text-sm font-extrabold text-ink">
+                        {inspectionForm.checklist.length}/{inspectionTotalChecks} complete
+                      </p>
+                      <span className="text-xs font-extrabold text-muted">{inspectionCompletionPercent}%</span>
+                    </div>
+                    <div className="h-2 overflow-hidden rounded-full bg-[#eae4d8]">
+                      <div
+                        className="h-full rounded-full bg-gold transition-all"
+                        style={{ width: `${inspectionCompletionPercent}%` }}
+                      />
+                    </div>
                   </div>
                   <div className="grid w-full grid-cols-2 gap-2 sm:w-auto sm:flex">
                     <button
@@ -2992,14 +3078,14 @@ export default function InspectionWorkspace({
                       onClick={() => setInspectionForm((current) => ({ ...current, checklist: allInspectionChecklistItems }))}
                       className="button-soft min-h-10 rounded-lg px-4 text-sm font-extrabold"
                     >
-                      All
+                      Mark All
                     </button>
                     <button
                       type="button"
                       onClick={() => setInspectionForm((current) => ({ ...current, checklist: [] }))}
                       className="min-h-10 rounded-lg border border-line bg-cream px-4 text-sm font-extrabold text-ink transition hover:border-gold/50"
                     >
-                      Clear
+                      Reset
                     </button>
                   </div>
                 </div>
@@ -3007,18 +3093,29 @@ export default function InspectionWorkspace({
                   {activeInspectionTemplate.sections.map((section) => {
                     const completedInSection = section.items.filter((item) => inspectionForm.checklist.includes(item)).length;
                     const sectionComplete = completedInSection === section.items.length;
+                    const sectionOpen = section.title === activeChecklistSectionTitle;
 
                     return (
                       <details
                         key={section.title}
+                        open={sectionOpen}
                         className={`rounded-lg border p-3 ${
                           sectionComplete ? "border-gold/35 bg-cream shadow-[inset_4px_0_0_#d4af37]" : "border-line bg-cream/80"
                         }`}
                       >
-                        <summary className="flex cursor-pointer list-none items-center justify-between gap-3">
+                        <summary
+                          onClick={(event) => {
+                            event.preventDefault();
+                            setExpandedChecklistSectionTitle(sectionOpen ? null : section.title);
+                          }}
+                          className="flex cursor-pointer list-none items-center justify-between gap-3"
+                        >
                           <span className="text-sm font-black uppercase tracking-[0.08em] text-gold">{section.title}</span>
-                          <span className="rounded-full border border-line bg-cream px-3 py-1 text-xs font-extrabold text-slate-600">
-                            {completedInSection}/{section.items.length}
+                          <span className="flex shrink-0 items-center gap-2">
+                            <span className="rounded-full border border-line bg-cream px-3 py-1 text-xs font-extrabold text-slate-600">
+                              {completedInSection}/{section.items.length}
+                            </span>
+                            <span className="text-xs font-extrabold text-muted">{sectionOpen ? "Close" : "Open"}</span>
                           </span>
                         </summary>
                         <div className="mt-3 grid gap-2">
@@ -3027,7 +3124,7 @@ export default function InspectionWorkspace({
                             onClick={() => setChecklistSection(section.items, !sectionComplete)}
                             className="min-h-10 rounded-lg border border-line bg-cream px-3 text-sm font-extrabold text-ink transition hover:border-gold/50"
                           >
-                            {sectionComplete ? "Clear" : "Select"}
+                            {sectionComplete ? "Reset Section" : "Mark Section"}
                           </button>
                           {section.items.map((item) => (
                             <label
@@ -3071,7 +3168,7 @@ export default function InspectionWorkspace({
                           onClick={() => setChecklistSection(section.items, !sectionComplete)}
                           className="rounded-full border border-line bg-cream px-3 py-1 text-xs font-extrabold text-ink transition hover:border-gold/50"
                         >
-                          {sectionComplete ? "Clear" : "Select all"}
+                          {sectionComplete ? "Reset Section" : "Mark Section"}
                         </button>
                       </div>
                     </div>
@@ -3713,9 +3810,11 @@ function QuickContactButtons({ property }: { property: Property }) {
 
 function SelectedPhotoPreviewGrid({
   files,
+  labels,
   onRemove
 }: {
   files: File[];
+  labels?: string[];
   onRemove: (index: number) => void;
 }) {
   const [previews, setPreviews] = useState<{ index: number; name: string; url: string }[]>([]);
@@ -3743,7 +3842,14 @@ function SelectedPhotoPreviewGrid({
         <figure key={preview.url} className="overflow-hidden rounded-lg border border-line bg-cream shadow-soft">
           <img src={preview.url} alt={preview.name} className="h-56 w-full bg-[#252525] object-contain sm:h-64" />
           <figcaption className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2 px-3 py-2">
-            <span className="truncate text-xs font-semibold text-slate-600">{preview.name}</span>
+            <span className="grid min-w-0 gap-1">
+              {labels?.[preview.index] ? (
+                <span className="w-fit rounded-full border border-gold/20 bg-[#eae4d8] px-2 py-0.5 text-[11px] font-extrabold uppercase tracking-[0.08em] text-ink">
+                  {labels[preview.index]}
+                </span>
+              ) : null}
+              <span className="truncate text-xs font-semibold text-slate-600">{preview.name}</span>
+            </span>
             <button
               type="button"
               onClick={() => onRemove(preview.index)}

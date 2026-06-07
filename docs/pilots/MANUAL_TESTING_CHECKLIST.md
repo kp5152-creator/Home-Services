@@ -38,18 +38,26 @@ Test each demo role:
 Use a narrow/mobile browser size or phone:
 
 - Open Inspector flow.
-- Confirm progress tiles are visible.
+- Confirm the flow is simple: Inspector, Visit type, Capture, Checklist, Review & Finish.
 - Select an inspection type.
 - Add inspector name.
 - Add interior temperature.
-- Use Select all for exterior checklist.
-- Use Select all for interior checklist.
-- Add at least one photo.
+- Confirm the first unfinished checklist section opens automatically.
+- Tap another checklist section and confirm it opens while the prior section closes.
+- Use Mark Section and Reset Section on at least one checklist group.
+- Use Mark All and Reset in the checklist progress area.
+- Select Exterior, Interior, and Issues in Capture.
+- Add at least one photo under each selected photo category.
+- Confirm photo thumbnails show the correct category badge.
+- Confirm Draft Summary explains what is needed when no evidence has been captured.
+- Confirm Suggest Issue explains that a note or dictated observation is needed.
 - Draft suggested summary.
 - Use summary as executive summary.
-- Confirm Generate Report is disabled until essentials are complete.
+- Confirm the Generate Report readiness note explains any missing requirement.
+- Confirm the readiness note says Ready to generate when essentials are complete.
 - Generate report.
 - Confirm the report appears in history.
+- Return to Inspect and confirm the next inspection starts with a clean capture/review state.
 
 ## 5. Maintenance Issues
 
