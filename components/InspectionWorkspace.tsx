@@ -454,6 +454,7 @@ export default function InspectionWorkspace({
   const [suggestedSummary, setSuggestedSummary] = useState("");
   const [suggestedSummaryMessage, setSuggestedSummaryMessage] = useState("");
   const [summaryReviewed, setSummaryReviewed] = useState(false);
+  const [isDraftingSummary, setIsDraftingSummary] = useState(false);
   const [inspectionSaveMessage, setInspectionSaveMessage] = useState("");
   const [quickCaptureMessage, setQuickCaptureMessage] = useState("");
   const [walkthroughVideoName, setWalkthroughVideoName] = useState("");
@@ -1620,6 +1621,7 @@ export default function InspectionWorkspace({
     setSuggestedSummary("");
     setSuggestedSummaryMessage("");
     setSummaryReviewed(false);
+    setIsDraftingSummary(false);
     setQuickCaptureMessage("");
     setWalkthroughVideoName("");
     setWalkthroughTranscript("");
@@ -1629,7 +1631,7 @@ export default function InspectionWorkspace({
     setChecklistAssistMessage("");
   }
 
-  function generateSuggestedSummary() {
+  async function generateSuggestedSummary() {
     if (!selectedProperty) {
       setSuggestedSummaryMessage("Select a property before preparing the owner summary.");
       return;
@@ -1637,7 +1639,7 @@ export default function InspectionWorkspace({
 
     const completedCount = inspectionForm.checklist.length;
     const totalCount = activeInspectionTemplate.sections.flatMap((section) => section.items).length;
-    const summary = draftVisitSummary({
+    const localSummary = draftVisitSummary({
       propertyName: selectedProperty.name,
       inspectionType: inspectionForm.inspectionType,
       inspectorName: inspectionForm.inspectorName,
@@ -1649,6 +1651,42 @@ export default function InspectionWorkspace({
       narration: walkthroughTranscript,
       notes: inspectionForm.notes
     });
+    let summary = localSummary;
+    let summaryProvider: "rules" | "openai" = "rules";
+
+    if (!demoMode) {
+      setIsDraftingSummary(true);
+
+      try {
+        const response = await fetch("/api/ai/inspection-summary", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            propertyName: selectedProperty.name,
+            inspectionType: inspectionForm.inspectionType,
+            inspectorName: inspectionForm.inspectorName,
+            completedCount,
+            totalCount,
+            interiorTemperature: inspectionForm.interiorTemperature,
+            photoCount: inspectionForm.photoFiles.length,
+            urgent: inspectionForm.urgent,
+            narration: walkthroughTranscript,
+            notes: inspectionForm.notes,
+            checklistItems: inspectionForm.checklist
+          })
+        });
+        const draft = (await response.json().catch(() => null)) as { text?: string; provider?: string } | null;
+
+        if (response.ok && draft?.provider === "openai" && draft.text?.trim()) {
+          summary = draft.text.trim();
+          summaryProvider = "openai";
+        }
+      } catch {
+        summary = localSummary;
+      } finally {
+        setIsDraftingSummary(false);
+      }
+    }
 
     setSuggestedSummary(summary);
     setSummaryReviewed(false);
@@ -1656,7 +1694,11 @@ export default function InspectionWorkspace({
       ...current,
       executiveSummary: summary
     }));
-    setSuggestedSummaryMessage("Draft prepared. Review before generating the report.");
+    setSuggestedSummaryMessage(
+      summaryProvider === "openai"
+        ? "Live AI draft prepared. Review before generating the report."
+        : "Draft prepared. Review before generating the report."
+    );
     trackAnalyticsEvent({
       name: "workflow_step",
       role: activeRole,
@@ -1668,7 +1710,8 @@ export default function InspectionWorkspace({
         checklistItems: completedCount,
         urgent: inspectionForm.urgent === "Yes",
         photoCount: inspectionForm.photoFiles.length,
-        transcriptIncluded: Boolean(walkthroughTranscript.trim())
+        transcriptIncluded: Boolean(walkthroughTranscript.trim()),
+        provider: summaryProvider
       }
     });
   }
@@ -1781,13 +1824,13 @@ export default function InspectionWorkspace({
     );
   }
 
-  function reviewInspectionEvidence() {
+  async function reviewInspectionEvidence() {
     if (inspectionEvidenceText) {
       suggestChecklistFromInspectionEvidence();
     } else {
       setChecklistAssistMessage("");
     }
-    generateSuggestedSummary();
+    await generateSuggestedSummary();
   }
 
   function draftIssueFromInspectionEvidence() {
@@ -2804,11 +2847,11 @@ export default function InspectionWorkspace({
                       </button>
                       <button
                         type="button"
-                        onClick={reviewInspectionEvidence}
-                        disabled={!reviewReady}
+                        onClick={() => void reviewInspectionEvidence()}
+                        disabled={!reviewReady || isDraftingSummary}
                         className="button-soft min-h-10 rounded-lg px-4 text-sm font-extrabold disabled:cursor-not-allowed disabled:opacity-55"
                       >
-                        Draft Summary
+                        {isDraftingSummary ? "Drafting..." : "Draft Summary"}
                       </button>
                       {reviewReadyMessage ? (
                         <p className="rounded-lg border border-gold/15 bg-[#eae4d8] px-3 py-2 text-xs font-extrabold leading-5 text-slate-700 sm:max-w-xs">

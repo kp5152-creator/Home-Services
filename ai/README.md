@@ -31,6 +31,8 @@ It currently handles:
 
 `prompts.ts` contains provider-neutral EstateIQ voice, privacy, and human-review rules for future AI-provider calls.
 
+`services/aiClient.ts` contains the feature-flagged provider client. `/api/ai/inspection-summary` uses it for live summary drafting when enabled, and the inspection UI falls back to the rules-assisted draft when live AI is disabled or unavailable.
+
 `index.ts` is the public entry point for AI helpers and shared AI types. Prefer importing AI helpers through `@/ai` from UI and service code.
 
 Keep these helpers pure when possible. They should accept inspection facts and return draft text, readiness states, or suggestions. UI state, API calls, file uploads, and navigation should stay in the calling screen or service layer.

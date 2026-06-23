@@ -70,9 +70,10 @@ Optional future AI variables:
 ```text
 ESTATEIQ_AI_ENABLED=false
 OPENAI_API_KEY=leave blank until live AI is intentionally enabled
+OPENAI_MODEL=gpt-4.1-mini
 ```
 
-EstateIQ's current Co-Pilot and maintenance recommendation helpers are rules-assisted and do not require these variables. Keep `ESTATEIQ_AI_ENABLED=false` during pilots unless live provider-backed AI has been intentionally connected, tested, and budgeted.
+EstateIQ's Co-Pilot works without live AI by using rules-assisted fallbacks. If `ESTATEIQ_AI_ENABLED=true` and `OPENAI_API_KEY` is present, the inspection summary draft route can request a live AI homeowner summary. Keep `ESTATEIQ_AI_ENABLED=false` during important demos unless live provider-backed AI has been intentionally connected, tested, and budgeted.
 
 ## 4. Deploy
 

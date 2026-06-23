@@ -68,11 +68,14 @@ Example tone:
 
 EstateIQ currently uses an Inspection Co-Pilot pattern inside the inspector flow.
 
-Current implementation lives in `ai/inspectionCoPilot.ts`. It is a rules-assisted drafting layer that uses typed inspection facts, notes, narration text, checklist progress, and photo counts. It does not yet perform real AI photo or video analysis.
+Current implementation starts with `ai/inspectionCoPilot.ts`. It is a rules-assisted drafting layer that uses typed inspection facts, notes, narration text, checklist progress, and photo counts. EstateIQ also has a feature-flagged live summary route at `/api/ai/inspection-summary` that can request a provider-backed homeowner summary when `ESTATEIQ_AI_ENABLED=true` and `OPENAI_API_KEY` is configured. It falls back to the rules-assisted draft when live AI is disabled or unavailable.
+
+It does not yet perform real AI photo or video analysis.
 
 The Co-Pilot should:
 
 - help the inspector draft a visit summary from notes, checklist progress, photo count, urgent flag, temperature, and narration text
+- use live AI for summary drafting only when feature-flagged and reviewed
 - show evidence indicators before the draft is used
 - keep the draft editable
 - show a clear review status before final report generation
